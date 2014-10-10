@@ -13,7 +13,7 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
     Serves up the canvas course site creation wizard on GET and creates the
     course site on POST.
     """
-    template_name = "canvas_course_creation/canvas_wizard.html"
+    template_name = "canvas_course_site_wizard/canvas_wizard.html"
 
     def post(self, request, *args, **kwargs):
         course = create_canvas_course(self.object.pk)
@@ -23,4 +23,4 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, TemplateView):
     """ Displays status of async job for template copy """
-    template_name = "canvas_course_creation/status.html"
+    template_name = "canvas_course_site_wizard/status.html"
