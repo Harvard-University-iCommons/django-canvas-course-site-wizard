@@ -1,6 +1,6 @@
 from mock import Mock, MagicMock, patch
 from unittest import TestCase
-from canvas_course_creation.models import SISCourseDataMixin
+from canvas_course_site_wizard.models import SISCourseDataMixin
 
 
 class SISCourseDataStub(SISCourseDataMixin):
@@ -160,3 +160,9 @@ class SISCourseDataMixinTest(TestCase):
         with patch.object(SISCourseDataStub, 'course_code', course_code):
             result = self.course_data.primary_section_name()
         self.assertEqual(result, '%s %s' % (school_id.upper(), course_code))
+
+    def test_school_code_returns_school_id(self):
+        """ Test that result of the school_code property is associated school id. """
+        school_id = self.course_data.course.school_id
+        result = self.course_data.school_code
+        self.assertEqual(result, school_id)
