@@ -1,6 +1,6 @@
 from unittest import TestCase
 from mock import patch, ANY, DEFAULT, Mock, MagicMock
-from canvas_course_creation.controller import get_course_data,create_canvas_course,create_new_course
+from canvas_course_site_wizard.controller import create_canvas_course
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.test import TestCase
@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
  
-@patch.multiple('canvas_course_creation.controller', 
+@patch.multiple('canvas_course_site_wizard.controller', 
     get_course_data = DEFAULT, create_course_section = DEFAULT, create_new_course = DEFAULT)
 
 
@@ -29,7 +29,7 @@ class CreateCanvasCourseTest(TestCase):
             primary_section_name = "Primary section")
         return course_model_mock
     
-    @patch('canvas_course_creation.controller.create_canvas_course')
+    @patch('canvas_course_site_wizard.controller.create_canvas_course')
     def test_create_canvas_course_method_called_with_rigth_params(self, 
         create_canvas_course, get_course_data, create_course_section, create_new_course ):
         '''
@@ -67,7 +67,7 @@ class CreateCanvasCourseTest(TestCase):
         get_course_data.side_effect = ObjectDoesNotExist
         self.assertRaises(ObjectDoesNotExist, get_course_data,self.sis_course_id)
 
-    @patch('canvas_course_creation.controller.logger.error')
+    @patch('canvas_course_site_wizard.controller.logger.error')
     def test_object_not_found_exception_in_get_course_data_logs_error(self, log_replacement,
             get_course_data, create_course_section, create_new_course):
         '''
@@ -77,7 +77,7 @@ class CreateCanvasCourseTest(TestCase):
         get_course_data.side_effect = ObjectDoesNotExist
         log_replacement.assert_called()
 
-    @patch('canvas_course_creation.controller.SDK_CONTEXT')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
     def test_create_new_course_method_is_called(self, SDK_CONTEXT, get_course_data,
      create_course_section, create_new_course):
         '''
@@ -156,7 +156,7 @@ class CreateCanvasCourseTest(TestCase):
         args, kwargs = create_new_course.call_args
         self.assertEqual(kwargs.get('course_sis_course_id'), self.sis_course_id)
    
-    @patch('canvas_course_creation.controller.SDK_CONTEXT')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
     def test_create_course_section_method_is_called(self, SDK_CONTEXT, get_course_data,
      create_course_section, create_new_course):
         '''

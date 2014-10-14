@@ -63,6 +63,14 @@ class SISCourseDataMixin(object):
             self._sis_term_id = self.term.meta_term_id()
         return self._sis_term_id
 
+    @property
+    def school_code(self):
+        """
+        Returns the school code for this course.
+        :returns: string
+        """
+        return self.course.school_id
+
     def primary_section_name(self):
         """
         Derives the name of the primary (main) section for this course.
