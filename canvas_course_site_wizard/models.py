@@ -1,3 +1,4 @@
+from django.db import models
 from icommons_common.models import CourseInstance
 
 
@@ -85,3 +86,14 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
     """
     class Meta:
         proxy = True
+
+
+class CanvasSchoolTemplate(models.Model):
+    template_id = models.IntegerField(max_length=10)
+    school_id = models.CharField(max_length=10, db_index=True)
+
+    class Meta:
+        db_table = u'canvas_school_template'
+
+    def __unicode__(self):
+        return self.school_id + " | " + self.template_id
