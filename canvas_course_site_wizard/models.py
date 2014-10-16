@@ -88,14 +88,15 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
         proxy = True
 
 class CanvasContentMigrationJob(models.Model):
-    # Workflow status values that will be used in tis model
-    STATUS_PRE_PROCESSING = 'pre_processing'
+    # Workflow status values
+    STATUS_QUEUED = 'queued'
+    STATUS_RUNNING = 'running'
     STATUS_COMPLETED = 'completed'
     STATUS_FAILED = 'failed'
-
     # Workflow status choices
     WORKFLOW_STATUS_CHOICES = (
-        (STATUS_PRE_PROCESSING, STATUS_PRE_PROCESSING),
+        (STATUS_QUEUED, STATUS_QUEUED),
+        (STATUS_RUNNING, STATUS_RUNNING),
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
     )
@@ -105,7 +106,7 @@ class CanvasContentMigrationJob(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     status_url = models.CharField(max_length=200)
-    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_PRE_PROCESSING)
+    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
     created_by_user_id = models.CharField(max_length=20)
     class Meta:
         db_table = u'canvas_content_migration_job'

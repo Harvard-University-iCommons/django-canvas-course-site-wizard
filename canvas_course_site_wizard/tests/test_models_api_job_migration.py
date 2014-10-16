@@ -26,10 +26,21 @@ class ModelsApiTest(TestCase):
         ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
         self.assertTrue(ret, self)
 
-    def test_ObjectDoesNotExist_Exception_when_no_data_for_canvas_course_id(self):
-        """ Test that the method will raise an ObjectDoesNotExist exception if migration data doens't exist for canvas_course_id """
-        with self.assertRaises(ObjectDoesNotExist):
-            get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
+    def test_that_none_retrurned_when_no_data_for_canvas_course_id(self):
+        """ Test that the method will  return None if migration data doens't exist for canvas_course_id """
+        ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
+        self.assertEqual(ret, None)
+
+    def test_multiple_templates_exist_for_canavas_course_is(self):
+        """ Test that the method will  return first matching record if there are multiple records """
+        CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
+             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
+             status_url=self.status_url, created_by_user_id="user1")        
+        CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
+             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
+             status_url=self.status_url, created_by_user_id="user2")
+        ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
+        self.assertTrue(ret.created_by_user_id,"user1")
 
     def test_status_url_returned_for_canvas_course_id(self):
         """ Test that the  method will return the status URL given  a canvas_course_id that has a matching row """
@@ -49,9 +60,20 @@ class ModelsApiTest(TestCase):
         ret = get_content_migration_data_for_sis_course_id(self.sis_course_id)
         self.assertTrue(ret, self)
 
-    def test_ObjectDoesNotExist_exception_thrown_when_no_data_for_sis_course_id(self):
-        """ Test that the method will raise an ObjectDoesNotExist exception if migration data doens't exist for sis_course_id """
-        with self.assertRaises(ObjectDoesNotExist):
-            get_content_migration_data_for_sis_course_id(self.sis_course_id)
+    def test_that_none_retrurned_when_no_data_for_sis_course_id(self):
+        """ Test that the method will  return None if migration data doens't exist for sis_course_id """
+        ret = get_content_migration_data_for_sis_course_id(self.sis_course_id)
+        self.assertEqual(ret, None)
+
+    def test_multiple_templates_exist_for_sis_course_is(self):
+        """ Test that the method will  return first matching record if there are multiple records """
+        CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
+             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
+             status_url=self.status_url, created_by_user_id="user1")        
+        CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
+             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
+             status_url=self.status_url, created_by_user_id="user2")
+        ret = get_content_migration_data_for_sis_course_id(self.sis_course_id)
+        self.assertTrue(ret.created_by_user_id,"user1")
 
     

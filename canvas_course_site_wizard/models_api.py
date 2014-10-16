@@ -1,4 +1,5 @@
 from .models import SISCourseData, CanvasContentMigrationJob
+from django.db.models.query import QuerySet
 
 
 def get_course_data(course_sis_id):
@@ -13,18 +14,24 @@ def get_course_data(course_sis_id):
 def get_content_migration_data_for_canvas_course_id(canvas_course_id):
     """
     Retrieve the content migration job data given the canvas_course_id.
-    An ObjectDoesNotExist exception will be raised if the canvas_course_id does
-    not have a job associated with it.
+    Returns the first mathcing record if it exists or None if it  does not have a job associated.
     """
-    return CanvasContentMigrationJob.objects.get(canvas_course_id=canvas_course_id)
+    result = CanvasContentMigrationJob.objects.filter(canvas_course_id=canvas_course_id)
+    if len(result) > 0: 
+    	return result[0]
+    else:
+		return None
 
 def get_content_migration_data_for_sis_course_id(sis_course_id):
     """
     Retrieve the content migration job data given the sis_course_id.
-    An ObjectDoesNotExist exception will be raised if the sis_course_id does
-    not have a job associated with it.
+    Returns the first mathcing record if it exists or None if it  does not have a job associated.
     """
-    return CanvasContentMigrationJob.objects.get(sis_course_id=sis_course_id)
+    result = CanvasContentMigrationJob.objects.filter(sis_course_id=sis_course_id)
+    if len(result) > 0: 
+    	return result[0]
+    else:
+		return None
 
 
    
