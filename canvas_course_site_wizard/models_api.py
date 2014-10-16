@@ -1,6 +1,4 @@
-from .models import SISCourseData, CanvasContentMigrationJob
-from django.db.models.query import QuerySet
-
+from .models import SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate
 
 def get_course_data(course_sis_id):
     """
@@ -33,5 +31,12 @@ def get_content_migration_data_for_sis_course_id(sis_course_id):
     else:
 		return None
 
+def get_template_for_school(school_code):
+    """
+    Retrieve a single course template id for the given school code.  An
+    ObjectDoesNotExist exception will be raised if the school does not have a template.
+    If there are multiple templates for the school, a MultipleObjectsReturned exception
+    will be thrown.
+    """
+    return CanvasSchoolTemplate.objects.get(school_id=school_code).template_id
 
-   

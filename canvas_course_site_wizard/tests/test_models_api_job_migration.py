@@ -26,12 +26,12 @@ class ModelsApiTest(TestCase):
         ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
         self.assertTrue(ret, self)
 
-    def test_that_none_retrurned_when_no_data_for_canvas_course_id(self):
+    def test_that_none_returned_when_no_data_for_canvas_course_id(self):
         """ Test that the method will  return None if migration data doens't exist for canvas_course_id """
         ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
         self.assertEqual(ret, None)
 
-    def test_multiple_templates_exist_for_canavas_course_is(self):
+    def test_multiple_migration_jobs_exist_for_canavas_course_id(self):
         """ Test that the method will  return first matching record if there are multiple records """
         CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
              sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
@@ -40,7 +40,7 @@ class ModelsApiTest(TestCase):
              sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
              status_url=self.status_url, created_by_user_id="user2")
         ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
-        self.assertTrue(ret.created_by_user_id,"user1")
+        self.assertEqual(ret.created_by_user_id,"user1")
 
     def test_status_url_returned_for_canvas_course_id(self):
         """ Test that the  method will return the status URL given  a canvas_course_id that has a matching row """
@@ -48,7 +48,7 @@ class ModelsApiTest(TestCase):
              sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
              status_url=self.status_url, created_by_user_id=self.created_by_user_id)
         ret = get_content_migration_data_for_canvas_course_id(self.canvas_course_id)
-        self.assertTrue(ret.status_url, self.status_url)
+        self.assertEqual(ret.status_url, self.status_url)
 
     def test_valid_migration_data_record_returned_given_sis_course_id(self):
         """ Test that the  method will return valid  migration data given a 
@@ -65,7 +65,7 @@ class ModelsApiTest(TestCase):
         ret = get_content_migration_data_for_sis_course_id(self.sis_course_id)
         self.assertEqual(ret, None)
 
-    def test_multiple_templates_exist_for_sis_course_is(self):
+    def test_multiple_migration_jobs__for_sis_course_id(self):
         """ Test that the method will  return first matching record if there are multiple records """
         CanvasContentMigrationJob.objects.create(canvas_course_id=self.canvas_course_id,
              sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
@@ -74,6 +74,6 @@ class ModelsApiTest(TestCase):
              sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
              status_url=self.status_url, created_by_user_id="user2")
         ret = get_content_migration_data_for_sis_course_id(self.sis_course_id)
-        self.assertTrue(ret.created_by_user_id,"user1")
+        self.assertEqual(ret.created_by_user_id,"user1")
 
     
