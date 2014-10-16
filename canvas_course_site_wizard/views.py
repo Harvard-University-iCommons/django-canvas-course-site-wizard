@@ -1,5 +1,6 @@
-from .controller import create_canvas_course
+from .controller import create_canvas_course, start_course_template_copy
 from .mixins import CourseSiteCreationAllowedMixin
+from .exceptions import NoTemplateExistsForSchool
 from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from django.shortcuts import redirect
@@ -17,8 +18,13 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
 
     def post(self, request, *args, **kwargs):
         course = create_canvas_course(self.object.pk)
-        # Temporary redirect based on newly created course id, will eventually be async job id
-        return redirect('ccsw-status', course['id'])
+        try:
+            migration_job = start_course_template_copy(self.object, course['id'])
+            # Temporary redirect based on newly created course id, will eventually be async job id
+            return redirect('ccsw-status', migration_job)
+        except NoTemplateExistsForSchool:
+            # TODO: trigger remaining controller logic
+            pass
 
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, TemplateView):
