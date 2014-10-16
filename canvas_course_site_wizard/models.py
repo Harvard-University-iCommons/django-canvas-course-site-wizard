@@ -1,5 +1,6 @@
 from django.db import models
 from icommons_common.models import CourseInstance
+from django.db import models
 
 
 class SISCourseDataMixin(object):
@@ -87,6 +88,33 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
     class Meta:
         proxy = True
 
+class CanvasContentMigrationJob(models.Model):
+    # Workflow status values
+    STATUS_QUEUED = 'queued'
+    STATUS_RUNNING = 'running'
+    STATUS_COMPLETED = 'completed'
+    STATUS_FAILED = 'failed'
+    # Workflow status choices
+    WORKFLOW_STATUS_CHOICES = (
+        (STATUS_QUEUED, STATUS_QUEUED),
+        (STATUS_RUNNING, STATUS_RUNNING),
+        (STATUS_COMPLETED, STATUS_COMPLETED),
+        (STATUS_FAILED, STATUS_FAILED),
+    )
+    canvas_course_id = models.IntegerField(max_length=10,db_index=True)
+    sis_course_id = models.CharField(max_length=20, db_index=True)
+    content_migration_id = models.IntegerField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+    status_url = models.CharField(max_length=200)
+    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
+    created_by_user_id = models.CharField(max_length=20)
+    class Meta:
+        db_table = u'canvas_content_migration_job'
+
+    def __unicode__(self):
+        return self.sis_course_id+ " | " + self.workflow_state
+
 
 class CanvasSchoolTemplate(models.Model):
     template_id = models.IntegerField(max_length=10)
@@ -97,3 +125,4 @@ class CanvasSchoolTemplate(models.Model):
 
     def __unicode__(self):
         return self.school_id + " | " + self.template_id
+
