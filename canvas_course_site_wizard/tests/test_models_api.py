@@ -3,7 +3,6 @@ from django.test import TestCase
 from canvas_course_site_wizard.models_api import get_template_for_school
 from canvas_course_site_wizard.models import CanvasSchoolTemplate
 
-
 class ModelsApiTest(TestCase):
     longMessage = True
 
