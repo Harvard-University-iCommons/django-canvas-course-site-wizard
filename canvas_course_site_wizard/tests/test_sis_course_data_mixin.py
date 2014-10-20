@@ -177,7 +177,7 @@ class SISCourseDataMixinTest(TestCase):
         Assert that the set_sync_to_canvas method updates record with correct value
         '''
         self.sync_to_canvas= '0'
-        self.course_data.save = MagicMock()
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
         result = self.course_data.set_sync_to_canvas(self.sync_flag)
         self.assertEqual(result.sync_to_canvas, self.sync_flag)
 
@@ -192,7 +192,7 @@ class SISCourseDataMixinTest(TestCase):
         '''
         Assert that the set_sync_to_canvas calls save method
         '''
-        self.course_data.save = MagicMock()
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
         result = self.course_data.set_sync_to_canvas(self.sync_flag)
         self.course_data.save.assert_called()
       
@@ -207,9 +207,7 @@ class SISCourseDataMixinTest(TestCase):
         '''
         Assert that the set_sync_to_canvas method returns object of type SISCourseDataMixin
         '''
-        self.course_data.save = MagicMock()
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
         result = self.course_data.set_sync_to_canvas(self.sync_flag)
         self.assertIsInstance(result, SISCourseDataMixin, 'Incorrect object type')
-
-
 
