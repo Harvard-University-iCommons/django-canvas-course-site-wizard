@@ -1,5 +1,6 @@
 """
-Process the Content Migration jobs in the CanvasContentMigrationJob table
+Process the Content Migration jobs in the CanvasContentMigrationJob table.
+    To invoke this Command type "python manage.py process_async_jobs"
 """
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
@@ -15,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 class Command(NoArgsCommand):
     """
-    Process the Content Migration jobs in the CanvasContentMigrationJob table
+    Process the Content Migration jobs in the CanvasContentMigrationJob table.
+        To invoke this Command type "python manage.py process_async_jobs"
     """
     help = "Process the Content Migration jobs in the CanvasContentMigrationJob table"
 
