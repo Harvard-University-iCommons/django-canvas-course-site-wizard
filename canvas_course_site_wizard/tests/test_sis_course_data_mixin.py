@@ -1,4 +1,4 @@
-from mock import Mock, MagicMock, patch
+from mock import Mock, MagicMock, patch, DEFAULT
 from unittest import TestCase
 from canvas_course_site_wizard.models import SISCourseDataMixin
 
@@ -7,6 +7,7 @@ class SISCourseDataStub(SISCourseDataMixin):
     """ An implementation of the course data mixin used for testing """
     course = MagicMock(registrar_code='FAS1234', school_id='fas')
     term = MagicMock()
+    sites = MagicMock()
     sub_title = None
 
 
@@ -14,6 +15,13 @@ class SISCourseDataMixinTest(TestCase):
 
     def setUp(self):
         self.course_data = SISCourseDataStub()
+        self.isites_base_url = 'http://isites_base_url/'
+
+    def get_external_site_mock(self):
+        return Mock(name='external_course_site', site_type_id='external', external_id='http://my.external.site')
+
+    def get_isite_site_mock(self):
+        return Mock(name='isite_course_site', site_type_id='isite', external_id='k12345')
 
     def test_sis_term_id_returns_string(self):
         """ Test that result of sis_term_id property is string result of meta_term_id call """
@@ -166,3 +174,67 @@ class SISCourseDataMixinTest(TestCase):
         school_id = self.course_data.course.school_id
         result = self.course_data.school_code
         self.assertEqual(result, school_id)
+
+    def test_get_official_course_site_url_filters_on_official_site(self):
+        """ Ensure that filter is called """
+        self.course_data.get_official_course_site_url()
+        self.course_data.sites.filter.assert_called_once_with(sitemap__map_type_id='official')
+
+    def test_get_official_course_site_url_returns_none_if_no_official_sites(self):
+        """ If course has no official sites, expect None """
+        self.course_data.sites.filter.return_value = []
+        res = self.course_data.get_official_course_site_url()
+        self.assertIsNone(res)
+
+    def test_get_official_course_site_url_returns_external_site(self):
+        """ If official course site is external, make sure the url returned is based on external url """
+        external_site_mock = self.get_external_site_mock()
+        self.course_data.sites.filter.return_value = [external_site_mock]
+        res = self.course_data.get_official_course_site_url()
+        self.assertEqual(res, external_site_mock.external_id)
+
+    def test_get_official_course_site_url_returns_isite_url(self):
+        """ If official course site is an isite, make sure the url returned is based on isite base and keyword """
+        isite_site_mock = self.get_isite_site_mock()
+        self.course_data.sites.filter.return_value = [isite_site_mock]
+        with patch('canvas_course_site_wizard.models.settings.ISITES_LMS_URL', self.isites_base_url):
+            res = self.course_data.get_official_course_site_url()
+        self.assertEqual(res, self.isites_base_url + isite_site_mock.external_id)
+
+    def test_get_official_course_site_url_returns_first_url_when_isite(self):
+        """ If the first official course site added was an isite, make sure that's the url returned """
+        isite_site_mock = self.get_isite_site_mock()
+        external_site_mock = self.get_external_site_mock()
+        self.course_data.sites.filter.return_value = [isite_site_mock, external_site_mock]
+        with patch('canvas_course_site_wizard.models.settings.ISITES_LMS_URL', self.isites_base_url):
+            res = self.course_data.get_official_course_site_url()
+        self.assertEqual(res, self.isites_base_url + isite_site_mock.external_id)
+
+    def test_get_official_course_site_url_returns_first_url_when_external(self):
+        """ If the first official course site is external, make sure that's the url returned """
+        isite_site_mock = self.get_isite_site_mock()
+        external_site_mock = self.get_external_site_mock()
+        self.course_data.sites.filter.return_value = [external_site_mock, isite_site_mock]
+        res = self.course_data.get_official_course_site_url()
+        self.assertEqual(res, external_site_mock.external_id)
+
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
+    def test_set_official_course_site_url_creates_course_site_row(self, CourseSite, SiteMap):
+        """ Make sure setting official course site creates a CourseSite row """
+        site_url = 'http://my.site.url'
+        self.course_data.set_official_course_site_url(site_url)
+        CourseSite.objects.create.assert_called_once_with(site_type_id='external', external_id=site_url)
+
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
+    def test_set_official_course_site_url_creates_site_map_row(self, CourseSite, SiteMap):
+        """ Make sure setting official course site creates a SiteMap row """
+        site_url = 'http://my.site.url'
+        self.course_data.set_official_course_site_url(site_url)
+        SiteMap.objects.create.assert_called_once_with(course_instance=self.course_data, course_site=CourseSite.objects.create.return_value)
+
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
+    def test_set_official_course_site_url_returns_newly_created_course_site_row(self, CourseSite, SiteMap):
+        """ Make sure setting official course site returns CouresSite row """
+        site_url = 'http://my.site.url'
+        res = self.course_data.set_official_course_site_url(site_url)
+        self.assertEqual(res, CourseSite.objects.create.return_value)
