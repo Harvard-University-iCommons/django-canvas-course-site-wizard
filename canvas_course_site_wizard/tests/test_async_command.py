@@ -47,7 +47,10 @@ class CommandsTestCase(TestCase):
     def test_process_async_jobs_cm_raises_exception_when_workflow_type_is_not_expected(self, query_mock):
         """ 
         ** Integration test **
-        assert that the job_id is properly parsed from the returned job status_url
+        assert that the job_id is properly parsed from the returned job status_url. Note that this 
+        will most likely change as the method of getting the job_id can be streamlined. At the moment
+        we store the progress url in the jobs table, but we only really need to store the job_id. Once that 
+        is in place this test will need to be replaced. 
         """
         canvas_course_id = 12345
         sis_course_id = 6789
