@@ -13,26 +13,6 @@ class CommandsTestCase(TestCase):
     tests for the process_async_jobs management command.
     """
 
-    def test_process_async_jobs_check_workflow_type_returns_true_when_type_is_in_list(self):
-        """
-        Test that check_workflow_type returns True when the workflow type passed in 
-        is one of the expected values
-        """
-        cmd = process_async_jobs.Command()
-        result = cmd.check_workflow_type('queued')
-        self.assertEqual(result, True)
-
-
-    def test_process_async_jobs_check_workflow_type_returns_false_when_type_is_not_in_list(self):
-        """
-        Test that check_workflow_type returns False when the workflow type passed in 
-        is NOT one of the expected values
-        """
-        cmd = process_async_jobs.Command()
-        result = cmd.check_workflow_type('other')
-        self.assertEqual(result, False)
-
-
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
     def test_process_async_jobs_cm_filter_called_with(self, filter_mock):
         """ 

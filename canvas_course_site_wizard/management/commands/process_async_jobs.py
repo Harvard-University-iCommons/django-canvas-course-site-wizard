@@ -21,14 +21,6 @@ class Command(NoArgsCommand):
     """
     help = "Process the Content Migration jobs in the CanvasContentMigrationJob table"
 
-    def check_workflow_type(self, workflow_state):
-        """
-        check that the workflow_state we got back from canvas matches 
-        the expected values: 'queued', 'running', 'failed', 'completed'
-        """
-        workflow_types = ('queued', 'running', 'failed', 'completed')
-        return workflow_state in workflow_types
-
     def handle_noargs(self, **options):
         """
         select all the active job in the CanvasContentMigrationJob table and check
@@ -50,25 +42,28 @@ class Command(NoArgsCommand):
                 response = query_progress(SDK_CONTEXT, job_id)
                 progress_response = response.json()
                 if 'workflow_state' in progress_response:
-                    workflow_state = progress_response['workflow_state']
+                    workflow_state = progress_response.get('workflow_state')
                     if workflow_state == 'queued':
                         """
                         if the workflow_state is 'queued' the job has not been started on Canvas.
                         log that we checked
                         """
-                        logger.info('content migration queued for course with sis_course_id %s' % job.sis_course_id)
+                        message = 'content migration queued for course with sis_course_id %s' % job.sis_course_id
+                        logger.info(message)
                     elif workflow_state == 'running':
                         """
                         if the workflow_state is 'running' the job has started but is not complete yet.
                         Log that we checked
                         """
-                        logger.info('content migration running for course with sis_course_id %s' % job.sis_course_id)
+                        message = 'content migration running for course with sis_course_id %s' % job.sis_course_id
+                        logger.info(message)
                     elif workflow_state == 'failed':
                         """
                         TODO:
                             1) what happens on failure?
                         """
-                        logger.info('content migration failed for course with sis_course_id %s' % job.sis_course_id)
+                        message = 'content migration failed for course with sis_course_id %s' % job.sis_course_id
+                        logger.info(message)
                     elif workflow_state == 'completed':
                         """
                         TODO: 
@@ -76,17 +71,20 @@ class Command(NoArgsCommand):
                             2) set course site as 'official'
                             3) add the instructor to the course
                         """
-                        logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
+                        message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
+                        logger.info(message)
                     else:
                         """
                         we got a workflow_state value back from canvas that does not
                         match one of the exptected values
                         """
-                        logger.info('content migration unrecognized workflow_state (%s) for course: %s' % (workflow_state, job.sis_course_id))
+                        message = 'content migration unrecognized workflow_state (%s) for course: %s' % (workflow_state, job.sis_course_id)
+                        logger.info(message)
                     
                 else:
-                    logger.error('workflow_state missing from response!')
+                    message = 'workflow_state missing from response in job_id %s for course %s' % (job_id, job.sis_course_id)
+                    logger.error(message)
             except Exception:
-                message = 'An exception occured processing job %s for course with sis_course_id %s' % (5, job.sis_course_id)
+                message = 'An exception occured processing job %s for course with sis_course_id %s' % (job_id, job.sis_course_id)
                 logger.exception(message)   
             
