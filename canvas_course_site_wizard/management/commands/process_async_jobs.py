@@ -80,7 +80,6 @@ class Command(NoArgsCommand):
                         """
                         message = 'content migration unrecognized workflow_state (%s) for course: %s' % (workflow_state, job.sis_course_id)
                         logger.info(message)
-                    
                 else:
                     message = 'workflow_state missing from response in job_id %s for course %s' % (job_id, job.sis_course_id)
                     logger.error(message)
