@@ -3,9 +3,7 @@ from django.test import TestCase
 from mock import patch, ANY
 from django.db.models import Q
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
-from django.core.management import call_command
 from canvas_course_site_wizard.management.commands import process_async_jobs
-import json
 
 
 class CommandsTestCase(TestCase):
