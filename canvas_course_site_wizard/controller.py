@@ -1,7 +1,9 @@
 from .models_api import get_course_data, get_template_for_school
+from .models import CanvasContentMigrationJob
 from .exceptions import NoTemplateExistsForSchool
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
+from canvas_sdk.methods import content_migrations
 from django.conf import settings
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
@@ -49,7 +51,7 @@ def create_canvas_course(sis_course_id):
     return new_course
 
 
-def start_course_template_copy(sis_course, canvas_course_id):
+def start_course_template_copy(sis_course, canvas_course_id, user_id):
     """
     This method will retrieve the template site associated with an SISCourseData object and start the
     Canvas process of copying the template content into the canvas course site.  A CanvasContentMigrationJob
@@ -63,9 +65,19 @@ def start_course_template_copy(sis_course, canvas_course_id):
     except ObjectDoesNotExist:
         raise NoTemplateExistsForSchool(sis_course.school_code)
 
-    # TODO: Make SDK call to initiate course copy for template_id
+    # Initiate course copy for template_id
+    content_migration = content_migrations.create_content_migration_courses(
+        SDK_CONTEXT,
+        canvas_course_id,
+        migration_type='course_copy_importer',
+        settings_source_course_id=template_id,
+    ).json()
 
-    # TODO: Upon successful return from prior SDK call, return a newly created job row
-    
-    return template_id
-
+    # Return newly created content_migration_job row that contains progress url
+    return CanvasContentMigrationJob.objects.create(
+        canvas_course_id=canvas_course_id,
+        sis_course_id=sis_course.pk,
+        content_migration_id=content_migration['id'],
+        status_url=content_migration['progress_url'],
+        created_by_user_id=user_id,
+    )
