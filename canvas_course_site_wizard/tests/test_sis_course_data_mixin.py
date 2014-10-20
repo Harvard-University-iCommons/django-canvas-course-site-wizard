@@ -1,4 +1,4 @@
-from mock import Mock, MagicMock, patch
+from mock import Mock, MagicMock, patch, DEFAULT
 from unittest import TestCase
 from canvas_course_site_wizard.models import SISCourseDataMixin
 
@@ -8,12 +8,17 @@ class SISCourseDataStub(SISCourseDataMixin):
     course = MagicMock(registrar_code='FAS1234', school_id='fas')
     term = MagicMock()
     sub_title = None
-
+    save = Mock(return_value=DEFAULT)
 
 class SISCourseDataMixinTest(TestCase):
 
     def setUp(self):
         self.course_data = SISCourseDataStub()
+        self.sync_flag= '1'
+
+    def get_sync_to_canvas_save_mock(self):
+        save_mock = Mock(return_value=DEFAULT)
+        return save_mock
 
     def test_sis_term_id_returns_string(self):
         """ Test that result of sis_term_id property is string result of meta_term_id call """
@@ -166,3 +171,45 @@ class SISCourseDataMixinTest(TestCase):
         school_id = self.course_data.course.school_id
         result = self.course_data.school_code
         self.assertEqual(result, school_id)
+
+    def test_set_sync_to_canvas_updates_record(self, ):
+        '''
+        Assert that the set_sync_to_canvas method updates record with correct value
+        '''
+        self.sync_to_canvas= '0'
+        self.course_data.save = MagicMock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertEqual(result.sync_to_canvas, self.sync_flag)
+
+    def test_set_sync_to_canvas_does_not_return_none(self):
+        '''
+        Assert that the set_sync_to_canvas method doesn't return None
+        '''
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertNotEqual(result,None)
+
+    def test_set_sync_to_canvas_calls_save(self):
+        '''
+        Assert that the set_sync_to_canvas calls save method
+        '''
+        self.course_data.save = MagicMock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.course_data.save.assert_called()
+      
+    def test_set_sync_to_canvas_rasies_exception(self):
+        '''
+        Assert that the set_sync_to_canvas raises an exception if the save method has an exception
+        '''
+        self.course_data.save.side_effect = Exception
+        self.assertRaises( Exception, self.course_data.set_sync_to_canvas, self.sync_flag)
+
+    def test_set_sync_to_canvas_returns_SISCourseDataMixin_object(self):
+        '''
+        Assert that the set_sync_to_canvas method returns object of type SISCourseDataMixin
+        '''
+        self.course_data.save = MagicMock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertIsInstance(result, SISCourseDataMixin, 'Incorrect object type')
+
+
+

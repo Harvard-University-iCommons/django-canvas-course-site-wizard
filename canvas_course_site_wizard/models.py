@@ -72,7 +72,7 @@ class SISCourseDataMixin(object):
         :returns: string
         """
         return self.course.school_id
-
+   
     def primary_section_name(self):
         """
         Derives the name of the primary (main) section for this course.
@@ -80,6 +80,14 @@ class SISCourseDataMixin(object):
         """
         return '%s %s' % (self.course.school_id.upper(), self.course_code)
 
+    def set_sync_to_canvas(self, sync_to_canvas_flag):
+        """
+        Updates the sync_to_canvas column of the course instance record 
+        Returns the updated object.
+        """
+        self.sync_to_canvas = sync_to_canvas_flag
+        self.save(update_fields=['sync_to_canvas'])
+        return self
 
 class SISCourseData(CourseInstance, SISCourseDataMixin):
     """
