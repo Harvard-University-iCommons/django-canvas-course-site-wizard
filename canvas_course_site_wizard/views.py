@@ -24,9 +24,11 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             migration_job = start_course_template_copy(self.object, course['id'], request.user.pk)
             return redirect('ccsw-status', migration_job.pk)
         except NoTemplateExistsForSchool:
-            # TODO: trigger remaining controller logic
-            pass
-
+            # If there is no template to copy, immediately finalize the new course
+            # (i.e. run through remaining post-async job steps)
+            # finalize_new_canvas_course(course, request.user.username)
+            course_url = 'https://canvas.icommons.harvard.edu/courses/%s' % course['id']
+            return redirect(course_url)
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
     """ Displays status of async job for template copy """
