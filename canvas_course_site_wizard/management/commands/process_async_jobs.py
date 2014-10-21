@@ -70,7 +70,7 @@ class Command(NoArgsCommand):
                     TODO:
                         1) update workflow state in table for job_id
                     """
-                    message = 'content migration queued for course with sis_course_id %s' % job.sis_course_id
+                    message = 'content migration state is %s for course with sis_course_id %s' % (workflow_state, job.sis_course_id)
                     logger.info(message)
 
             except KeyError:
