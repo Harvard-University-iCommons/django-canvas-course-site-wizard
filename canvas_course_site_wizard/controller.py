@@ -1,10 +1,12 @@
 from .models_api import get_course_data, get_template_for_school
 from .models import CanvasContentMigrationJob
-from .exceptions import NoTemplateExistsForSchool
+from .exceptions import NoTemplateExistsForSchool, NoCanvasUserToEnroll, TooManyMatchingUsersToEnroll
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
+from canvas_sdk.methods.users import list_users_in_account
 from canvas_sdk.methods import content_migrations
+from json import loads
 from django.conf import settings
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
@@ -88,21 +90,23 @@ def finalize_new_canvas_course(course, sis_user_id):
     """
     Performs all synchronous tasks required to initialize a new canvas course after the course template
     has been applied, or after checking for a template if the course has no template.
-    Parameters:
-        course          JSON dictionary representation of Canvas course (in format returned
-                        by SDK call create_new_course from canvas_sdk.methods.courses)
-        sis_user_id     The SIS user ID (string) of the creator/instructor to enroll in the course
-    Returns:
-        Nothing
+        :param course: newly created Canvas course object to enroll course creator
+        :type course: SDK response of create_new_course from canvas_sdk.methods.courses
+                      (JSON dictionary representation of a Canvas course)
+        :param sis_user_id: The SIS user ID of the creator/instructor to enroll in the course
+        :type sis_user_id: string
     """
 
-
-    #TODO: merge changes from /develop
-
     # Enroll instructor / creator
-    enroll_creator_in_new_course(course, sis_user_id)
+    try:
+        enrollment = enroll_creator_in_new_course(course, sis_user_id)
+    except (NoCanvasUserToEnroll, TooManyMatchingUsersToEnroll) as e:
+        logger.warn('Error when attempting to enroll sis_user_id=%s in new course with Canvas ID=%s: %s'
+                    % (sis_user_id, course['id'], e))
 
-    #TODO: error checking
+    # TODO: Copy SIS enrollments to new Canvas course
+
+    # TODO: Mark course as official
 
     logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % course['id'])
 
@@ -110,30 +114,45 @@ def finalize_new_canvas_course(course, sis_user_id):
 def enroll_creator_in_new_course(course, sis_user_id):
     """
     Silently enroll instructor / creator to the new course so it can be accessed immediately
-    Parameters:
-        course          JSON dictionary representation of Canvas course (in format returned
-                        by SDK call create_new_course from canvas_sdk.methods.courses)
-        sis_user_id     The SIS user ID (string) of the creator/instructor to enroll in the course
-    Returns:
-        JSON dictionary representation of the response of a Canvas enrollment call (via SDK)
+
+        :param course: newly created Canvas course object to enroll course creator
+        :type course: SDK response of create_new_course from canvas_sdk.methods.courses
+                      (JSON dictionary representation of a Canvas course)
+        :param sis_user_id: The SIS user ID of the creator/instructor to enroll in the course
+        :type sis_user_id: string
+        :return: Canvas enrollment information (response of enrollment request)
+        :rtype: requests.Response
+        :raises: NoCanvasUserToEnroll, TooManyMatchingUsersToEnroll
     """
 
     # check if user exists in Canvas before enrolling
+    logger.debug("Checking for sis_user_id=%s in account_id=%s" % (sis_user_id, course['account_id']))
 
-    #TODO: get user call
-    #TODO: custom error for no user in system
+    get_user_response = list_users_in_account(request_ctx=SDK_CONTEXT,
+                                              account_id=str(course['account_id']),
+                                              search_term=str(sis_user_id))
 
-    # default to TeacherEnrollment
-    current_user_enrollment_type = 'TeacherEnrollment'
-    logger.debug("Enrolling user sis_user_id=%s as enrollment type %s" % (sis_user_id, current_user_enrollment_type))
+    logger.debug("--> response: %s" % get_user_response.json())
 
-    # assumes that the course creator should be enrolled in a section with sis_section_id equal to the SIS course ID
-    current_user_enrollment_result = enroll_user_sections(SDK_CONTEXT,
-                                                          'sis_section_id:%s' % course['sis_course_id'],
-                                                          'sis_user_id:%s' % sis_user_id,
-                                                          current_user_enrollment_type,
+    matching_user_list = get_user_response.json()
+    if len(matching_user_list) == 1:
+        canvas_user_sis_user_id = matching_user_list[0]['sis_user_id']
+    elif len(matching_user_list) == 0:
+        # Could not find user matching sis_user_id, log and abort enroll process
+        raise NoCanvasUserToEnroll(sis_user_id, course['account_id'])
+    else:
+        # More than one user matching sis_user_id, log and abort enroll process
+        raise TooManyMatchingUsersToEnroll(sis_user_id, course['account_id'])
+
+    # Assumptions:
+    # 1. the course creator should be enrolled in a section with sis_section_id equal to the SIS course ID
+    # 2. the course creator should be enrolled as a teacher
+    current_user_enrollment_result = enroll_user_sections(request_ctx=SDK_CONTEXT,
+                                                          section_id='sis_section_id:%s' % course['sis_course_id'],
+                                                          enrollment_user_id='sis_user_id:%s' % canvas_user_sis_user_id,
+                                                          enrollment_type='TeacherEnrollment',
                                                           enrollment_enrollment_state='active')
 
-    logger.debug("Enrolled user; response: %s" % current_user_enrollment_result.json())
+    logger.debug("Enroll user response: %s" % current_user_enrollment_result.json())
 
-    return current_user_enrollment_result
+    return current_user_enrollment_result.json()
