@@ -73,11 +73,9 @@ class Command(NoArgsCommand):
                     message = 'content migration state is %s for course with sis_course_id %s' % (workflow_state, job.sis_course_id)
                     logger.info(message)
 
-            except KeyError:
-                message = 'the workflow_state parameter was not present in the canvas response for course with sis_course_id %s' % job.sis_course_id
-                logger.exception(message) 
+            except KeyError as e:
+                logger.exception(e) 
     
-            except Exception:
-                message = 'An exception occured processing course with sis_course_id %s' % (job.sis_course_id)
-                logger.exception(message)   
+            except Exception as e:  
+                logger.exception(e)   
             
