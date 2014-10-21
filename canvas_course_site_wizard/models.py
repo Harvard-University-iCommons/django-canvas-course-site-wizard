@@ -1,5 +1,5 @@
-from django.db import models
-from icommons_common.models import CourseInstance
+from icommons_common.models import CourseInstance, CourseSite, SiteMap
+from django.conf import settings
 from django.db import models
 
 
@@ -73,6 +73,36 @@ class SISCourseDataMixin(object):
         """
         return self.course.school_id
 
+    def get_official_course_site_url(self):
+        """
+        Return the url for the official course website associated with this course.  If more than
+        one course site is marked as official, returns the url for the first one.
+        :return: url or None
+        """
+        if not hasattr(self, '_official_course_site_url'):
+            official_sites = self.sites.filter(sitemap__map_type_id='official')
+            if official_sites:
+                # We're making the decision at this point to get the first official site provided.
+                # If the site_type_id is 'isite' we need to build the url and append the keyword
+                # if not, then we have a whole url for the external site so we can use it directly.
+                site = official_sites[0]
+                if site.site_type_id == 'isite':
+                    self._official_course_site_url = getattr(settings, 'ISITES_LMS_URL', 'http://') + site.external_id
+                else:
+                    self._official_course_site_url = site.external_id
+            else:
+                self._official_course_site_url = None
+        return self._official_course_site_url
+
+    def set_official_course_site_url(self, url):
+        """
+        Creates the records necessary to make the given url the official course site for this course.
+        Returns the newly created CourseSite object.
+        """
+        site = CourseSite.objects.create(site_type_id='external', external_id=url)
+        SiteMap.objects.create(course_instance=self, course_site=site)
+        return site
+
     def primary_section_name(self):
         """
         Derives the name of the primary (main) section for this course.
@@ -80,6 +110,16 @@ class SISCourseDataMixin(object):
         """
         return '%s %s' % (self.course.school_id.upper(), self.course_code)
 
+    def set_sync_to_canvas(self, sync_to_canvas_flag):
+        """
+        Updates the sync_to_canvas column of the course instance record. Currently the
+        values being used are 0(no sync) and 1 (sync). But  there is some discussion to use more 
+        values to to do partial sync(teaching staff only, students only , etc) in the future.
+        Returns the updated object  - of type SISCourseDataMixin.
+        """
+        self.sync_to_canvas = sync_to_canvas_flag
+        self.save(update_fields=['sync_to_canvas'])
+        return self
 
 class SISCourseData(CourseInstance, SISCourseDataMixin):
     """
@@ -87,6 +127,7 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
     """
     class Meta:
         proxy = True
+
 
 class CanvasContentMigrationJob(models.Model):
     # Workflow status values
@@ -101,7 +142,7 @@ class CanvasContentMigrationJob(models.Model):
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
     )
-    canvas_course_id = models.IntegerField(max_length=10,db_index=True)
+    canvas_course_id = models.IntegerField(max_length=10, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
     content_migration_id = models.IntegerField(max_length=10)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -109,11 +150,12 @@ class CanvasContentMigrationJob(models.Model):
     status_url = models.CharField(max_length=200)
     workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
     created_by_user_id = models.CharField(max_length=20)
+    
     class Meta:
         db_table = u'canvas_content_migration_job'
 
     def __unicode__(self):
-        return self.sis_course_id+ " | " + self.workflow_state
+        return self.sis_course_id + " | " + self.workflow_state
 
 
 class CanvasSchoolTemplate(models.Model):
@@ -124,5 +166,5 @@ class CanvasSchoolTemplate(models.Model):
         db_table = u'canvas_school_template'
 
     def __unicode__(self):
-        return self.school_id + " | " + self.template_id
+        return self.school_id + " | " + str(self.template_id)
 

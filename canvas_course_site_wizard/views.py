@@ -1,10 +1,12 @@
 from .controller import create_canvas_course, start_course_template_copy, finalize_new_canvas_course
 from .mixins import CourseSiteCreationAllowedMixin
 from .exceptions import NoTemplateExistsForSchool
-from django.conf import settings
+from .models import CanvasContentMigrationJob
 from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
+from django.views.generic.detail import DetailView
 from django.shortcuts import redirect
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,9 +22,8 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
     def post(self, request, *args, **kwargs):
         course = create_canvas_course(self.object.pk)
         try:
-            migration_job = start_course_template_copy(self.object, course['id'])
-            # Temporary redirect based on newly created course id, will eventually be async job id
-            return redirect('ccsw-status', migration_job)
+            migration_job = start_course_template_copy(self.object, course['id'], request.user.pk)
+            return redirect('ccsw-status', migration_job.pk)
         except NoTemplateExistsForSchool:
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
@@ -31,6 +32,8 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             return redirect(course_url)
 
 
-class CanvasCourseSiteStatusView(LoginRequiredMixin, TemplateView):
+class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
     """ Displays status of async job for template copy """
     template_name = "canvas_course_site_wizard/status.html"
+    model = CanvasContentMigrationJob
+    context_object_name = 'content_migration_job'
