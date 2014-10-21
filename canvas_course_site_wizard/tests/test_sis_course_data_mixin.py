@@ -9,6 +9,7 @@ class SISCourseDataStub(SISCourseDataMixin):
     term = MagicMock()
     sites = MagicMock()
     sub_title = None
+    save = Mock(return_value=DEFAULT)
 
 
 class SISCourseDataMixinTest(TestCase):
@@ -16,6 +17,11 @@ class SISCourseDataMixinTest(TestCase):
     def setUp(self):
         self.course_data = SISCourseDataStub()
         self.isites_base_url = 'http://isites_base_url/'
+        self.sync_flag = '1'
+
+    def get_sync_to_canvas_save_mock(self):
+        save_mock = Mock(return_value=DEFAULT)
+        return save_mock
 
     def get_external_site_mock(self):
         return Mock(name='external_course_site', site_type_id='external', external_id='http://my.external.site')
@@ -174,6 +180,46 @@ class SISCourseDataMixinTest(TestCase):
         school_id = self.course_data.course.school_id
         result = self.course_data.school_code
         self.assertEqual(result, school_id)
+
+    def test_set_sync_to_canvas_updates_record(self, ):
+        '''
+        Assert that the set_sync_to_canvas method updates record with correct value
+        '''
+        self.sync_to_canvas= '0'
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertEqual(result.sync_to_canvas, self.sync_flag)
+
+    def test_set_sync_to_canvas_does_not_return_none(self):
+        '''
+        Assert that the set_sync_to_canvas method doesn't return None
+        '''
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertNotEqual(result,None)
+
+    def test_set_sync_to_canvas_calls_save(self):
+        '''
+        Assert that the set_sync_to_canvas calls save method
+        '''
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.course_data.save.assert_called()
+      
+    def test_set_sync_to_canvas_calls_save_with_correct_params(self):
+        '''
+        Assert that the set_sync_to_canvas calls save method with correct params
+        '''
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.course_data.save.assert_called_with(update_fields=['sync_to_canvas'])
+      
+    def test_set_sync_to_canvas_returns_SISCourseDataMixin_object(self):
+        '''
+        Assert that the set_sync_to_canvas method returns object of type SISCourseDataMixin
+        '''
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.assertIsInstance(result, SISCourseDataMixin, 'Incorrect object type')
 
     def test_get_official_course_site_url_filters_on_official_site(self):
         """ Ensure that filter is called """
