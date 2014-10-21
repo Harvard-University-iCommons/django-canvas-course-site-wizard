@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 version_file = open(os.path.join(os.path.dirname(__file__), 'VERSION'))
 version = version_file.read().strip()
@@ -11,7 +11,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 setup(
     name='django-canvas-course-site-wizard',
     version=version,
-    packages=['canvas_course_site_wizard'],
+    packages=find_packages(),
     include_package_data=True,
     license='TBD License',  # example license
     description='A Django app for managing the process of creating course sites for Canvas LMS.',
