@@ -2,6 +2,7 @@ from .models_api import get_course_data, get_template_for_school
 from .exceptions import NoTemplateExistsForSchool
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
+from canvas_sdk.methods.enrollments import enroll_user_courses, enroll_user_sections
 from django.conf import settings
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
@@ -69,3 +70,57 @@ def start_course_template_copy(sis_course, canvas_course_id):
     
     return template_id
 
+
+def finalize_new_canvas_course(course, sis_user_id):
+    """
+    Performs all synchronous tasks required to initialize a new canvas course after the course template
+    has been applied, or after checking for a template if the course has no template.
+    Parameters:
+        course          JSON dictionary representation of Canvas course (in format returned
+                        by SDK call create_new_course from canvas_sdk.methods.courses)
+        sis_user_id     The SIS user ID (string) of the creator/instructor to enroll in the course
+    Returns:
+        Nothing
+    """
+
+
+    #TODO: merge changes from /develop
+
+    # Enroll instructor / creator
+    enroll_creator_in_new_course(course, sis_user_id)
+
+    #TODO: error checking
+
+    logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % course['id'])
+
+
+def enroll_creator_in_new_course(course, sis_user_id):
+    """
+    Silently enroll instructor / creator to the new course so it can be accessed immediately
+    Parameters:
+        course          JSON dictionary representation of Canvas course (in format returned
+                        by SDK call create_new_course from canvas_sdk.methods.courses)
+        sis_user_id     The SIS user ID (string) of the creator/instructor to enroll in the course
+    Returns:
+        JSON dictionary representation of the response of a Canvas enrollment call (via SDK)
+    """
+
+    # check if user exists in Canvas before enrolling
+
+    #TODO: get user call
+    #TODO: custom error for no user in system
+
+    # default to TeacherEnrollment
+    current_user_enrollment_type = 'TeacherEnrollment'
+    logger.debug("Enrolling user sis_user_id=%s as enrollment type %s" % (sis_user_id, current_user_enrollment_type))
+
+    # assumes that the course creator should be enrolled in a section with sis_section_id equal to the SIS course ID
+    current_user_enrollment_result = enroll_user_sections(SDK_CONTEXT,
+                                                          'sis_section_id:%s' % course['sis_course_id'],
+                                                          'sis_user_id:%s' % sis_user_id,
+                                                          current_user_enrollment_type,
+                                                          enrollment_enrollment_state='active')
+
+    logger.debug("Enrolled user; response: %s" % current_user_enrollment_result.json())
+
+    return current_user_enrollment_result
