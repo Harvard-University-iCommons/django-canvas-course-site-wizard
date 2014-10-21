@@ -1,5 +1,5 @@
-from django.db import models
-from icommons_common.models import CourseInstance
+from icommons_common.models import CourseInstance, CourseSite, SiteMap
+from django.conf import settings
 from django.db import models
 
 
@@ -72,7 +72,37 @@ class SISCourseDataMixin(object):
         :returns: string
         """
         return self.course.school_id
-   
+
+    def get_official_course_site_url(self):
+        """
+        Return the url for the official course website associated with this course.  If more than
+        one course site is marked as official, returns the url for the first one.
+        :return: url or None
+        """
+        if not hasattr(self, '_official_course_site_url'):
+            official_sites = self.sites.filter(sitemap__map_type_id='official')
+            if official_sites:
+                # We're making the decision at this point to get the first official site provided.
+                # If the site_type_id is 'isite' we need to build the url and append the keyword
+                # if not, then we have a whole url for the external site so we can use it directly.
+                site = official_sites[0]
+                if site.site_type_id == 'isite':
+                    self._official_course_site_url = getattr(settings, 'ISITES_LMS_URL', 'http://') + site.external_id
+                else:
+                    self._official_course_site_url = site.external_id
+            else:
+                self._official_course_site_url = None
+        return self._official_course_site_url
+
+    def set_official_course_site_url(self, url):
+        """
+        Creates the records necessary to make the given url the official course site for this course.
+        Returns the newly created CourseSite object.
+        """
+        site = CourseSite.objects.create(site_type_id='external', external_id=url)
+        SiteMap.objects.create(course_instance=self, course_site=site)
+        return site
+
     def primary_section_name(self):
         """
         Derives the name of the primary (main) section for this course.
