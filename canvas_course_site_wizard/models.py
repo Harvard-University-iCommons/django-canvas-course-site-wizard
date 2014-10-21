@@ -82,8 +82,10 @@ class SISCourseDataMixin(object):
 
     def set_sync_to_canvas(self, sync_to_canvas_flag):
         """
-        Updates the sync_to_canvas column of the course instance record 
-        Returns the updated object.
+        Updates the sync_to_canvas column of the course instance record. Currently the
+        values being used are 0(no sync) and 1 (sync). But  there is some discussion to use more 
+        values to to do partial sync(teaching staff only, students only , etc) in the future.
+        Returns the updated object  - of type SISCourseDataMixin.
         """
         self.sync_to_canvas = sync_to_canvas_flag
         self.save(update_fields=['sync_to_canvas'])

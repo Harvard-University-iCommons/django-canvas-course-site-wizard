@@ -196,13 +196,14 @@ class SISCourseDataMixinTest(TestCase):
         result = self.course_data.set_sync_to_canvas(self.sync_flag)
         self.course_data.save.assert_called()
       
-    def test_set_sync_to_canvas_rasies_exception(self):
+    def test_set_sync_to_canvas_calls_save_with_correct_params(self):
         '''
-        Assert that the set_sync_to_canvas raises an exception if the save method has an exception
+        Assert that the set_sync_to_canvas calls save method with correct params
         '''
-        self.course_data.save.side_effect = Exception
-        self.assertRaises( Exception, self.course_data.set_sync_to_canvas, self.sync_flag)
-
+        self.course_data.save = self.get_sync_to_canvas_save_mock()
+        result = self.course_data.set_sync_to_canvas(self.sync_flag)
+        self.course_data.save.assert_called_with(update_fields=['sync_to_canvas'])
+      
     def test_set_sync_to_canvas_returns_SISCourseDataMixin_object(self):
         '''
         Assert that the set_sync_to_canvas method returns object of type SISCourseDataMixin
