@@ -128,6 +128,7 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
     class Meta:
         proxy = True
 
+
 class CanvasContentMigrationJob(models.Model):
     # Workflow status values
     STATUS_QUEUED = 'queued'
@@ -141,7 +142,7 @@ class CanvasContentMigrationJob(models.Model):
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
     )
-    canvas_course_id = models.IntegerField(max_length=10,db_index=True)
+    canvas_course_id = models.IntegerField(max_length=10, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
     content_migration_id = models.IntegerField(max_length=10)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -149,11 +150,12 @@ class CanvasContentMigrationJob(models.Model):
     status_url = models.CharField(max_length=200)
     workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
     created_by_user_id = models.CharField(max_length=20)
+    
     class Meta:
         db_table = u'canvas_content_migration_job'
 
     def __unicode__(self):
-        return self.sis_course_id+ " | " + self.workflow_state
+        return self.sis_course_id + " | " + self.workflow_state
 
 
 class CanvasSchoolTemplate(models.Model):
@@ -164,5 +166,5 @@ class CanvasSchoolTemplate(models.Model):
         db_table = u'canvas_school_template'
 
     def __unicode__(self):
-        return self.school_id + " | " + self.template_id
+        return self.school_id + " | " + str(self.template_id)
 
