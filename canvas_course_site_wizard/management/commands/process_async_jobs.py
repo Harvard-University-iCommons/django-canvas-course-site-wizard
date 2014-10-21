@@ -41,48 +41,41 @@ class Command(NoArgsCommand):
                 logger.info(job_start_message)
                 response = query_progress(SDK_CONTEXT, job_id)
                 progress_response = response.json()
-                if 'workflow_state' in progress_response:
-                    workflow_state = progress_response.get('workflow_state')
-                    if workflow_state == 'queued':
-                        """
-                        if the workflow_state is 'queued' the job has not been started on Canvas.
-                        log that we checked
-                        """
-                        message = 'content migration queued for course with sis_course_id %s' % job.sis_course_id
-                        logger.info(message)
-                    elif workflow_state == 'running':
-                        """
-                        if the workflow_state is 'running' the job has started but is not complete yet.
-                        Log that we checked
-                        """
-                        message = 'content migration running for course with sis_course_id %s' % job.sis_course_id
-                        logger.info(message)
-                    elif workflow_state == 'failed':
-                        """
-                        TODO:
-                            1) what happens on failure?
-                        """
-                        message = 'content migration failed for course with sis_course_id %s' % job.sis_course_id
-                        logger.info(message)
-                    elif workflow_state == 'completed':
-                        """
-                        TODO: 
-                            1) set sync to canvas flag
-                            2) set course site as 'official'
-                            3) add the instructor to the course
-                        """
-                        message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
-                        logger.info(message)
-                    else:
-                        """
-                        we got a workflow_state value back from canvas that does not
-                        match one of the exptected values
-                        """
-                        message = 'content migration unrecognized workflow_state (%s) for course: %s' % (workflow_state, job.sis_course_id)
-                        logger.info(message)
+                workflow_state = progress_response['workflow_state']
+                
+                if workflow_state == 'completed':
+                    """
+                    TODO: 
+                        1) update workflow_state in table for job_id
+                        2) set sync to canvas flag
+                        3) set course site as 'official'
+                        4) add the instructor to the course
+                    """
+                    message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
+                    logger.info(message)
+
+                elif workflow_state == 'failed':
+                    """
+                    TODO:
+                        1) update workflow_state in table for job_id
+                    """
+                    message = 'content migration failed for course with sis_course_id %s' % job.sis_course_id
+                    logger.info(message)
                 else:
-                    message = 'workflow_state missing from response in job_id %s for course %s' % (job_id, job.sis_course_id)
-                    logger.error(message)
+                    """
+                    if the workflow_state is 'queued' or 'running' the job 
+                    is not complete and a failure has not occured on Canvas.
+                    log that we checked
+                    TODO:
+                        1) update workflow state in table for job_id
+                    """
+                    message = 'content migration queued for course with sis_course_id %s' % job.sis_course_id
+                    logger.info(message)
+
+            except KeyError:
+                message = 'the workflow_state parameter was not present in the canvas response for job %s' % job_id
+                logger.exception(message) 
+    
             except Exception:
                 message = 'An exception occured processing job %s for course with sis_course_id %s' % (job_id, job.sis_course_id)
                 logger.exception(message)   
