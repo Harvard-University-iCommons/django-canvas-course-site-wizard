@@ -22,14 +22,14 @@ class CommandsTestCase(TestCase):
         filter_mock.assert_called_once_with(ANY)
 
 
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.query_progress')
-    def test_process_async_jobs_cm_assert_that_query_progress_is_called_once_with_the_correct_job_id(self, query_mock):
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
+    def test_process_async_jobs_cm_assert_that_client_get_is_called_once_with_the_correct_url(self, client_mock):
         """ 
         ** Integration test **
-        assert that the job_id is properly parsed from the returned job status_url. Note that this 
+        assert that client.get is called with the job.status_url. Note that this 
         will most likely change as the method of getting the job_id can be streamlined. At the moment
-        we store the progress url in the jobs table, but we only really need to store the job_id. Once that 
-        is in place this test will need to be replaced. 
+        we store the progress url in the jobs table, but we only really need to store the job_id. If that 
+        change happens this test will need to be replaced. 
         """
         canvas_course_id = 12345
         sis_course_id = 6789
@@ -47,7 +47,7 @@ class CommandsTestCase(TestCase):
         cmd = process_async_jobs.Command()
         opts = {} 
         cmd.handle_noargs(**opts)
-        query_mock.assert_called_once_with(ANY, '1234')
+        client_mock.assert_called_with(ANY, 'http://example.com/1234')
 
 
 

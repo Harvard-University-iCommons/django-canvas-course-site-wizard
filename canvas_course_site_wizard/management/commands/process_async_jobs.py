@@ -6,7 +6,7 @@ from django.core.management.base import NoArgsCommand
 from django.conf import settings
 from django.db.models import Q
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
-from canvas_sdk.methods.progress import query_progress
+from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 import logging
 
@@ -36,10 +36,11 @@ class Command(NoArgsCommand):
                 update this in the database and the setting method. In the meantime just parse out
                 the job_id from the url.
                 """
-                job_id = job.status_url.rsplit('/', 1)[1]
-                job_start_message = 'processing job_id %s for course with sis_course_id %s' % (job_id, job.sis_course_id)
+                
+                client.get(SDK_CONTEXT, job.status_url)
+                job_start_message = 'processing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
-                response = query_progress(SDK_CONTEXT, job_id)
+                response = client.get(SDK_CONTEXT, job.status_url)
                 progress_response = response.json()
                 workflow_state = progress_response['workflow_state']
                 
@@ -73,10 +74,10 @@ class Command(NoArgsCommand):
                     logger.info(message)
 
             except KeyError:
-                message = 'the workflow_state parameter was not present in the canvas response for job %s' % job_id
+                message = 'the workflow_state parameter was not present in the canvas response for course with sis_course_id %s' % job.sis_course_id
                 logger.exception(message) 
     
             except Exception:
-                message = 'An exception occured processing job %s for course with sis_course_id %s' % (job_id, job.sis_course_id)
+                message = 'An exception occured processing course with sis_course_id %s' % (job.sis_course_id)
                 logger.exception(message)   
             
