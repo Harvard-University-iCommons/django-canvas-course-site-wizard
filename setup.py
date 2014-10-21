@@ -1,6 +1,8 @@
 import os
 from setuptools import setup
 
+version_file = open(os.path.join(os.path.dirname(__file__), 'VERSION'))
+version = version_file.read().strip()
 README = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
 
 # allow setup.py to be run from any path
@@ -8,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-canvas-course-site-wizard',
-    version='0.5',
+    version=version,
     packages=['canvas_course_site_wizard'],
     include_package_data=True,
     license='TBD License',  # example license
