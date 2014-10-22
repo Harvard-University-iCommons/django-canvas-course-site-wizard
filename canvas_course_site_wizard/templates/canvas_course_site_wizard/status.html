@@ -1,9 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>Canvas Course Site Wizard Status</title>
-</head>
-<body>
-  <h1> Status is <span>{{ pk }}</span></h1>
-</body>
-</html>
+{% extends "icommons_ui/base_datatables.html" %}
+
+{% block page_title %} {% block tool_title %} Canvas Course Site Wizard {% endblock tool_title %} {% endblock page_title %}
+
+{% block content %}
+    <h1> Status is <span>{{ content_migration_job.workflow_state }}</span></h1>
+{% endblock content %}
