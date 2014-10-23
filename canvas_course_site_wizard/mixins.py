@@ -3,13 +3,16 @@ from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from canvas_sdk.methods import admins
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.views.generic.detail import SingleObjectMixin
-from braces.views import LoginRequiredMixin
 from django.http import Http404
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
+import logging
+
 # Set up the request context that will be used for canvas API calls
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
+
+logger = logging.getLogger(__name__)
 
 
 class CourseDataMixin(SingleObjectMixin):
@@ -27,6 +30,7 @@ class CourseDataMixin(SingleObjectMixin):
                                  % self.__class__.__name__)
 
         try:
+            logger.debug("inside get_object of %s about to retrieve course object!" % self.__class__.__name__)
             course_data = get_course_data(pk)
         except ObjectDoesNotExist:
             raise Http404(_("No %s found for the given key %s" % ('course_data', pk)))
@@ -34,9 +38,10 @@ class CourseDataMixin(SingleObjectMixin):
         return course_data
 
 
-class CourseDataPermissionsMixin(LoginRequiredMixin, CourseDataMixin):
+class CourseDataPermissionsMixin(CourseDataMixin):
     """
     Provide permission checks for the currently logged in user against an sis course data instance.
+    This mixin should be placed after the LoginRequiredMixin
     """
 
     def is_current_user_member_of_course_staff(self):
@@ -52,6 +57,7 @@ class CourseDataPermissionsMixin(LoginRequiredMixin, CourseDataMixin):
 
         staff_group = 'ScaleCourseStaff:%s' % self.object.pk
         user_groups = self.request.session.get('USER_GROUPS', [])
+        logger.debug("inside CourseDataPermissionMixin - user groups are %s" % user_groups)
         return staff_group in user_groups
 
     def list_current_user_admin_roles_for_course(self):
@@ -69,11 +75,14 @@ class CourseDataPermissionsMixin(LoginRequiredMixin, CourseDataMixin):
 
         # List account admins for school associated with course.  Limit to the sis_user_id, which is
         # equivalent to the currently logged in user's PIN (i.e. their username).
-        return admins.list_account_admins(
+        user_accout_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
             account_id='sis_account_id:school:%s' % self.object.school_code,
             user_id='sis_user_id:%s' % self.request.user.username
         ).json()
+        logger.debug("admin list is %s" % user_accout_admin_list)
+
+        return user_accout_admin_list
 
 
 class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):
