@@ -3,7 +3,7 @@ class NoTemplateExistsForSchool(Exception):
         self.school_id = school_id
 
     def __unicode__(self):
-        return repr(self.school_id)
+        return u'No template exists for school_id=%s' % self.school_id
 
 
 class NoCanvasUserToEnroll(Exception):

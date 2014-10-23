@@ -23,7 +23,7 @@ class EnrollCreateInNewCourseTest(TestCase):
         Test that SDK calls to user and enrollments receive expected values and that
         enroll_creator_in_new_course() returns results of enrollment call
         """
-        expected_return_values = {
+        enroll_user_sections_expected_return_values = {
             'enrollment_state': 'active',
             'type': 'TeacherEnrollment',
             'sis_course_id': self.sis_course_id,
@@ -31,14 +31,15 @@ class EnrollCreateInNewCourseTest(TestCase):
         }
         get_user_profile.return_value.status_code = 200
         get_user_profile.return_value.json.return_value = {'id': self.canvas_user_id}
-        enroll_user_sections.return_value.json.return_value = expected_return_values
+        enroll_user_sections.return_value.json.return_value = enroll_user_sections_expected_return_values
         result = enroll_creator_in_new_course(self.course, self.sis_user_id)
         get_user_profile.assert_called_with(request_ctx=ANY, user_id='sis_user_id:%s' % self.sis_user_id)
         enroll_user_sections.assert_called_with(request_ctx=ANY, section_id='sis_section_id:%s' % self.sis_course_id,
                                                 enrollment_user_id=self.canvas_user_id,
                                                 enrollment_type='TeacherEnrollment',
                                                 enrollment_enrollment_state='active')
-        self.assertDictContainsSubset(expected_return_values, result, "result contains: %s" % result)
+        self.assertDictContainsSubset(enroll_user_sections_expected_return_values, result,
+                                      "result contains: %s" % result)
 
     def test_no_user_to_enroll(self, get_user_profile, enroll_user_sections):
         """
