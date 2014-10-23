@@ -37,3 +37,13 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
     template_name = "canvas_course_site_wizard/status.html"
     model = CanvasContentMigrationJob
     context_object_name = 'content_migration_job'
+
+    def get_context_data(self, **kwargs):
+        """
+        get_context_data allows us to pass additional values to the view.
+        In this case I am passing in the canvas course url created by the calling
+        get_canvas_course_url. 
+        """    
+        context = super(CanvasCourseSiteStatusView, self).get_context_data(**kwargs)
+        context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
+        return context
