@@ -1,4 +1,5 @@
-from .controller import create_canvas_course, start_course_template_copy, finalize_new_canvas_course
+from .controller import (create_canvas_course, start_course_template_copy,
+                         finalize_new_canvas_course, get_canvas_course_url)
 from .mixins import CourseSiteCreationAllowedMixin
 from .exceptions import NoTemplateExistsForSchool
 from .models import CanvasContentMigrationJob
@@ -6,7 +7,6 @@ from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
 from django.shortcuts import redirect
-from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
             finalize_new_canvas_course(course, request.user.username)
-            course_url = settings.CANVAS_SITE_SETTINGS['base_url'] + 'courses/%s' % course['id']
+            course_url = get_canvas_course_url(canvas_course_id=course['id'])
             return redirect(course_url)
 
 
