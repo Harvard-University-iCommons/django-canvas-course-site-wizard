@@ -9,6 +9,7 @@ from canvas_sdk.methods import content_migrations
 from django.conf import settings
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import send_mail
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
 import logging
@@ -156,7 +157,22 @@ def enroll_creator_in_new_course(course, sis_user_id):
 
     return current_user_enrollment_result.json()
 
+def get_canvas_user_profile(canvas_user_id):
+    """
+    This method will fetch teh cannvas user profile , given teh canvas_user_id
+    :param canvas_user_id: The canvas_user_id of the user
+    :type canvas_user_id: string
+    return: Returns json representing the canvas user profile fetched by the canvas_sdk
+    """
+    response = get_user_profile(request_ctx=SDK_CONTEXT, user_id=canvas_user_id)
+    canvas_user_profile = response.json()
+    return canvas_user_profile
 
+def send_email_helper(subject, message, to_address):
+    from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
+    logger.debug("\n==>Within send email: from_addr=%s, to_addr=%s" % (from_address, to_address))
+    send_mail(subject, message, from_address, to_address, fail_silently=False)
+        
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
     """
     This utility method formats a Canvas course URL string which will point to the course home page in Canvas. It
