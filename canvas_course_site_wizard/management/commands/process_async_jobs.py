@@ -82,8 +82,8 @@ class Command(NoArgsCommand):
                     to_address.append(user_profile['primary_email'])
                     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
                     logger.debug(" \n notifying  failure via email:  to_addr=%s" % to_address)
-                    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['success_subject'],
-                            settings.CANVAS_EMAIL_NOTIFICATION['success_body'],
+                    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['failure_subject'],
+                            settings.CANVAS_EMAIL_NOTIFICATION['failure_body'],
                             to_address)
                 else:
                     """
