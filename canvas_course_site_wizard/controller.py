@@ -178,9 +178,9 @@ def send_email_helper(subject, message, to_address):
     :param to_address: The list of recepients, a list of Strings 
     """
     from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
-    logger.debug("\n==>Within send email: from_addr=%s, to_addr=%s" % (from_address, to_address))
-    #If fail_silently is set to False, send_mail will raise exceptions. If True,
-    #all exceptions raised while sending the message will be quashed.
+    logger.debug("==>Within send email: from_addr=%s, to_addr=%s" % (from_address, to_address))
+    # If fail_silently is set to False, send_mail will raise exceptions. If True,
+    # all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
         
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
