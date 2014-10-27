@@ -110,9 +110,6 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         :raises: Logs and re-raises various exceptions raised by its component processes
     """
 
-    # TODO: test async job by using a site with a template
-    # TODO: update docs for expected arguments, return, raises
-
     # Enroll instructor / creator
     try:
         enrollment = enroll_creator_in_new_course(sis_course_id, user_id)

@@ -3,9 +3,6 @@ from mock import patch, MagicMock
 from canvas_course_site_wizard.models import SISCourseData
 from canvas_course_site_wizard.controller import finalize_new_canvas_course
 
-# TODO: consolidate mocks into patch.multiple
-# TODO: refactor error message checks into utility method
-
 
 class FinalizeNewCanvasCourseTest(TestCase):
 
