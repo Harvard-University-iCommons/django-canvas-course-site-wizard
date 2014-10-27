@@ -57,14 +57,14 @@ class Command(NoArgsCommand):
                     message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
                     logger.info(message)
                     user_profile = get_canvas_user_profile(job.created_by_user_id)
-                    #On success, only the initiator needs to be emailed
+
+                    #Upon workflow state changing to completed, only the initiator needs to be emailed
                     to_address =[]
                     to_address.append(user_profile['primary_email'])
-                    logger.debug("notifying  sucsess via email:  to_addr=%s" % to_address)
+                    logger.debug("notifying  success via email:  to_addr=%s" % to_address)
                     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['success_subject'],
                             settings.CANVAS_EMAIL_NOTIFICATION['success_body'],
                             to_address)
-
                 elif workflow_state == 'failed':
                     """
                     TODO:
@@ -81,7 +81,7 @@ class Command(NoArgsCommand):
                     # On failure, send message to both initiator and the support group
                     to_address.append(user_profile['primary_email'])
                     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
-                    logger.debug(" \n notifying  failure via email:  to_addr=%s" % to_address)
+                    logger.debug(" notifying  failure via email:  to_addr=%s" % to_address)
                     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['failure_subject'],
                             settings.CANVAS_EMAIL_NOTIFICATION['failure_body'],
                             to_address)

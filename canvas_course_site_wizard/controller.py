@@ -159,7 +159,7 @@ def enroll_creator_in_new_course(course, sis_user_id):
 
 def get_canvas_user_profile(canvas_user_id):
     """
-    This method will fetch teh cannvas user profile , given teh canvas_user_id
+    This method will fetch the canvas user profile , given the canvas_user_id
     :param canvas_user_id: The canvas_user_id of the user
     :type canvas_user_id: string
     return: Returns json representing the canvas user profile fetched by the canvas_sdk
@@ -169,8 +169,18 @@ def get_canvas_user_profile(canvas_user_id):
     return canvas_user_profile
 
 def send_email_helper(subject, message, to_address):
+    """
+    This is a helper method to send email using django's mail module. The mail is sent
+    to the specified receipients using the subject and body provided. The 'from' address
+     is obtained from the settings file. 
+    :param subject: The subject for the email, a String 
+    :param message: The body of the email, a String 
+    :param to_address: The list of recepients, a list of Strings 
+    """
     from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
     logger.debug("\n==>Within send email: from_addr=%s, to_addr=%s" % (from_address, to_address))
+    #If fail_silently is set to False, send_mail will raise exceptions. If True,
+    #all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
         
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
