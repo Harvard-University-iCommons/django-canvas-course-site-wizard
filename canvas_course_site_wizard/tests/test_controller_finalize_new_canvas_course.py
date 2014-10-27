@@ -17,6 +17,10 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_successful_finalization(self, enroll_creator_mock, logger_mock, course_data_mock, url_mock):
+        """
+        If all finalization steps are successful, there should be no calls to logger.error() and the return value
+        should be the new course URL.
+        """
         test_url = 'test_url/'
         url_mock.return_value = test_url
         self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
@@ -28,6 +32,10 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_enrollment_failure(self, enroll_creator_mock, logger_mock, course_data_mock, url_mock):
+        """
+        If the automatic enrollment of the course creator fails, we should be logging an error and exiting the
+        finalization process without a return value and before proceeding with other steps.
+        """
         enroll_creator_mock.side_effect = Exception('Mock exception')
         with self.assertRaises(Exception):
             self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
@@ -41,6 +49,10 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_course_url_failure(self, enroll_creator_mock, logger_mock, course_data_mock, url_mock):
+        """
+        If unable to get a Canvas course URL for the new course, we should be logging an error and exiting the
+        finalization process without a return value and before proceeding with other steps.
+        """
         url_mock.side_effect = Exception('Mock exception')
         with self.assertRaises(Exception):
             self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
@@ -54,6 +66,10 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_set_official_failure(self, enroll_creator_mock, logger_mock, course_data_mock, url_mock):
+        """
+        If unable to set the Canvas course as 'official', we should be logging an error and exiting the
+        finalization process without a return value and before proceeding with other steps.
+        """
         course_data_mock().set_sync_to_canvas().set_official_course_site_url.side_effect = Exception('Mock exception')
         test_url = 'test_url/'
         url_mock.return_value = test_url
@@ -68,6 +84,11 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_course_data_failure(self, enroll_creator_mock, logger_mock, course_data_mock):
+        """
+        If unable to get SIS course data for the course (which we need to mark the Canvas course as official and
+        sync enrollment to Canvas), we should be logging an error and exiting the
+        finalization process without a return value and before proceeding with other steps.
+        """
         course_data_mock.side_effect = Exception('Mock exception')
         with self.assertRaises(Exception):
             self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
@@ -83,6 +104,10 @@ class FinalizeNewCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.enroll_creator_in_new_course')
     def test_sync_failure(self, enroll_creator_mock, logger_mock, course_data_mock, url_mock):
+        """
+        If unable to set the sync enrollment to Canvas flag for the course we should be logging an error and exiting the
+        finalization process without a return value and before proceeding with other steps.
+        """
         course_data_mock().set_sync_to_canvas.side_effect = Exception('Mock exception')
         logger_mock().error = MagicMock
         with self.assertRaises(Exception):
