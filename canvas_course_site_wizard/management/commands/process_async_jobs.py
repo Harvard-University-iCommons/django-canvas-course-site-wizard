@@ -5,6 +5,7 @@ Process the Content Migration jobs in the CanvasContentMigrationJob table.
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
 from django.db.models import Q
+from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper)
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
 from canvas_course_site_wizard.controller import finalize_new_canvas_course
 from canvas_sdk import client
@@ -43,22 +44,37 @@ class Command(NoArgsCommand):
                 response = client.get(SDK_CONTEXT, job.status_url)
                 progress_response = response.json()
                 workflow_state = progress_response['workflow_state']
-                
+
                 if workflow_state == 'completed':
-                    """
-                    TODO: 
-                        1) update workflow_state in table for job_id
-                    """
+                    # TODO: update workflow_state in table for job_id
+                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id, job.created_by_user_id)
                     message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
                     logger.info(message)
-                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id, job.created_by_user_id)
+                    user_profile = get_canvas_user_profile(job.created_by_user_id)
+
+                    #Upon workflow state changing to completed, only the initiator needs to be emailed
+                    to_address =[]
+                    to_address.append(user_profile['primary_email'])
+                    logger.debug("notifying  success via email:  to_addr=%s" % to_address)
+                    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['success_subject'],
+                            settings.CANVAS_EMAIL_NOTIFICATION['success_body'],
+                            to_address)
                 elif workflow_state == 'failed':
-                    """
-                    TODO:
-                        1) update workflow_state in table for job_id
-                    """
-                    message = 'content migration failed for course with sis_course_id %s' % job.sis_course_id
-                    logger.info(message)
+                    # TODO: update workflow_state in table for job_id
+                    message = 'content migration failed for course with sis_course_id %s' % (job.sis_course_id)
+                    logger.debug(message)
+
+                    #the following code is part of the next story(TLT-376), but it is mostly done 
+                    #leaving it in here to review if additional stuff needs to be done for TLT-376
+                    user_profile = get_canvas_user_profile(job.created_by_user_id)
+                    to_address =[]
+                    # On failure, send message to both initiator and the support group (e.g. icommons-support)
+                    to_address.append(user_profile['primary_email'])
+                    to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
+                    logger.debug(" notifying  failure via email:  to_addr=%s" % to_address)
+                    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['failure_subject'],
+                            settings.CANVAS_EMAIL_NOTIFICATION['failure_body'],
+                            to_address)
                 else:
                     """
                     if the workflow_state is 'queued' or 'running' the job 
@@ -71,7 +87,7 @@ class Command(NoArgsCommand):
                     logger.info(message)
 
             except KeyError as e:
-                logger.exception(e) 
+                logger.exception(e)
     
-            except Exception as e:  
+            except Exception as e:
                 logger.exception(e)

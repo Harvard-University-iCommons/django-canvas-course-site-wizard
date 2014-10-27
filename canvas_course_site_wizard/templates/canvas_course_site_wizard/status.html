@@ -1,7 +1,24 @@
-{% extends "icommons_ui/base_datatables.html" %}
+{% extends "icommons_ui/base_ext.html" %}
 
-{% block page_title %} {% block tool_title %} Canvas Course Site Wizard {% endblock tool_title %} {% endblock page_title %}
+{% block page_title %} Canvas Course Site Wizard {% endblock page_title %}
 
 {% block content %}
-    <h1> Status is <span>{{ content_migration_job.workflow_state }}</span></h1>
+
+    <h1>Canvas Course Site Wizard</h1>
+
+    <h2> Status is <span>{{ content_migration_job.workflow_state }}</span></h2>
+    
+    {% if content_migration_job.workflow_state == 'complete' %}
+        <p>You course has been created, click on the url below to access your course.
+            <br />
+            <a href="{{canvas_course_url}}">{{canvas_course_url}}</a>
+        </p>
+    {% elif content_migration_job.workflow_state == 'failed' %}
+        <p>There has been a problem processing your course. Please contact IT support.
+        </p>
+    {% else %}
+        <p>You course is still being processes. Please try back in a few minutes.
+        </p>
+    {% endif %}
+
 {% endblock content %}

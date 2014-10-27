@@ -9,6 +9,7 @@ from canvas_sdk.methods import content_migrations
 from django.conf import settings
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import send_mail
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
 import logging
@@ -190,7 +191,32 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
 
     return current_user_enrollment_result.json()
 
+def get_canvas_user_profile(canvas_user_id):
+    """
+    This method will fetch the canvas user profile , given the canvas_user_id
+    :param canvas_user_id: The canvas_user_id of the user
+    :type canvas_user_id: string
+    return: Returns json representing the canvas user profile fetched by the canvas_sdk
+    """
+    response = get_user_profile(request_ctx=SDK_CONTEXT, user_id=canvas_user_id)
+    canvas_user_profile = response.json()
+    return canvas_user_profile
 
+def send_email_helper(subject, message, to_address):
+    """
+    This is a helper method to send email using django's mail module. The mail is sent
+    to the specified receipients using the subject and body provided. The 'from' address
+     is obtained from the settings file. 
+    :param subject: The subject for the email, a String 
+    :param message: The body of the email, a String 
+    :param to_address: The list of recepients, a list of Strings 
+    """
+    from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
+    logger.debug("==>Within send email: from_addr=%s, to_addr=%s" % (from_address, to_address))
+    # If fail_silently is set to False, send_mail will raise exceptions. If True,
+    # all exceptions raised while sending the message will be quashed.
+    send_mail(subject, message, from_address, to_address, fail_silently=False)
+        
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
     """
     This utility method formats a Canvas course URL string which will point to the course home page in Canvas. It
