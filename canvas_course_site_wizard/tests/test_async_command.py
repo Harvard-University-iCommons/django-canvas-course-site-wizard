@@ -181,5 +181,5 @@ class CommandsTestCase(TestCase):
         cmd = process_async_jobs.Command()
         opts = {} 
         cmd.handle_noargs(**opts)
-        log_error.assert_called()
+        self.assertTrue(log_error.called)
 
