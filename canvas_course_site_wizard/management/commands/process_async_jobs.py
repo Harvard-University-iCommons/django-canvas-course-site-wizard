@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db.models import Q
 from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper)
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
+from canvas_course_site_wizard.controller import finalize_new_canvas_course
 from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 import logging
@@ -38,7 +39,6 @@ class Command(NoArgsCommand):
                 the job_id from the url.
                 """
                 
-                # client.get(SDK_CONTEXT, job.status_url)
                 job_start_message = 'processing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
                 response = client.get(SDK_CONTEXT, job.status_url)
@@ -46,14 +46,8 @@ class Command(NoArgsCommand):
                 workflow_state = progress_response['workflow_state']
 
                 if workflow_state == 'completed':
-                    """
-                    TODO: 
-                        1) update workflow_state in table for job_id
-                        2) set sync to canvas flag
-                        3) set course site as 'official'
-                        4) add the instructor to the course
-                        5) Send 'success' email to notify user
-                    """
+                    # TODO: update workflow_state in table for job_id
+                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id, job.created_by_user_id)
                     message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
                     logger.info(message)
                     user_profile = get_canvas_user_profile(job.created_by_user_id)
@@ -66,11 +60,7 @@ class Command(NoArgsCommand):
                             settings.CANVAS_EMAIL_NOTIFICATION['success_body'],
                             to_address)
                 elif workflow_state == 'failed':
-                    """
-                    TODO:
-                        1) update workflow_state in table for job_id
-                        2) Send 'failed' email to notify user and support group(for now it is icommons-support)
-                    """
+                    # TODO: update workflow_state in table for job_id
                     message = 'content migration failed for course with sis_course_id %s' % (job.sis_course_id)
                     logger.debug(message)
 
@@ -78,7 +68,7 @@ class Command(NoArgsCommand):
                     #leaving it in here to review if additional stuff needs to be done for TLT-376
                     user_profile = get_canvas_user_profile(job.created_by_user_id)
                     to_address =[]
-                    # On failure, send message to both initiator and the support group
+                    # On failure, send message to both initiator and the support group (e.g. icommons-support)
                     to_address.append(user_profile['primary_email'])
                     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
                     logger.debug(" notifying  failure via email:  to_addr=%s" % to_address)
@@ -97,9 +87,7 @@ class Command(NoArgsCommand):
                     logger.info(message)
 
             except KeyError as e:
-                logger.exception(e) 
+                logger.exception(e)
     
-            except Exception as e:  
-                logger.exception(e)   
-
-
+            except Exception as e:
+                logger.exception(e)

@@ -64,11 +64,12 @@ class CommandsTestCase(TestCase):
         client_mock.assert_called_with(ANY, 'http://example.com/1234')
 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'success_subject':'xyz', 'success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
     def test_process_async_jobs_invokes_correct_methods_on_completed_status(self,
-     client_mock, get_canvas_user_profile, email_helper_mock, ):
+     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock):
         """
         test that the send_email_helper and get_canvas_user_profile helper method are called
         with the right params when the workflow_state of the job changes to 'completed'
@@ -97,11 +98,12 @@ class CommandsTestCase(TestCase):
         email_helper_mock.assert_called_with(ANY, ANY, ANY)
 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'success_subject':'xyz', 'success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
     def test_process_async_jobs_raisess_exception_thrown_by_get_user_profile(self,
-     client_mock, get_canvas_user_profile, email_helper_mock, ):
+     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock):
         """
         Test that an exception  is raised when  get_canvas_user_profile method throws an exception
         """
@@ -125,11 +127,12 @@ class CommandsTestCase(TestCase):
 
 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'success_subject':'xyz', 'success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
     def test_process_async_jobs_raises_exception_thrown_by_send_email_helper(self,
-     client_mock, get_canvas_user_profile, email_helper_mock ):
+     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock ):
         """
         Test that an exception  is raised when  send_email_helper method throws an exception
         """
@@ -156,12 +159,13 @@ class CommandsTestCase(TestCase):
 
 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'success_subject':'xyz', 'success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.logger.error')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
     def test_process_async_jobs_logs_exception(self,
-     client_mock, get_canvas_user_profile, email_helper_mock, log_error ):
+     client_mock, get_canvas_user_profile, email_helper_mock, log_error, finalize_mock):
         """
         Test that an exception  is properly logged by the async job
         """

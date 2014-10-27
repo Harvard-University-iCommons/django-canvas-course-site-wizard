@@ -8,6 +8,11 @@ class SISCourseDataMixin(object):
     Extends an SIS-fed CourseInstance object with methods and properties needed for course site
     creation in an extenal LMS.  Designed as a mixin to make unit testing easier.
     """
+
+    # Class constants for the sync_to_canvas column / flag used by set_sync_to_canvas()
+    TURN_ON_SYNC_TO_CANVAS = 1
+    TURN_OFF_SYNC_TO_CANVAS = 0
+
     @property
     def sis_account_id(self):
         """
@@ -99,9 +104,11 @@ class SISCourseDataMixin(object):
         Creates the records necessary to make the given url the official course site for this course.
         Returns the newly created CourseSite object.
         """
+        # TODO: Fix 'ORA-01031: insufficient privileges' problem
         site = CourseSite.objects.create(site_type_id='external', external_id=url)
         SiteMap.objects.create(course_instance=self, course_site=site)
         return site
+        return {}
 
     def primary_section_name(self):
         """
@@ -118,8 +125,10 @@ class SISCourseDataMixin(object):
         Returns the updated object  - of type SISCourseDataMixin.
         """
         self.sync_to_canvas = sync_to_canvas_flag
+        # TODO: Fix 'ORA-01031: insufficient privileges' problem
         self.save(update_fields=['sync_to_canvas'])
         return self
+
 
 class SISCourseData(CourseInstance, SISCourseDataMixin):
     """
@@ -167,4 +176,3 @@ class CanvasSchoolTemplate(models.Model):
 
     def __unicode__(self):
         return self.school_id + " | " + str(self.template_id)
-
