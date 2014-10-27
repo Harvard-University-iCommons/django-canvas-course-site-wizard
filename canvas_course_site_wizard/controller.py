@@ -1,5 +1,5 @@
 from .models_api import get_course_data, get_template_for_school
-from .models import CanvasContentMigrationJob
+from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import NoTemplateExistsForSchool, NoCanvasUserToEnroll
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
@@ -33,22 +33,32 @@ def create_canvas_course(sis_course_id):
         raise Http404
 
     #2. Create canvas course
-    new_course = create_new_course(SDK_CONTEXT,
-            account_id = 'sis_account_id:' + course_data.sis_account_id,
-            course_name = course_data.course_name,
-            course_course_code = course_data.course_code,
-            course_term_id = 'sis_term_id:' + course_data.sis_term_id,
-            course_sis_course_id= sis_course_id).json()
-    logger.info("created  course object, ret=%s" % (new_course))
+    try:
+        request_parameters = dict(request_ctx=SDK_CONTEXT,
+                account_id = 'sis_account_id:' + course_data.sis_account_id,
+                course_name = course_data.course_name,
+                course_course_code = course_data.course_code,
+                course_term_id = 'sis_term_id:' + course_data.sis_term_id,
+                course_sis_course_id= sis_course_id)
+        new_course = create_new_course(**request_parameters).json()
+        logger.info("created  course object, ret=%s" % (new_course))
+    except Exception as e:
+        logger.error('Error creating new Canvas course with request=%s: %s' % (request_parameters, e))
+        raise
 
     # 3. Create course section after course  creation
-    section = create_course_section(
-                SDK_CONTEXT, 
-                course_id = new_course['id'],
-                course_section_name = course_data.primary_section_name(),
-                course_section_sis_section_id = sis_course_id
-                )
-    logger.info("created section= %s" %(section.json()))
+    try:
+        section = create_course_section(
+                    SDK_CONTEXT,
+                    course_id = new_course['id'],
+                    course_section_name = course_data.primary_section_name(),
+                    course_section_sis_section_id = sis_course_id
+                    )
+        logger.info("created section= %s" %(section.json()))
+    except Exception as e:
+        logger.error('Error creating default section for Canvas course with new_course.request=%s and response=%s: %s'
+                     % (new_course.request, new_course.json(), e))
+        raise
 
     return new_course
 
@@ -85,35 +95,62 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id):
     )
 
 
-def finalize_new_canvas_course(course, sis_user_id):
+def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
     """
     Performs all synchronous tasks required to initialize a new canvas course after the course template
     has been applied, or after checking for a template if the course has no template.
 
-        :param course: newly created Canvas course object to enroll course creator
-        :type course: SDK response of create_new_course from canvas_sdk.methods.courses
-                      (JSON dictionary representation of a Canvas course)
-        :param sis_user_id: The SIS user ID of the creator/instructor to enroll in the course
-        :type sis_user_id: string
-        :raises: NoCanvasUserToEnroll (if enroll_creator_in_new_course fails to find the creator/user by SIS user ID)
+        :param canvas_course_id: newly created Canvas course ID; used to build course URL
+        :type canvas_course_id: string
+        :param sis_course_id: newly created Canvas course SIS ID; used to enroll course creator
+        :type sis_course_id: string
+        :param user_id: The user ID of the creator/instructor to enroll in the course; this should be
+        either the Canvas user ID or the SIS user ID prepended with the string 'sis_user_id:'
+        :type user_id: string
+        :raises: Logs and re-raises various exceptions raised by its component processes
     """
+
+    # TODO: test async job by using a site with a template
+    # TODO: update docs for expected arguments, return, raises
 
     # Enroll instructor / creator
     try:
-        enrollment = enroll_creator_in_new_course(course, sis_user_id)
-    except:
-        logger.error('Error while attempting to enroll creator with sis_user_id=%s in new course with Canvas '
-                     'course id=%s.' % (sis_user_id, course['id']))
+        enrollment = enroll_creator_in_new_course(sis_course_id, user_id)
+        logger.info('Enrolled user_id=%s in new course with Canvas course id=%s' % (user_id, canvas_course_id))
+        logger.debug("enrollment result: %s" % enrollment)
+    except Exception as e:
+        logger.error('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s: %s'
+                     % (user_id, canvas_course_id, e))
         raise
 
-    # TODO: Copy SIS enrollments to new Canvas course
+    # Copy SIS enrollments to new Canvas course
+    try:
+        sis_course_data = get_course_data(sis_course_id)
+        logger.debug("sis_course_data=%s" % sis_course_data)
+        sis_course_data = sis_course_data.set_sync_to_canvas(SISCourseData.TURN_ON_SYNC_TO_CANVAS)
+        logger.info('Set SIS enrollment data sync flag for new course with Canvas ID=%s' % canvas_course_id)
+        logger.debug("sis_course_data after sync to canvas: %s" % sis_course_data)
+    except Exception as e:
+        logger.error('Error setting SIS enrollment data sync flag for new course with Canvas ID=%s: %s'
+                     % (canvas_course_id, e))
+        raise
 
-    # TODO: Mark course as official
+    # Mark course as official
+    try:
+        canvas_course_url = get_canvas_course_url(canvas_course_id=canvas_course_id)
+        site_map = sis_course_data.set_official_course_site_url(canvas_course_url)
+        logger.info('Marked new course with Canvas ID=%s as official' % canvas_course_id)
+        logger.debug("site_map: %s" % site_map)
+    except Exception as e:
+        logger.error('Error marking new course with Canvas ID=%s as official: %s' % (canvas_course_id, e))
+        raise
 
-    logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % course['id'])
+    logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % canvas_course_id)
+
+    return canvas_course_url
 
 
-def enroll_creator_in_new_course(course, sis_user_id):
+def enroll_creator_in_new_course(sis_course_id, user_id):
     """
     Silently enroll instructor / creator to the new course so it can be accessed immediately
 
@@ -128,26 +165,26 @@ def enroll_creator_in_new_course(course, sis_user_id):
     """
 
     # check if user exists in Canvas before enrolling
-    logger.debug("Checking for sis_user_id=%s" % sis_user_id)
+    logger.debug("Checking for user_id=%s" % user_id)
 
-    get_user_response = get_user_profile(request_ctx=SDK_CONTEXT, user_id='sis_user_id:%s' % sis_user_id)
+    get_user_response = get_user_profile(request_ctx=SDK_CONTEXT, user_id=user_id)
 
     logger.debug("--> response: %s" % get_user_response.json())
 
     if get_user_response.status_code == 200:
-        # user was found
+        # user was found; we may have found user using sis_user_id, so make sure we note canvas_user_id from response
         user_data = get_user_response.json()
         canvas_user_id = str(user_data['id'])
     else:
         # Could not find user matching sis_user_id
-        logger.debug("No user found with sis_user_id=%s" % sis_user_id)
-        raise NoCanvasUserToEnroll(sis_user_id)
+        logger.debug("No user found with user_id=%s" % user_id)
+        raise NoCanvasUserToEnroll(user_id)
 
     # Assumptions:
     # 1. the course creator should be enrolled in a section with sis_section_id equal to the SIS course ID
     # 2. the course creator should be enrolled as a teacher
     current_user_enrollment_result = enroll_user_sections(request_ctx=SDK_CONTEXT,
-                                                          section_id='sis_section_id:%s' % course['sis_course_id'],
+                                                          section_id='sis_section_id:%s' % sis_course_id,
                                                           enrollment_user_id=canvas_user_id,
                                                           enrollment_type='TeacherEnrollment',
                                                           enrollment_enrollment_state='active')

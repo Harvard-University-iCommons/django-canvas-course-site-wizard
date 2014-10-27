@@ -7,8 +7,8 @@ class NoTemplateExistsForSchool(Exception):
 
 
 class NoCanvasUserToEnroll(Exception):
-    def __init__(self, sis_user_id):
-        self.sis_user_id = sis_user_id
+    def __init__(self, user_id):
+        self.user_id = user_id
 
     def __unicode__(self):
-        return u'No Canvas user with sis_user_id=%s.' % self.sis_user_id
+        return u'No Canvas user with user_id=%s.' % self.user_id

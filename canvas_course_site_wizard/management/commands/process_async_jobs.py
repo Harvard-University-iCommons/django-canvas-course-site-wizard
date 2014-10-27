@@ -6,6 +6,7 @@ from django.core.management.base import NoArgsCommand
 from django.conf import settings
 from django.db.models import Q
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
+from canvas_course_site_wizard.controller import finalize_new_canvas_course
 from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 import logging
@@ -37,7 +38,6 @@ class Command(NoArgsCommand):
                 the job_id from the url.
                 """
                 
-                client.get(SDK_CONTEXT, job.status_url)
                 job_start_message = 'processing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
                 response = client.get(SDK_CONTEXT, job.status_url)
@@ -48,13 +48,10 @@ class Command(NoArgsCommand):
                     """
                     TODO: 
                         1) update workflow_state in table for job_id
-                        2) set sync to canvas flag
-                        3) set course site as 'official'
-                        4) add the instructor to the course
                     """
                     message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
                     logger.info(message)
-
+                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id, job.created_by_user_id)
                 elif workflow_state == 'failed':
                     """
                     TODO:
@@ -77,5 +74,4 @@ class Command(NoArgsCommand):
                 logger.exception(e) 
     
             except Exception as e:  
-                logger.exception(e)   
-            
+                logger.exception(e)

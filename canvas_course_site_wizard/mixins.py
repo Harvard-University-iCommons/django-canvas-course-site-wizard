@@ -57,7 +57,8 @@ class CourseDataPermissionsMixin(CourseDataMixin):
 
         staff_group = 'ScaleCourseStaff:%s' % self.object.pk
         user_groups = self.request.session.get('USER_GROUPS', [])
-        logger.debug("inside CourseDataPermissionMixin - user groups are %s" % user_groups)
+        logger.debug("inside CourseDataPermissionMixin - user groups for sis_user_id:%s are %s"
+                     % (self.request.user.username, user_groups))
         return staff_group in user_groups
 
     def list_current_user_admin_roles_for_course(self):
@@ -80,7 +81,8 @@ class CourseDataPermissionsMixin(CourseDataMixin):
             account_id='sis_account_id:school:%s' % self.object.school_code,
             user_id='sis_user_id:%s' % self.request.user.username
         ).json()
-        logger.debug("admin list is %s" % user_accout_admin_list)
+        logger.debug("admin list for sis_user_id:%s in sis_account_id:school:%s is %s"
+                     % (self.request.user.username, self.object.school_code, user_accout_admin_list))
 
         return user_accout_admin_list
 

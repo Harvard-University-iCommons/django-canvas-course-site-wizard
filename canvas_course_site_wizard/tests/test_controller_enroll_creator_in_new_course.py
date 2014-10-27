@@ -9,43 +9,41 @@ class EnrollCreateInNewCourseTest(TestCase):
 
     def setUp(self):
         self.sis_course_id = '123456'
-        self.account_id = 123
         self.sis_user_id = 'sis-test-user'
         self.canvas_user_id = '5555'
-        self.course = {
-            'id': 1234,
-            'account_id': self.account_id,
-            'sis_course_id': self.sis_course_id
-        }
+        self.user_id = None
 
-    def test_user_successful_enrollment(self, get_user_profile, enroll_user_sections):
-        """
-        Test that SDK calls to user and enrollments receive expected values and that
-        enroll_creator_in_new_course() returns results of enrollment call
-        """
-        enroll_user_sections_expected_return_values = {
-            'enrollment_state': 'active',
-            'type': 'TeacherEnrollment',
-            'sis_course_id': self.sis_course_id,
-            'sis_section_id': self.sis_course_id
-        }
-        get_user_profile.return_value.status_code = 200
-        get_user_profile.return_value.json.return_value = {'id': self.canvas_user_id}
-        enroll_user_sections.return_value.json.return_value = enroll_user_sections_expected_return_values
-        result = enroll_creator_in_new_course(self.course, self.sis_user_id)
-        get_user_profile.assert_called_with(request_ctx=ANY, user_id='sis_user_id:%s' % self.sis_user_id)
-        enroll_user_sections.assert_called_with(request_ctx=ANY, section_id='sis_section_id:%s' % self.sis_course_id,
-                                                enrollment_user_id=self.canvas_user_id,
-                                                enrollment_type='TeacherEnrollment',
-                                                enrollment_enrollment_state='active')
-        self.assertDictContainsSubset(enroll_user_sections_expected_return_values, result,
-                                      "result contains: %s" % result)
+    def test_sis_user_id(self, get_user_profile, enroll_user_sections):
+        """ Successful enrollment using SIS user ID """
+        self.initialize_test(get_user_profile, enroll_user_sections)
+        self.user_id = 'sis_user_id:%s' % self.sis_user_id
+        test_result = enroll_creator_in_new_course(self.sis_course_id, self.user_id)
+        self.verify_test(get_user_profile, enroll_user_sections)
 
-    def test_no_user_to_enroll(self, get_user_profile, enroll_user_sections):
-        """
-        Test that error is passed back to caller if user does not exist in Canvas
-        """
+    def test_canvas_user_id(self, get_user_profile, enroll_user_sections):
+        """ Successful enrollment using Canvas user ID """
+        self.initialize_test(get_user_profile, enroll_user_sections)
+        self.user_id = self.canvas_user_id
+        test_result = enroll_creator_in_new_course(self.sis_course_id, self.user_id)
+        self.verify_test(get_user_profile, enroll_user_sections)
+
+    def test_canvas_user_not_found(self, get_user_profile, enroll_user_sections):
+        """ Fail before enrollment attempt if user does not exist in Canvas """
         get_user_profile.return_value.status_code.return_value = 404
+        bad_user_id = '    '  # mocking a bad user ID
         with self.assertRaises(NoCanvasUserToEnroll):
-            result = enroll_creator_in_new_course(self.course, self.sis_user_id)
-        self.assertTrue(get_user_profile.called)
+            result = enroll_creator_in_new_course(self.sis_course_id, bad_user_id)
+        get_user_profile.assert_called_with(request_ctx=ANY, user_id=bad_user_id)
+
+    def initialize_test(self, get_user_profile_mock, enroll_user_sections_mock):
+        get_user_profile_mock.return_value.status_code = 200
+        get_user_profile_mock.return_value.json.return_value = {'id': self.canvas_user_id,
+                                                                'sis_user_id': self.sis_user_id}
+
+    def verify_test(self, get_user_profile_mock, enroll_user_sections_mock):
+        get_user_profile_mock.assert_called_with(request_ctx=ANY, user_id=self.user_id)
+        enroll_user_sections_mock.assert_called_with(request_ctx=ANY,
+                                                     section_id='sis_section_id:%s' % self.sis_course_id,
+                                                     enrollment_user_id=self.canvas_user_id,
+                                                     enrollment_type='TeacherEnrollment',
+                                                     enrollment_enrollment_state='active')
