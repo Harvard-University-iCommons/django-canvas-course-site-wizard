@@ -194,8 +194,8 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
 def get_canvas_user_profile(sis_user_id):
     """
     This method will fetch the canvas user profile , given the sis_user_id
-    :param canvas_user_id: The sis_user_id of the user, without the sis_user_id: prefix
-    :type canvas_user_id: string
+    :param sis_user_id: The sis_user_id of the user, without the sis_user_id: prefix
+    :type sis_user_id: string
     return: Returns json representing the canvas user profile fetched by the canvas_sdk
     """
     response = get_user_profile(request_ctx=SDK_CONTEXT, user_id='sis_user_id:%s' % sis_user_id)
