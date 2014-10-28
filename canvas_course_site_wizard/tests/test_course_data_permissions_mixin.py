@@ -92,7 +92,7 @@ class CourseDataPermissionsMixinTest(TestCase):
         sdk_admins_mock.list_account_admins.return_value.json.return_value = []
         self.mixin.list_current_user_admin_roles_for_course()
         args, kwargs = sdk_admins_mock.list_account_admins.call_args
-        self.assertEqual(kwargs.get('account_id'), 'sis_account_id:%s' % expected_account_id)
+        self.assertEqual(kwargs.get('account_id'), 'sis_account_id:school:%s' % expected_account_id)
 
     @patch('canvas_course_site_wizard.mixins.admins')
     def test_list_current_user_admin_roles_for_course_finds_single_matching_users(self, sdk_admins_mock):

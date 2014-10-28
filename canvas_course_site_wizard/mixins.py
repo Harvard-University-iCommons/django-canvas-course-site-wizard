@@ -75,32 +75,21 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         if not self.object:  # Make sure we have the course data
             self.object = self.get_object()
 
-        #TODO: manual testing of admin permissions
-        #TODO: test cases
-        #TODO: test case & method comments, docstrings
-        #TODO: confirm whether to use school:colgsas (345) or just colgsas (6) when doing lookups (based on school_code, derived from course.school_id, which seems to be from course.school <> school.school_id
-
-        # List account admins for school associated with course. There is a bug in the Canvas API that does not allow
-        # sis_user_id:... to be passed to the user_id argument of the API call, and we do not have the current user's
-        # Canvas user ID, so we need to pull the full list of admins then determine whether the sis_user_id is in that
-        # list.
+        # List account admins for school associated with course. TLT-382 specified that only school-level admins
+        # will have access to the course creation process for now, so using school_code in combination with school:
+        # subaccount (instead of using sis_account_id, which would cover cases for dept: and coursegroup: as well).
+        # Note: There is a bug in canvas that prevents us from sending sis_user_id: in the user_id argument to
+        # list_account_admins, so we have to filter on the whole list returned from Canvas.
         user_account_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
-            account_id='sis_account_id:%s' % self.object.school_code
+            account_id='sis_account_id:school:%s' % self.object.school_code
         ).json()
-        logger.debug("Admin list for in sis_account_id:%s is %s" % (self.object.school_code,
-                                                                    user_account_admin_list))
+        logger.debug("Admin list for in sis_account_id:school:%s is %s"
+                     % (self.object.school_code, user_account_admin_list))
 
-        # if not isinstance(user_account_admin_list, (str, unicode)):
-        #     logger.warn("JSON response from list_account_admins was not a valid a string for parsing into an object.")
-        #     return None
-
-        # admin_list = loads(user_account_admin_list)
-        # print "full list: %s\nuser: %s\nsis_user_id: %s" % (admin_list, admin_list[0]['user'], admin_list[0]['user']['sis_user_id'])
         matching_users = [a for a in user_account_admin_list if a['user']['sis_user_id'] == self.request.user.username]
-        # print "matching_users: %s\n" % matching_users
-
         logger.debug("Matches found for user=%s in admin list: %s" % (self.request.user.username, matching_users))
+
         return matching_users
 
 
