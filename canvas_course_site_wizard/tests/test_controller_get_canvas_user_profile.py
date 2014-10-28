@@ -13,20 +13,19 @@ class GetCanvasUserProfileTest(TestCase):
     longMessage = True
 
     def setUp(self):
-        self.user_id = "123"
+        self.user_id = "12345678"
 
-    def test_get_canvas_user_profile_method_called_with_rigth_params(self, SDK_CONTEXT, get_user_profile):
+    def test_get_canvas_user_profile_method_called_with_right_params(self, SDK_CONTEXT, get_user_profile):
         """
         Test get_user_profile is called with expected args
         """
         get_user_profile.return_value = DEFAULT
         result = get_canvas_user_profile(self.user_id)
-        get_user_profile.assert_called_with(request_ctx=SDK_CONTEXT, user_id = self.user_id)
+        get_user_profile.assert_called_with(request_ctx=SDK_CONTEXT, user_id='sis_user_id:%s' % self.user_id)
 
     def test_when_get_user_profile_method_raises_exception(self, SDK_CONTEXT, get_user_profile):
         """
         Test to assert that an exception is raised when the get_user_profile method throws an exception
         """
-        result = get_canvas_user_profile(self.user_id)
         get_user_profile.side_effect = Exception
-        self.assertRaises( Exception, get_canvas_user_profile, self.user_id)
+        self.assertRaises(Exception, get_canvas_user_profile, self.user_id)
