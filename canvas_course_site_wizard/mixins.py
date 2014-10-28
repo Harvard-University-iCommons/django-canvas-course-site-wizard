@@ -1,6 +1,7 @@
 from .models_api import get_course_data
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from canvas_sdk.methods import admins
+from json import loads
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.views.generic.detail import SingleObjectMixin
 from django.http import Http404
@@ -67,24 +68,40 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         school.  Limit result set to the currently logged in user.  The list can be used for truth testing
         conditions.
 
-        :return: Canvas account admin information (response of admin request)
-        :rtype: json list of account admins, limited to current user
+        :return: Canvas account admin information (response of admin request), limited to current user
+        :rtype: list of account admin Python objects (converted from return value of SDK call)
         :raises: Exception from SDK
         """
         if not self.object:  # Make sure we have the course data
             self.object = self.get_object()
 
-        # List account admins for school associated with course.  Limit to the sis_user_id, which is
-        # equivalent to the currently logged in user's PIN (i.e. their username).
-        user_accout_admin_list = admins.list_account_admins(
-            request_ctx=SDK_CONTEXT,
-            account_id='sis_account_id:school:%s' % self.object.school_code,
-            user_id='sis_user_id:%s' % self.request.user.username
-        ).json()
-        logger.debug("admin list for sis_user_id:%s in sis_account_id:school:%s is %s"
-                     % (self.request.user.username, self.object.school_code, user_accout_admin_list))
+        #TODO: manual testing of admin permissions
+        #TODO: test cases
+        #TODO: test case & method comments, docstrings
+        #TODO: confirm whether to use school:colgsas (345) or just colgsas (6) when doing lookups (based on school_code, derived from course.school_id, which seems to be from course.school <> school.school_id
 
-        return user_accout_admin_list
+        # List account admins for school associated with course. There is a bug in the Canvas API that does not allow
+        # sis_user_id:... to be passed to the user_id argument of the API call, and we do not have the current user's
+        # Canvas user ID, so we need to pull the full list of admins then determine whether the sis_user_id is in that
+        # list.
+        user_account_admin_list = admins.list_account_admins(
+            request_ctx=SDK_CONTEXT,
+            account_id='sis_account_id:%s' % self.object.school_code
+        ).json()
+        logger.debug("Admin list for in sis_account_id:%s is %s" % (self.object.school_code,
+                                                                    user_account_admin_list))
+
+        # if not isinstance(user_account_admin_list, (str, unicode)):
+        #     logger.warn("JSON response from list_account_admins was not a valid a string for parsing into an object.")
+        #     return None
+
+        # admin_list = loads(user_account_admin_list)
+        # print "full list: %s\nuser: %s\nsis_user_id: %s" % (admin_list, admin_list[0]['user'], admin_list[0]['user']['sis_user_id'])
+        matching_users = [a for a in user_account_admin_list if a['user']['sis_user_id'] == self.request.user.username]
+        # print "matching_users: %s\n" % matching_users
+
+        logger.debug("Matches found for user=%s in admin list: %s" % (self.request.user.username, matching_users))
+        return matching_users
 
 
 class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):

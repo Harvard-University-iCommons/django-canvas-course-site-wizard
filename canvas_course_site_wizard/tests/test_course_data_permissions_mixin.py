@@ -63,15 +63,15 @@ class CourseDataPermissionsMixinTest(TestCase):
         response = self.mixin.is_current_user_member_of_course_staff()
         self.assertTrue(response, 'Teaching staff for course should return True')
 
-    @patch('canvas_course_site_wizard.mixins.SDK_CONTEXT')
     @patch('canvas_course_site_wizard.mixins.admins')
-    def test_list_current_user_admin_roles_for_course_handles_no_course_object(self, *args):
+    def test_list_current_user_admin_roles_for_course_handles_no_course_object(self, sdk_admins_mock):
         """
         Ensure that if there was no object attribute set on mixin, a call to get_object
         is made and result is stored as attribute
         """
         self.mixin.object = None
         self.mixin.get_object = Mock(name="CourseDataMock")
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = []
         self.mixin.list_current_user_admin_roles_for_course()
         self.mixin.get_object.assert_called_once_with()
         self.assertEqual(self.mixin.object, self.mixin.get_object.return_value)
@@ -80,24 +80,60 @@ class CourseDataPermissionsMixinTest(TestCase):
     @patch('canvas_course_site_wizard.mixins.admins')
     def test_list_current_user_admin_roles_for_course_sdk_method_called_with_context(self, sdk_admins_mock, context_mock):
         """ Test that admin sdk method was called with context keyword parameter """
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = []
         self.mixin.list_current_user_admin_roles_for_course()
         args, kwargs = sdk_admins_mock.list_account_admins.call_args
         self.assertEqual(kwargs.get('request_ctx'), context_mock)
 
-    @patch('canvas_course_site_wizard.mixins.SDK_CONTEXT')
     @patch('canvas_course_site_wizard.mixins.admins')
-    def test_list_current_user_admin_roles_for_course_sdk_method_called_with_course_school_code(self, sdk_admins_mock, context_mock):
+    def test_list_current_user_admin_roles_for_course_sdk_method_called_with_course_code(self, sdk_admins_mock):
         """ Test that admin sdk method was called with expected account_id keyword parameter """
-        expected_account_id = 'school:%s' % self.course_data.school_code
+        expected_account_id = '%s' % self.course_data.school_code
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = []
         self.mixin.list_current_user_admin_roles_for_course()
         args, kwargs = sdk_admins_mock.list_account_admins.call_args
         self.assertEqual(kwargs.get('account_id'), 'sis_account_id:%s' % expected_account_id)
 
-    @patch('canvas_course_site_wizard.mixins.SDK_CONTEXT')
     @patch('canvas_course_site_wizard.mixins.admins')
-    def test_list_current_user_admin_roles_for_course_sdk_method_called_with_user_id(self, sdk_admins_mock, context_mock):
-        """ Test that admin sdk method was called with expected user_id keyword parameter """
-        expected_user_id = self.mixin.request.user.username
-        self.mixin.list_current_user_admin_roles_for_course()
-        args, kwargs = sdk_admins_mock.list_account_admins.call_args
-        self.assertEqual(kwargs.get('user_id'), 'sis_user_id:%s' % expected_user_id)
+    def test_list_current_user_admin_roles_for_course_finds_single_matching_users(self, sdk_admins_mock):
+        """
+        If the admin list contains the current user, the method should return the user object from the list.
+        """
+        mock_user_to_find = {"user": {"id": 2, "sis_user_id": self.mixin.request.user.username}}
+        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
+        mock_user_list = [mock_user_to_find, mock_other_user]
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
+        return_value = self.mixin.list_current_user_admin_roles_for_course()
+        self.assertEqual(return_value[0], mock_user_to_find)
+        self.assertEqual(len(return_value), 1)
+
+    @patch('canvas_course_site_wizard.mixins.admins')
+    def test_list_current_user_admin_roles_for_course_finds_multiple_matching_users(self, sdk_admins_mock):
+        """
+        If the admin list contains multiple instances of the current user (e.g. with different roles),
+        the method should return all of the valid user objects from the list.
+        """
+        mock_user_to_find_first_instance = {
+            "role": "SchoolLiaison", "user": {"id": 2, "sis_user_id": self.mixin.request.user.username}
+        }
+        mock_user_to_find_second_instance = mock_user_to_find_first_instance
+        mock_user_to_find_second_instance['role'] = "AccountAdmin"
+        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
+        mock_user_list = [mock_user_to_find_first_instance, mock_other_user, mock_user_to_find_second_instance]
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
+        return_value = self.mixin.list_current_user_admin_roles_for_course()
+        self.assertEqual(return_value[0], mock_user_to_find_first_instance)
+        self.assertEqual(return_value[1], mock_user_to_find_second_instance)
+        self.assertEqual(len(return_value), 2)
+
+    @patch("canvas_course_site_wizard.mixins.admins")
+    def test_list_current_user_admin_roles_for_course_no_matching_users(self, sdk_admins_mock):
+        """
+        If the admin list does not contain the current user, the method should return an empty list. list_account_admins
+        looks for users matching the username in the request, so it should not find that user in the mock_user_list.
+        """
+        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
+        mock_user_list = [mock_other_user, mock_other_user]
+        sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
+        return_value = self.mixin.list_current_user_admin_roles_for_course()
+        self.assertEqual(return_value, [])
