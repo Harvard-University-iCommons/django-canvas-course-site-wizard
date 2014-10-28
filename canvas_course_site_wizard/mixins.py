@@ -1,7 +1,6 @@
 from .models_api import get_course_data
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from canvas_sdk.methods import admins
-from json import loads
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.views.generic.detail import SingleObjectMixin
 from django.http import Http404
