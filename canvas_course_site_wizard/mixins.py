@@ -67,24 +67,29 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         school.  Limit result set to the currently logged in user.  The list can be used for truth testing
         conditions.
 
-        :return: Canvas account admin information (response of admin request)
-        :rtype: json list of account admins, limited to current user
+        :return: Canvas account admin information (response of admin request), limited to current user
+        :rtype: list of account admin Python objects (converted from return value of SDK call)
         :raises: Exception from SDK
         """
         if not self.object:  # Make sure we have the course data
             self.object = self.get_object()
 
-        # List account admins for school associated with course.  Limit to the sis_user_id, which is
-        # equivalent to the currently logged in user's PIN (i.e. their username).
-        user_accout_admin_list = admins.list_account_admins(
+        # List account admins for school associated with course. TLT-382 specified that only school-level admins
+        # will have access to the course creation process for now, so using school_code in combination with school:
+        # subaccount (instead of using sis_account_id, which would cover cases for dept: and coursegroup: as well).
+        # Note: There is a bug in canvas that prevents us from sending sis_user_id: in the user_id argument to
+        # list_account_admins, so we have to filter on the whole list returned from Canvas.
+        user_account_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
-            account_id='sis_account_id:school:%s' % self.object.school_code,
-            user_id='sis_user_id:%s' % self.request.user.username
+            account_id='sis_account_id:school:%s' % self.object.school_code
         ).json()
-        logger.debug("admin list for sis_user_id:%s in sis_account_id:school:%s is %s"
-                     % (self.request.user.username, self.object.school_code, user_accout_admin_list))
+        logger.debug("Admin list for in sis_account_id:school:%s is %s"
+                     % (self.object.school_code, user_account_admin_list))
 
-        return user_accout_admin_list
+        matching_users = [a for a in user_account_admin_list if a['user']['sis_user_id'] == self.request.user.username]
+        logger.debug("Matches found for user=%s in admin list: %s" % (self.request.user.username, matching_users))
+
+        return matching_users
 
 
 class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):

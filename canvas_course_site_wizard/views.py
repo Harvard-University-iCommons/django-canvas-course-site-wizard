@@ -21,14 +21,14 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
 
     def post(self, request, *args, **kwargs):
         sis_course_id = self.object.pk
+        sis_user_id = 'sis_user_id:%s' % request.user.username
         course = create_canvas_course(sis_course_id)
         try:
-            migration_job = start_course_template_copy(self.object, course['id'], request.user.pk)
+            migration_job = start_course_template_copy(self.object, course['id'], request.user.username)
             return redirect('ccsw-status', migration_job.pk)
         except NoTemplateExistsForSchool:
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
-            sis_user_id = 'sis_user_id:%s' % request.user.username
             course_url = finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id)
             return redirect(course_url)
 
