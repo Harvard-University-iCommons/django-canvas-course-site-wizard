@@ -47,7 +47,8 @@ class Command(NoArgsCommand):
 
                 if workflow_state == 'completed':
                     # TODO: update workflow_state in table for job_id
-                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id, job.created_by_user_id)
+                    finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id,
+                                               'sis_user_id:%s' % job.created_by_user_id)
                     message = 'content migration complete for course with sis_course_id %s' % job.sis_course_id
                     logger.info(message)
                     user_profile = get_canvas_user_profile(job.created_by_user_id)
