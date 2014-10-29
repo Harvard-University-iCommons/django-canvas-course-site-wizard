@@ -35,7 +35,6 @@ class SendMailHelperTest(TestCase):
     def test_send_mail_on_exception(self, send_mail):
         """ Test to assert that an exception is raised when the send_mail throws an exception"""
         from_address = self.from_address
-        send_email_helper(self.subject, self.message, self.to_address)
         send_mail.side_effect = Exception	
         self.assertRaises( Exception, send_email_helper, self.subject, self.message, self.to_address)
     
