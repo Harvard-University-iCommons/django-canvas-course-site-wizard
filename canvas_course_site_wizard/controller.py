@@ -233,10 +233,12 @@ def send_failure_email(initiator_email, sis_course_id):
 
     # On failure, send message to both initiator and the support group (e.g. icommons-support)
     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
+    msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']
+    complete_msg = msg.format(sis_course_id)
+
     logger.debug(" notifying  failure via email:  to_addr=%s and message=%s" 
             % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
-    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'],
-        settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']+sis_course_id+')',to_address)
+    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg,to_address)
 
 
         

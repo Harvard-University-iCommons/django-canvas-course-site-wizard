@@ -92,7 +92,7 @@ class Command(NoArgsCommand):
             except KeyError as e:
                 logger.exception(e)
             except Exception as e:
-                logger.exception(" There was a problem in processing the job for canvas course  sis_course_id=%s" % job.sis_course_id)
+                logger.exception(" There was a problem in processing the job for canvas course  sis_course_id=%s, exception=%s" % (job.sis_course_id,e))
                 try :
                     #if failure happened before user profile was fetched, get the user profile to retrieve email, else reuse teh user_profile info
                     if user_profile == None:
@@ -101,7 +101,7 @@ class Command(NoArgsCommand):
                     send_failure_email(user_profile['primary_email'], job.sis_course_id)
                 except Exception as e:
                     #If exception occurs while sending failure email, log it
-                    logger.exception(" There was a problem in sending the failure notification  email to initiator and support staff for sis_course_id=%s" % job.sis_course_id)
+                    logger.exception(" There was a problem in sending the failure notification  email to initiator and support staff for sis_course_id=%s, exception=%s" % (job.sis_course_id,e))
 
         
 

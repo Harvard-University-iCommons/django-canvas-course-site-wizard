@@ -36,9 +36,13 @@ class CommandsTestCase(TestCase):
         cmd.handle_noargs(**opts)
         filter_mock.assert_called_once_with(ANY)
 
-
+    @override_settings(CANVAS_EMAIL_NOTIFICATION= {'course_migration_success_subject':'xyz', 'course_migration_success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
-    def test_process_async_jobs_cm_assert_that_client_get_is_called_once_with_the_correct_url(self, client_mock):
+    def test_process_async_jobs_cm_assert_that_client_get_is_called_once_with_the_correct_url(self, client_mock
+        ,get_canvas_user_profile, email_helper_mock, finalize_mock):
         """ 
         ** Integration test **
         assert that client.get is called with the job.status_url. Note that this 
@@ -106,11 +110,11 @@ class CommandsTestCase(TestCase):
     def test_process_async_jobs_invokes_correct_methods_on_failed_status(self,
      client_mock, get_canvas_user_profile, email_failure_mock, finalize_mock):
         """
-        test that the send_failure_email and get_canvas_user_profile helper method are called
-        with the right params when the workflow_state of the job changes to 'failed'
+        test that the send_failure_email and get_canvas_user_profile helper method is called
+        when the workflow_state of the job changes to 'failed'
         """
 
-        CanvasContentMigrationJob.objects.create(
+        job = CanvasContentMigrationJob.objects.create(
             canvas_course_id = self.canvas_course_id, 
             sis_course_id = self.sis_course_id, 
             content_migration_id = self.content_migration_id, 
@@ -172,7 +176,7 @@ class CommandsTestCase(TestCase):
     def test_process_async_jobs_sends_failure_email_when_any_exception_occurs(self,
      client_mock, get_canvas_user_profile, email_failure_mock, finalize_mock):
         """
-        test that the sync jobs send a failure email notification  on any exception raised by finalize_new_canvas_course
+        test that the sync jobs send a failure email notification on an exception during job processing
         """
 
         CanvasContentMigrationJob.objects.create(
@@ -195,44 +199,15 @@ class CommandsTestCase(TestCase):
         cmd.handle_noargs(**opts)
         email_failure_mock.assert_called_with(ANY, ANY)
 
+ 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'course_migration_success_subject':'xyz', 'course_migration_success_body':'abc'})
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.logger.error')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
-    def test_process_async_jobs_raisess_exception_thrown_by_get_user_profile(self, 
-     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock):
-        """
-        Test that an exception  is raised when  get_canvas_user_profile method throws an exception
-        """
-        CanvasContentMigrationJob.objects.create(
-            canvas_course_id = self.canvas_course_id, 
-            sis_course_id = self.sis_course_id, 
-            content_migration_id = self.content_migration_id, 
-            status_url = self.status_url,
-            created_by_user_id = self.created_by_user_id,
-            workflow_state = self.workflow_state)
-       
-        client_mock.return_value.json.return_value = {
-            'workflow_state': 'completed',
-        }
-        get_canvas_user_profile.side_effect = Exception
-        # save_mock = MagicMock(update_fields=['workflow_state'])
-        # job.save =  save_mock 
-
-        cmd = process_async_jobs.Command()
-        opts = {} 
-        cmd.handle_noargs(**opts)
-        self.assertRaises( Exception, process_async_jobs.Command())
-
-
-    @override_settings(CANVAS_EMAIL_NOTIFICATION= {'course_migration_success_subject':'xyz', 'course_migration_success_body':'abc'})
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
-    def test_process_async_jobs_raises_exception_thrown_by_send_email_helper(self,
-     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock ):
+    def test_process_async_jobs_logs_exception_thrown_by_send_email_helper(self,
+     client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock, log_error):
         """
         Test that an exception  is raised when  send_email_helper method throws an exception
         """
@@ -249,14 +224,13 @@ class CommandsTestCase(TestCase):
         }
         get_canvas_user_profile.return_value = {
             'primary_email': 'a@a.com',
-        }       
+        }      
         email_helper_mock.side_effect = Exception
 
         cmd = process_async_jobs.Command()
         opts = {} 
         cmd.handle_noargs(**opts)
-        self.assertRaises( Exception, process_async_jobs.Command())
-
+        self.assertTrue(log_error.called)
 
     @override_settings(CANVAS_EMAIL_NOTIFICATION= {'course_migration_success_subject':'xyz', 'course_migration_success_body':'abc'})
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.finalize_new_canvas_course')
@@ -278,7 +252,6 @@ class CommandsTestCase(TestCase):
             created_by_user_id = self.created_by_user_id,
             workflow_state = self.workflow_state)
 
-        # saved_obj = CanvasContentMigrationJob.objects.save( workflow_state = 'completed')
         client_mock.return_value.json.return_value = {
             'workflow_state': 'completed',
         }
@@ -288,4 +261,3 @@ class CommandsTestCase(TestCase):
         opts = {} 
         cmd.handle_noargs(**opts)
         self.assertTrue(log_error.called)
-
