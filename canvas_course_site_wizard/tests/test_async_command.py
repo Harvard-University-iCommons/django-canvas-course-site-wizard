@@ -25,7 +25,7 @@ class CommandsTestCase(TestCase):
         self.status_check = {
             'workflow_state': 'completed',
         }
-        
+
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
     def test_process_async_jobs_cm_filter_called_with(self, filter_mock):
         """ 
@@ -125,8 +125,6 @@ class CommandsTestCase(TestCase):
             'primary_email': 'a@a.com',
         }
 
-                            # send_failure_email(user_profile['primary_email'], job.sis_course_id)
-
         email_failure_mock.return_value= DEFAULT
         cmd = process_async_jobs.Command()
         opts = {} 
@@ -202,13 +200,12 @@ class CommandsTestCase(TestCase):
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.get_canvas_user_profile')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.client.get')
-    # @patch('canvas_course_site_wizard.management.commands.process_async_jobs.jobs.job.save')
     def test_process_async_jobs_raisess_exception_thrown_by_get_user_profile(self, 
      client_mock, get_canvas_user_profile, email_helper_mock, finalize_mock):
         """
         Test that an exception  is raised when  get_canvas_user_profile method throws an exception
         """
-        job = CanvasContentMigrationJob.objects.create(
+        CanvasContentMigrationJob.objects.create(
             canvas_course_id = self.canvas_course_id, 
             sis_course_id = self.sis_course_id, 
             content_migration_id = self.content_migration_id, 
@@ -220,8 +217,8 @@ class CommandsTestCase(TestCase):
             'workflow_state': 'completed',
         }
         get_canvas_user_profile.side_effect = Exception
-        save_mock = MagicMock(update_fields=['workflow_state'])
-        job.save =  save_mock 
+        # save_mock = MagicMock(update_fields=['workflow_state'])
+        # job.save =  save_mock 
 
         cmd = process_async_jobs.Command()
         opts = {} 

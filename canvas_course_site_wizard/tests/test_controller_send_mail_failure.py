@@ -41,4 +41,5 @@ class SendMailFailureTest(TestCase):
         send_failure_email(self.initiator_email, self.sis_course_id)
         send_mail.side_effect = Exception	
         self.assertRaises( Exception, send_failure_email, self.initiator_email, self.sis_course_id)
+        
     
