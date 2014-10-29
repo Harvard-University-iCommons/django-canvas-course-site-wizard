@@ -125,7 +125,6 @@ class SISCourseDataMixin(object):
         Returns the updated object  - of type SISCourseDataMixin.
         """
         self.sync_to_canvas = sync_to_canvas_flag
-        # TODO: Fix 'ORA-01031: insufficient privileges' problem
         self.save(update_fields=['sync_to_canvas'])
         return self
 

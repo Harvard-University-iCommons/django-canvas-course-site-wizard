@@ -217,7 +217,7 @@ def send_email_helper(subject, message, to_address):
     # all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
 
-def sendFailureEmail(initiator_email, sis_course_id):
+def send_failure_email(initiator_email, sis_course_id):
     """
     This is a utility to send an email on failure of course migration . It appemds the support email 
     to the to_address list and also retrives the necessary subject and body from the settings file. 
