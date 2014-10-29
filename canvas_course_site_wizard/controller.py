@@ -221,14 +221,13 @@ def send_failure_email(initiator_email, sis_course_id):
     """
     This is a utility to send an email on failure of course migration . It appemds the support email 
     to the to_address list and also retrives the necessary subject and body from the settings file. 
-    Note: It is used  in multiple places and abstracts the deatils of building the email list and body from the
+    Note: It is used  in multiple places and abstracts the details of building the email list and body from the
     calling method
     :param initiator_email: The initiator's email for the message to be sent, a String which can be null if unavailable
     :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String 
     """
   
     to_address =[]
-    # On failure, send message to both initiator and the support group (e.g. icommons-support)
     if initiator_email:
         to_address.append(initiator_email)
 
