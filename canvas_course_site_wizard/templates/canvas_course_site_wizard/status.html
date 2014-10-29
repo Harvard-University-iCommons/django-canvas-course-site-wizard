@@ -5,20 +5,32 @@
 {% block content %}
 
     <h1>Canvas Course Site Wizard</h1>
-
-    <h2> Status is <span>{{ content_migration_job.workflow_state }}</span></h2>
     
     {% if content_migration_job.workflow_state == 'complete' %}
-        <p>You course has been created, click on the url below to access your course.
+        <p>Your course has been created, click on the url below to access your course.
             <br />
             <a href="{{canvas_course_url}}">{{canvas_course_url}}</a>
         </p>
     {% elif content_migration_job.workflow_state == 'failed' %}
-        <p>There has been a problem processing your course. Please contact IT support.
-        </p>
+        <h2>Oops!</h2>
+        <p>Sadly, there was a problem. Please notify your local academic support staff:</p>
+        <ul>
+          <li>DCE: AcademicTechnology@dce.harvard.edu</li>
+          <li>FAS: atg@fas.harvard.edu</li>
+          <li>GSD: klau@gsd.harvard.edu</li>
+          <li>GSE: it_onestop@gse.harvard.edu</li>
+          <li>HDS: coursesites@hds.harvard.edu</li>
+          <li>HKS: helpdesk@hks.harvard.edu</li>
+          <li>HLS: ask@edtech.libanswers.com</li>
+          <li>HMS: mycourses_support@hms.harvard.edu</li>
+          <li>HSPH: icf@hsph.harvard.edu</li>
+        </ul>
     {% else %}
-        <p>You course is still being processes. Please try back in a few minutes.
-        </p>
+        <h2>Almost there!</h2>
+        <p>Your course site is being created.
+        An email will be sent to you when the 
+        site is ready.</p>
+        
     {% endif %}
 
 {% endblock content %}
