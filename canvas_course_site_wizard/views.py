@@ -31,6 +31,11 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             # (i.e. run through remaining post-async job steps)
             course_url = finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id)
             return redirect(course_url)
+        except Exception as e:
+            # This is either a re-raised error or an unknown / unanticipated error; if it is the latter
+            # we need to provide some context in our logs to debug the error later
+            logger.exception(e)
+            raise
 
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
@@ -46,5 +51,6 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         get_canvas_course_url. 
         """    
         context = super(CanvasCourseSiteStatusView, self).get_context_data(**kwargs)
+        logger.debug('Rendering status page for migration job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
         return context

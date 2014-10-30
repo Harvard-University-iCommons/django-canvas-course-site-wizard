@@ -264,22 +264,24 @@ class SISCourseDataMixinTest(TestCase):
         res = self.course_data.get_official_course_site_url()
         self.assertEqual(res, external_site_mock.external_id)
 
-    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
-    def test_set_official_course_site_url_creates_course_site_row(self, CourseSite, SiteMap):
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT, SiteMapType=DEFAULT)
+    def test_set_official_course_site_url_creates_course_site_row(self, CourseSite, SiteMap, SiteMapType):
         """ Make sure setting official course site creates a CourseSite row """
         site_url = 'http://my.site.url'
         self.course_data.set_official_course_site_url(site_url)
         CourseSite.objects.create.assert_called_once_with(site_type_id='external', external_id=site_url)
 
-    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
-    def test_set_official_course_site_url_creates_site_map_row(self, CourseSite, SiteMap):
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT, SiteMapType=DEFAULT)
+    def test_set_official_course_site_url_creates_site_map_row(self, CourseSite, SiteMap, SiteMapType):
         """ Make sure setting official course site creates a SiteMap row """
         site_url = 'http://my.site.url'
         self.course_data.set_official_course_site_url(site_url)
-        SiteMap.objects.create.assert_called_once_with(course_instance=self.course_data, course_site=CourseSite.objects.create.return_value)
+        SiteMap.objects.create.assert_called_once_with(course_instance=self.course_data,
+                                                       course_site=CourseSite.objects.create.return_value,
+                                                       map_type=SiteMapType.objects.get.return_value)
 
-    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT)
-    def test_set_official_course_site_url_returns_newly_created_course_site_row(self, CourseSite, SiteMap):
+    @patch.multiple('canvas_course_site_wizard.models', CourseSite=DEFAULT, SiteMap=DEFAULT, SiteMapType=DEFAULT)
+    def test_set_official_course_site_url_returns_newly_created_course_site_row(self, CourseSite, SiteMap, SiteMapType):
         """ Make sure setting official course site returns CouresSite row """
         site_url = 'http://my.site.url'
         res = self.course_data.set_official_course_site_url(site_url)

@@ -1,4 +1,4 @@
-from icommons_common.models import CourseInstance, CourseSite, SiteMap
+from icommons_common.models import CourseInstance, CourseSite, SiteMap, SiteMapType
 from django.conf import settings
 from django.db import models
 
@@ -104,11 +104,10 @@ class SISCourseDataMixin(object):
         Creates the records necessary to make the given url the official course site for this course.
         Returns the newly created CourseSite object.
         """
-        # TODO: Fix 'ORA-01031: insufficient privileges' problem
         site = CourseSite.objects.create(site_type_id='external', external_id=url)
-        SiteMap.objects.create(course_instance=self, course_site=site)
+        sitemap_type = SiteMapType.objects.get(map_type_id='official')
+        SiteMap.objects.create(course_instance=self, course_site=site, map_type=sitemap_type)
         return site
-        return {}
 
     def primary_section_name(self):
         """
@@ -163,7 +162,9 @@ class CanvasContentMigrationJob(models.Model):
         db_table = u'canvas_content_migration_job'
 
     def __unicode__(self):
-        return self.sis_course_id + " | " + self.workflow_state
+        #TODO: unit test for this method (skipped to support bug fix in QA testing)
+        return "(CanvasContentMigrationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
+                                                                              self.workflow_state)
 
 
 class CanvasSchoolTemplate(models.Model):
@@ -174,4 +175,6 @@ class CanvasSchoolTemplate(models.Model):
         db_table = u'canvas_school_template'
 
     def __unicode__(self):
-        return self.school_id + " | " + str(self.template_id)
+        #TODO: unit test for this method (skipped to support bug fix in QA testing)
+        return "(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
+                                                                               self.template_id)
