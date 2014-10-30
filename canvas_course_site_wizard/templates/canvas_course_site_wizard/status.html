@@ -4,15 +4,18 @@
 
 {% block content %}
 
-    <h1>Canvas Course Site Wizard</h1>
-    
-    {% if content_migration_job.workflow_state == 'complete' %}
-        <p>Your course has been created, click on the url below to access your course.
+    {% if content_migration_job.workflow_state == 'completed' %}
+        <h1>Success!</h1>
+        <p>Your new Canvas course site has been created and is ready for you at:
             <br />
             <a href="{{canvas_course_url}}">{{canvas_course_url}}</a>
         </p>
+        <p>
+            Resources for getting started with your site:
+            <a href="http://tlt.harvard.edu/getting-started">http://tlt.harvard.edu/getting-started</a>
+        </p>
     {% elif content_migration_job.workflow_state == 'failed' %}
-        <h2>Oops!</h2>
+        <h1>Oops!</h1>
         <p>Sadly, there was a problem. Please notify your local academic support staff:</p>
         <ul>
           <li>DCE: AcademicTechnology@dce.harvard.edu</li>
@@ -26,7 +29,7 @@
           <li>HSPH: icf@hsph.harvard.edu</li>
         </ul>
     {% else %}
-        <h2>Almost there!</h2>
+        <h1>Almost there!</h1>
         <p>Your course site is being created.
         An email will be sent to you when the 
         site is ready.</p>

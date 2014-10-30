@@ -73,27 +73,36 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id):
     NoTemplateExistsForSchool exception will be raised.
     """
 
+    school_code = sis_course.school_code
+
     try:
-        template_id = get_template_for_school(sis_course.school_code)
+        logger.debug('Fetching template for school_code=%s...' % school_code)
+        template_id = get_template_for_school(school_code)
     except ObjectDoesNotExist:
-        raise NoTemplateExistsForSchool(sis_course.school_code)
+        logger.debug('Did not find a template for course %s.' % sis_course.pk)
+        raise NoTemplateExistsForSchool(school_code)
 
     # Initiate course copy for template_id
+    logger.debug('Requesting content migration from Canvas for canvas_course_id=%s...' % canvas_course_id)
     content_migration = content_migrations.create_content_migration_courses(
         SDK_CONTEXT,
         canvas_course_id,
         migration_type='course_copy_importer',
         settings_source_course_id=template_id,
     ).json()
+    logger.debug('content migration API call result: %s' % content_migration)
 
     # Return newly created content_migration_job row that contains progress url
-    return CanvasContentMigrationJob.objects.create(
+    logger.debug('Create content migration job tracking row...')
+    migration_job = CanvasContentMigrationJob.objects.create(
         canvas_course_id=canvas_course_id,
         sis_course_id=sis_course.pk,
         content_migration_id=content_migration['id'],
         status_url=content_migration['progress_url'],
         created_by_user_id=user_id,
     )
+    logger.debug('Job row created: %s' % migration_job)
+    return migration_job
 
 
 def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
