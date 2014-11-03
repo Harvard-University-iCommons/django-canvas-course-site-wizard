@@ -52,7 +52,9 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         :return: True or False depending on whether user is in staff list
         :rtype: boolean
         """
+
         if not self.object:  # Make sure we have the course data
+            logger.debug('getting object in is_current_user_member_of_course_staff')
             self.object = self.get_object()
 
         staff_group = 'ScaleCourseStaff:%s' % self.object.pk
@@ -72,6 +74,7 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         :raises: Exception from SDK
         """
         if not self.object:  # Make sure we have the course data
+            logger.debug('getting object in list_current_user_admin_roles_for_course')
             self.object = self.get_object()
 
         # List account admins for school associated with course. TLT-382 specified that only school-level admins
@@ -86,8 +89,11 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         logger.debug("Admin list for in sis_account_id:school:%s is %s"
                      % (self.object.school_code, user_account_admin_list))
 
-        matching_users = [a for a in user_account_admin_list if a['user']['sis_user_id'] == self.request.user.username]
-        logger.debug("Matches found for user=%s in admin list: %s" % (self.request.user.username, matching_users))
+        # Chained safe access to dictionary keys, see http://stackoverflow.com/a/14484580/3526824
+        matching_users = [a for a in user_account_admin_list
+                          if a.get('user', {}).get('sis_user_id', {}) == self.request.user.username]
+        logger.debug("Matches found for user=%s in admin list (matching against sis_user_id's in list): %s"
+                     % (self.request.user.username, matching_users))
 
         return matching_users
 

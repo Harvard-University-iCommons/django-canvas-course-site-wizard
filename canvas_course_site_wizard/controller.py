@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 def create_canvas_course(sis_course_id):
     """This method creates a canvas course for the  sis_course_id provided."""
 
-    new_course = None
     try:
         #1. fetch the course instance info 
         course_data = get_course_data(sis_course_id)
@@ -35,6 +34,7 @@ def create_canvas_course(sis_course_id):
 
     #2. Create canvas course
     try:
+        new_course = None
         request_parameters = dict(request_ctx=SDK_CONTEXT,
                 account_id = 'sis_account_id:' + course_data.sis_account_id,
                 course_name = course_data.course_name,
@@ -49,16 +49,16 @@ def create_canvas_course(sis_course_id):
 
     # 3. Create course section after course  creation
     try:
-        section = create_course_section(
-                    SDK_CONTEXT,
-                    course_id = new_course['id'],
-                    course_section_name = course_data.primary_section_name(),
-                    course_section_sis_section_id = sis_course_id
-                    )
-        logger.info("created section= %s" %(section.json()))
+        section = None
+        request_parameters = dict(request_ctx=SDK_CONTEXT,
+            course_id=new_course['id'],
+            course_section_name=course_data.primary_section_name(),
+            course_section_sis_section_id=sis_course_id)
+        section = create_course_section(**request_parameters).json()
+        logger.info("created section= %s" % section)
     except Exception as e:
-        logger.error('Error creating default section for Canvas course with new_course.request=%s and response=%s: %s'
-                     % (new_course.request, new_course.json(), e))
+        logger.error('Error creating default section for Canvas course with request=%s and response=%s: %s'
+                     % (request_parameters, section, e))
         raise
 
     return new_course
