@@ -22,25 +22,29 @@ logger = logging.getLogger(__name__)
 def create_canvas_course(sis_course_id):
     """This method creates a canvas course for the  sis_course_id provided."""
 
+    # instantiate any variables required for method return or logger calls
+    new_course = None
+    section = None
+    request_parameters = None
+
     try:
-        #1. fetch the course instance info 
+        #1. fetch the course instance info
         course_data = get_course_data(sis_course_id)
 
         logger.info("\n obtained  course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
-         %(course_data,course_data.sis_account_id, course_data.course_name, course_data.course_code, course_data.sis_term_id,course_data.primary_section_name() ))
+                    %(course_data,course_data.sis_account_id, course_data.course_name, course_data.course_code, course_data.sis_term_id,course_data.primary_section_name() ))
     except ObjectDoesNotExist as e:
         logger.error('ObjectDoesNotExist  exception in  create course:  %s, exception=%s' % (sis_course_id, e))
         raise Http404
 
     #2. Create canvas course
     try:
-        new_course = None
         request_parameters = dict(request_ctx=SDK_CONTEXT,
-                account_id = 'sis_account_id:' + course_data.sis_account_id,
-                course_name = course_data.course_name,
-                course_course_code = course_data.course_code,
-                course_term_id = 'sis_term_id:' + course_data.sis_term_id,
-                course_sis_course_id= sis_course_id)
+                                  account_id = 'sis_account_id:%s' % course_data.sis_account_id,
+                                  course_name = course_data.course_name,
+                                  course_course_code = course_data.course_code,
+                                  course_term_id = 'sis_term_id:%s' % course_data.sis_term_id,
+                                  course_sis_course_id= sis_course_id)
         new_course = create_new_course(**request_parameters).json()
         logger.info("created  course object, ret=%s" % (new_course))
     except Exception as e:
@@ -49,11 +53,10 @@ def create_canvas_course(sis_course_id):
 
     # 3. Create course section after course  creation
     try:
-        section = None
         request_parameters = dict(request_ctx=SDK_CONTEXT,
-            course_id=new_course['id'],
-            course_section_name=course_data.primary_section_name(),
-            course_section_sis_section_id=sis_course_id)
+                                  course_id=new_course['id'],
+                                  course_section_name=course_data.primary_section_name(),
+                                  course_section_sis_section_id=sis_course_id)
         section = create_course_section(**request_parameters).json()
         logger.info("created section= %s" % section)
     except Exception as e:
