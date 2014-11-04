@@ -6,7 +6,9 @@ from .models import CanvasContentMigrationJob
 from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
+from django.template import loader, Context
 from django.shortcuts import redirect
+from django.http import HttpResponse, HttpResponseServerError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,9 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
     template_name = "canvas_course_site_wizard/canvas_wizard.html"
 
     def post(self, request, *args, **kwargs):
+
+        raise Exception
+
         sis_course_id = self.object.pk
         sis_user_id = 'sis_user_id:%s' % request.user.username
         course = create_canvas_course(sis_course_id)
@@ -54,3 +59,16 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         logger.debug('Rendering status page for migration job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
         return context
+
+
+def error_view(request):
+    """ test view for showing the customizable error page """
+
+    logger.debug('request.path:%s' % request.path)
+    t = loader.get_template('canvas_course_site_wizard/500.html')
+    # response = t.render(Context({'app_errors': [{'message': 'Something here'}]}))
+    # response = t.render(Context({'app_errors': [{'message': 'Something here'}, {'message': 'second error'}]}))
+    response = t.render(Context({'suppress_contact_list': 'true',
+                                 'app_errors': [{'message': 'Something here'}, {'message': 'second error'}]}))
+    # response = t.render(Context({'error_message': 'Something here', 'show_contact_list': 'true'}))
+    return HttpResponseServerError(response)
