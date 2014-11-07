@@ -171,7 +171,7 @@ class CommandsTestCase(TestCase):
         self.assertTrue(logger.exception.called)
 
     def test_job_workflow_state_saved_when_status_complete_and_finalize_throws_exception(self, client, get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
-        """ Test that the content migration workflow state is updated regardless of whether finalizing throws an exception """
+        """ Test that the content migration workflow state is updated to complete regardless of whether finalizing throws an exception """
         migration = self.create_migration_job_from_setup()
         client.get.return_value.json.return_value = {
             'workflow_state': 'completed',
@@ -184,7 +184,7 @@ class CommandsTestCase(TestCase):
         self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_COMPLETED)
 
     def test_job_workflow_state_saved_when_status_failed_and_finalize_throws_exception(self, client, get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
-        """ Test that the content migration workflow state is updated regardless of whether finalizing throws an exception """
+        """ Test that the content migration workflow state is updated to failure regardless of whether finalizing throws an exception """
         migration = self.create_migration_job_from_setup()
         client.get.return_value.json.return_value = {
             'workflow_state': 'failed',
