@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.views.generic.detail import SingleObjectMixin
 from django.http import Http404
 from django.conf import settings
+
 from django.utils.translation import ugettext as _
 
 import logging
@@ -20,6 +21,9 @@ class CourseDataMixin(SingleObjectMixin):
     Retrieve an sis course data object and store in context
     """
     context_object_name = 'course_data'
+
+    def __init__(self, *args, **kwargs):
+        super(CourseDataMixin, self).__init__(*args, **kwargs)
 
     def get_object(self, queryset=None):
         """ Retrieve course data object by primary key """
@@ -43,6 +47,9 @@ class CourseDataPermissionsMixin(CourseDataMixin):
     Provide permission checks for the currently logged in user against an sis course data instance.
     This mixin should be placed after the LoginRequiredMixin
     """
+
+    def __init__(self, *args, **kwargs):
+        super(CourseDataPermissionsMixin, self).__init__(*args, **kwargs)
 
     def is_current_user_member_of_course_staff(self):
         """
@@ -104,6 +111,9 @@ class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):
     Processes permission checks required for initiating course creation.  Being a mixin allows for a
     view to implement multiple mixins that override dispatch.
     """
+
+    def __init__(self, *args, **kwargs):
+        super(CourseSiteCreationAllowedMixin, self).__init__(*args, **kwargs)
 
     def dispatch(self, request, *args, **kwargs):
         # Retrieve the course data object and determine if user can go ahead with creation

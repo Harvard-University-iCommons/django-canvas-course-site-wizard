@@ -1,20 +1,20 @@
 from .controller import (create_canvas_course, start_course_template_copy,
                          finalize_new_canvas_course, get_canvas_course_url)
 from .mixins import CourseSiteCreationAllowedMixin
+from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
 from .models import CanvasContentMigrationJob
 from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
-from django.template import loader, Context
 from django.shortcuts import redirect
-from django.http import HttpResponse, HttpResponseServerError
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMixin, TemplateView):
+class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMixin, CustomErrorPageMixin, TemplateView):
     """
     Serves up the canvas course site creation wizard on GET and creates the
     course site on POST.
@@ -23,7 +23,7 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
 
     def post(self, request, *args, **kwargs):
 
-        raise Exception
+        self.custom_error_template_name = settings.COURSE_WIZARD_CUSTOM_ERROR_TEMPLATE
 
         sis_course_id = self.object.pk
         sis_user_id = 'sis_user_id:%s' % request.user.username
@@ -36,11 +36,6 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             # (i.e. run through remaining post-async job steps)
             course_url = finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id)
             return redirect(course_url)
-        except Exception as e:
-            # This is either a re-raised error or an unknown / unanticipated error; if it is the latter
-            # we need to provide some context in our logs to debug the error later
-            logger.exception(e)
-            raise
 
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
@@ -59,16 +54,3 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         logger.debug('Rendering status page for migration job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
         return context
-
-
-def error_view(request):
-    """ test view for showing the customizable error page """
-
-    logger.debug('request.path:%s' % request.path)
-    t = loader.get_template('canvas_course_site_wizard/500.html')
-    # response = t.render(Context({'app_errors': [{'message': 'Something here'}]}))
-    # response = t.render(Context({'app_errors': [{'message': 'Something here'}, {'message': 'second error'}]}))
-    response = t.render(Context({'suppress_contact_list': 'true',
-                                 'app_errors': [{'message': 'Something here'}, {'message': 'second error'}]}))
-    # response = t.render(Context({'error_message': 'Something here', 'show_contact_list': 'true'}))
-    return HttpResponseServerError(response)
