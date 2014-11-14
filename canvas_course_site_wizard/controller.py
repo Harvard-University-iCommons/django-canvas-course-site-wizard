@@ -140,7 +140,7 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
     except Exception as e:
         logger.exception('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s:'
                          % (user_id, canvas_course_id))
-        raise CanvasEnrollmentError(canvas_course_id)
+        raise CanvasEnrollmentError(sis_course_id)
 
     # Copy SIS enrollments to new Canvas course
     try:
@@ -152,7 +152,7 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
     except Exception as e:
         logger.exception('Error setting SIS enrollment data sync flag for new course with Canvas ID=%s:'
                          % canvas_course_id)
-        raise CopySISEnrollmentsError
+        raise CopySISEnrollmentsError(sis_course_id)
 
     # Mark course as official
     try:
@@ -162,7 +162,7 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         logger.debug("site_map: %s" % site_map)
     except Exception as e:
         logger.exception('Error marking new course with Canvas ID=%s as official:' % canvas_course_id)
-        raise MarkOfficialError
+        raise MarkOfficialError(sis_course_id)
 
     logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % canvas_course_id)
 
@@ -228,10 +228,10 @@ def send_email_helper(subject, message, to_address):
     """
     This is a helper method to send email using django's mail module. The mail is sent
     to the specified receipients using the subject and body provided. The 'from' address
-     is obtained from the settings file. 
-    :param subject: The subject for the email, a String 
-    :param message: The body of the email, a String 
-    :param to_address: The list of recepients, a list of Strings 
+     is obtained from the settings file.
+    :param subject: The subject for the email, a String
+    :param message: The body of the email, a String
+    :param to_address: The list of recepients, a list of Strings
     """
     from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
     logger.info("==>Within send email: from_addr=%s, to_addr=%s, message=%s" % (from_address, to_address, message))
@@ -242,12 +242,12 @@ def send_email_helper(subject, message, to_address):
 
 def send_failure_email(initiator_email, sis_course_id):
     """
-    This is a utility to send an email on failure of course migration . It appemds the support email 
-    to the to_address list and also retrives the necessary subject and body from the settings file. 
+    This is a utility to send an email on failure of course migration . It appemds the support email
+    to the to_address list and also retrives the necessary subject and body from the settings file.
     Note: It is used  in multiple places and abstracts the details of building the email list and body from the
     calling method
     :param initiator_email: The initiator's email for the message to be sent, a String which can be null if unavailable
-    :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String 
+    :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String
     """
 
     to_address = []

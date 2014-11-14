@@ -48,8 +48,8 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         """
         get_context_data allows us to pass additional values to the view.
         In this case I am passing in the canvas course url created by the calling
-        get_canvas_course_url. 
-        """    
+        get_canvas_course_url.
+        """
         context = super(CanvasCourseSiteStatusView, self).get_context_data(**kwargs)
         logger.debug('Rendering status page for migration job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)

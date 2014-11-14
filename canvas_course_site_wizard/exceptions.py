@@ -13,73 +13,55 @@ class NoTemplateExistsForSchool(Exception):
         return 'No template exists for school_id=%s' % self.school_id
 
 
-class NoCanvasUserToEnroll(RenderableException):
-    def __init__(self, user_id, *args, **kw_args):
-        super(NoCanvasUserToEnroll, self).__init__(self, *args, **kw_args)
-        self._user_id = user_id
-        # Do not display any additional information about the Canvas user not existing directly to the user;
-        # handle this as a failure to enroll the creator. Logs will capture the exact issue.
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['enroll_creator']
-        self._status_code = 404  # Canvas user not found
+class RenderableExceptionWithDetails(RenderableException):
+    # The parameter msg_details can be used to format the message (i.e. it can be substituted into the
+    # display text)
+    def __init__(self, msg_details, *args, **kw_args):
+        super(RenderableExceptionWithDetails, self).__init__(self, *args, **kw_args)
+        self.display_text = self.display_text.format(msg_details)
 
 
-class CanvasEnrollmentError(RenderableException):
-    def __init__(self, course_id, *args, **kw_args):
-        super(CanvasEnrollmentError, self).__init__(self, *args, **kw_args)
-        self._course_id = course_id
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['enroll_creator']
+class NoCanvasUserToEnroll(RenderableExceptionWithDetails):
+    # Do not display any additional information about the Canvas user not existing directly to the user;
+    # handle this as a failure to enroll the creator. Logs will capture the exact issue.
+    display_text = 'Error: Site creator not added for CID {0}'
+    status_code = 404  # Canvas user not found
 
 
-class CopySISEnrollmentsError(RenderableException):
-    def __init__(self, *args, **kw_args):
-        super(CopySISEnrollmentsError, self).__init__(self, *args, **kw_args)
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['copy_sis_enrollments']
+class CanvasEnrollmentError(RenderableExceptionWithDetails):
+    display_text = 'Error: Site creator not added for CID {0}'
 
 
-class MarkOfficialError(RenderableException):
-    def __init__(self, *args, **kw_args):
-        super(MarkOfficialError, self).__init__(self, *args, **kw_args)
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['mark_official']
+class CopySISEnrollmentsError(RenderableExceptionWithDetails):
+    display_text = 'Error: Sync to Canvas not working for CID {0}'
 
 
-class CanvasCourseCreateError(RenderableException):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(CanvasCourseCreateError, self).__init__(self, *args, **kw_args)
-        self._sis_course_id = sis_course_id
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['canvas_course_create'].format(sis_course_id)
+class MarkOfficialError(RenderableExceptionWithDetails):
+    display_text = 'Official flag or external URL not set for CID {0}'
 
 
-class CanvasCourseAlreadyExists(CanvasCourseCreateError):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(CanvasCourseAlreadyExists, self).__init__(self, sis_course_id, *args, **kw_args)
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['canvas_course_already_exists'].format(sis_course_id)
-        self._status_code = 400  # Course already exists; bad request
+class CanvasCourseCreateError(RenderableExceptionWithDetails):
+    display_text = 'Error: SIS ID not applied for CID {0}'
 
 
-class CanvasSectionCreateError(RenderableException):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(CanvasSectionCreateError, self).__init__(self, *args, **kw_args)
-        self._sis_course_id = sis_course_id
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['canvas_section_create'].format(sis_course_id)
+class CanvasCourseAlreadyExists(RenderableExceptionWithDetails):
+    display_text = 'Course already exists in Canvas with SIS ID {0}'
+    status_code = 400  # Course already exists; bad request
 
 
-class CanvasSectionAlreadyExists(CanvasSectionCreateError):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(CanvasSectionAlreadyExists, self).__init__(self, sis_course_id, *args, **kw_args)
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['canvas_section_already_exists'].format(sis_course_id)
-        self._status_code = 400  # Section already exists; bad request
+class CanvasSectionCreateError(RenderableExceptionWithDetails):
+    display_text = 'Error: Primary section not created for CID {0}'
 
 
-class SISCourseInfoError(RenderableException):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(SISCourseInfoError, self).__init__(self, *args, **kw_args)
-        self._sis_course_id = sis_course_id
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['sis_course_info'].format(sis_course_id)
+class CanvasSectionAlreadyExists(RenderableExceptionWithDetails):
+    display_text = 'Section already exists in Canvas with SIS ID {0}'
+    status_code = 400  # Section already exists; bad request
 
 
-class SISCourseDoesNotExistError(SISCourseInfoError):
-    def __init__(self, sis_course_id, *args, **kw_args):
-        super(SISCourseDoesNotExistError, self).__init__(self, sis_course_id, *args, **kw_args)
-        self._display_text = settings.COURSE_WIZARD_CUSTOM_ERRORS['sis_course_does_not_exist'].format(sis_course_id)
-        self._status_code = 404  # Canvas user not found
+class SISCourseInfoError(RenderableExceptionWithDetails):
+    display_text = 'Error: CID {0} not found'
 
+
+class SISCourseDoesNotExistError(RenderableExceptionWithDetails):
+    display_text = 'Error: CID {0} not found'
+    status_code = 404  # Course Instance not found
