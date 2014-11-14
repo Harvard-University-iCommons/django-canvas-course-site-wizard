@@ -1,13 +1,15 @@
+from requests.exceptions import HTTPError
 from .models_api import get_course_data, get_template_for_school
 from .models import CanvasContentMigrationJob, SISCourseData
-from .exceptions import NoTemplateExistsForSchool, NoCanvasUserToEnroll
+from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
+                         SISCourseDoesNotExistError, CanvasSectionCreateError,
+                         CanvasEnrollmentError, MarkOfficialError, CopySISEnrollmentsError)
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
 from canvas_sdk.methods.users import get_user_profile
 from canvas_sdk.methods import content_migrations
 from django.conf import settings
-from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_canvas_course(sis_course_id):
-    """This method creates a canvas course for the  sis_course_id provided."""
+    """This method creates a canvas course for the sis_course_id provided."""
 
     # instantiate any variables required for method return or logger calls
     new_course = None
@@ -28,30 +30,34 @@ def create_canvas_course(sis_course_id):
     request_parameters = None
 
     try:
-        #1. fetch the course instance info
+        # 1. fetch the course instance info
         course_data = get_course_data(sis_course_id)
-
-        logger.info("\n obtained  course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
-                    %(course_data,course_data.sis_account_id, course_data.course_name, course_data.course_code, course_data.sis_term_id,course_data.primary_section_name() ))
+        logger.info("\n obtained course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
+                    % (course_data, course_data.sis_account_id, course_data.course_name, course_data.course_code,
+                       course_data.sis_term_id, course_data.primary_section_name()))
     except ObjectDoesNotExist as e:
-        logger.error('ObjectDoesNotExist  exception in  create course:  %s, exception=%s' % (sis_course_id, e))
-        raise Http404
+        logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
+                     'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
+        raise SISCourseDoesNotExistError(sis_course_id)
 
-    #2. Create canvas course
+
+    # 2. Attempt to create a canvas course
     try:
         request_parameters = dict(request_ctx=SDK_CONTEXT,
-                                  account_id = 'sis_account_id:%s' % course_data.sis_account_id,
-                                  course_name = course_data.course_name,
-                                  course_course_code = course_data.course_code,
-                                  course_term_id = 'sis_term_id:%s' % course_data.sis_term_id,
-                                  course_sis_course_id= sis_course_id)
+                                  account_id='sis_account_id:%s' % course_data.sis_account_id,
+                                  course_name=course_data.course_name,
+                                  course_course_code=course_data.course_code,
+                                  course_term_id='sis_term_id:%s' % course_data.sis_term_id,
+                                  course_sis_course_id=sis_course_id)
         new_course = create_new_course(**request_parameters).json()
-        logger.info("created  course object, ret=%s" % (new_course))
-    except Exception as e:
-        logger.error('Error creating new Canvas course with request=%s: %s' % (request_parameters, e))
-        raise
+        logger.info("created course object, ret=%s" % new_course)
+    except (HTTPError, Exception) as e:
+        logger.exception('Error building request_parameters or executing create_new_course() SDK call '
+                         'for new Canvas course with request=%s:' % request_parameters)
+        # other possible exceptions: term was None, Canvas was unreachable, etc
+        raise CanvasCourseCreateError(sis_course_id)
 
-    # 3. Create course section after course  creation
+    # 3. Create course section after course creation
     try:
         request_parameters = dict(request_ctx=SDK_CONTEXT,
                                   course_id=new_course['id'],
@@ -59,10 +65,11 @@ def create_canvas_course(sis_course_id):
                                   course_section_sis_section_id=sis_course_id)
         section = create_course_section(**request_parameters).json()
         logger.info("created section= %s" % section)
-    except Exception as e:
-        logger.error('Error creating default section for Canvas course with request=%s and response=%s: %s'
-                     % (request_parameters, section, e))
-        raise
+    except (HTTPError, Exception) as e:
+        logger.exception('Error building request_parameters or executing create_course_section() SDK call '
+                         'for new Canvas course id=%s with request=%s'
+                         % (new_course.get('id', '<no ID>'), request_parameters))
+        raise CanvasSectionCreateError(sis_course_id)
 
     return new_course
 
@@ -129,9 +136,9 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         logger.info('Enrolled user_id=%s in new course with Canvas course id=%s' % (user_id, canvas_course_id))
         logger.debug("enrollment result: %s" % enrollment)
     except Exception as e:
-        logger.error('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s: %s'
-                     % (user_id, canvas_course_id, e))
-        raise
+        logger.exception('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s:'
+                         % (user_id, canvas_course_id))
+        raise CanvasEnrollmentError(sis_course_id)
 
     # Copy SIS enrollments to new Canvas course
     try:
@@ -141,9 +148,9 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         logger.info('Set SIS enrollment data sync flag for new course with Canvas ID=%s' % canvas_course_id)
         logger.debug("sis_course_data after sync to canvas: %s" % sis_course_data)
     except Exception as e:
-        logger.error('Error setting SIS enrollment data sync flag for new course with Canvas ID=%s: %s'
-                     % (canvas_course_id, e))
-        raise
+        logger.exception('Error setting SIS enrollment data sync flag for new course with Canvas ID=%s:'
+                         % canvas_course_id)
+        raise CopySISEnrollmentsError(sis_course_id)
 
     # Mark course as official
     try:
@@ -152,8 +159,8 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         logger.info('Marked new course with Canvas ID=%s as official' % canvas_course_id)
         logger.debug("site_map: %s" % site_map)
     except Exception as e:
-        logger.error('Error marking new course with Canvas ID=%s as official: %s' % (canvas_course_id, e))
-        raise
+        logger.exception('Error marking new course with Canvas ID=%s as official:' % canvas_course_id)
+        raise MarkOfficialError(sis_course_id)
 
     logger.info("All tasks for finalizing new course with Canvas ID=%s completed." % canvas_course_id)
 
@@ -164,13 +171,12 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
     """
     Silently enroll instructor / creator to the new course so it can be accessed immediately
 
-        :param course: newly created Canvas course object to enroll course creator
-        :type course: SDK response of create_new_course from canvas_sdk.methods.courses
-                      (JSON dictionary representation of a Canvas course)
-        :param sis_user_id: The SIS user ID of the creator/instructor to enroll in the course
-        :type sis_user_id: string
+        :param sis_course_id: newly created Canvas course's SIS course ID to enroll course creator
+        :type sis_course_id: string
+        :param user_id: The user ID of the creator/instructor to enroll in the course
+        :type user_id: string - Canvas user ID or SIS user ID prefixed with 'sis_user_id:'
         :return: Canvas enrollment information (response of enrollment request)
-        :rtype: requests.Response
+        :rtype: json-encoded content of response
         :raises: NoCanvasUserToEnroll
     """
 
@@ -203,6 +209,7 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
 
     return current_user_enrollment_result.json()
 
+
 def get_canvas_user_profile(sis_user_id):
     """
     This method will fetch the canvas user profile , given the sis_user_id
@@ -214,14 +221,15 @@ def get_canvas_user_profile(sis_user_id):
     canvas_user_profile = response.json()
     return canvas_user_profile
 
+
 def send_email_helper(subject, message, to_address):
     """
     This is a helper method to send email using django's mail module. The mail is sent
     to the specified receipients using the subject and body provided. The 'from' address
-     is obtained from the settings file. 
-    :param subject: The subject for the email, a String 
-    :param message: The body of the email, a String 
-    :param to_address: The list of recepients, a list of Strings 
+     is obtained from the settings file.
+    :param subject: The subject for the email, a String
+    :param message: The body of the email, a String
+    :param to_address: The list of recepients, a list of Strings
     """
     from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
     logger.info("==>Within send email: from_addr=%s, to_addr=%s, message=%s" % (from_address, to_address, message))
@@ -229,17 +237,18 @@ def send_email_helper(subject, message, to_address):
     # all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
 
+
 def send_failure_email(initiator_email, sis_course_id):
     """
-    This is a utility to send an email on failure of course migration . It appemds the support email 
-    to the to_address list and also retrives the necessary subject and body from the settings file. 
+    This is a utility to send an email on failure of course migration . It appemds the support email
+    to the to_address list and also retrives the necessary subject and body from the settings file.
     Note: It is used  in multiple places and abstracts the details of building the email list and body from the
     calling method
     :param initiator_email: The initiator's email for the message to be sent, a String which can be null if unavailable
-    :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String 
+    :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String
     """
-  
-    to_address =[]
+
+    to_address = []
     if initiator_email:
         to_address.append(initiator_email)
 
@@ -248,12 +257,11 @@ def send_failure_email(initiator_email, sis_course_id):
     msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']
     complete_msg = msg.format(sis_course_id)
 
-    logger.debug(" notifying  failure via email:  to_addr=%s and message=%s" 
-            % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
-    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg,to_address)
+    logger.debug(" notifying  failure via email:  to_addr=%s and message=%s"
+                 % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
+    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg, to_address)
 
 
-        
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
     """
     This utility method formats a Canvas course URL string which will point to the course home page in Canvas. It

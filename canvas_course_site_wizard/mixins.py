@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.views.generic.detail import SingleObjectMixin
 from django.http import Http404
 from django.conf import settings
+
 from django.utils.translation import ugettext as _
 
 import logging
