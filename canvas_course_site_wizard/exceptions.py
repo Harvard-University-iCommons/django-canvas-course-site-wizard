@@ -44,7 +44,7 @@ class CanvasCourseCreateError(RenderableExceptionWithDetails):
     display_text = 'Error: SIS ID not applied for CID {0}'
 
 
-class CanvasCourseAlreadyExists(RenderableExceptionWithDetails):
+class CanvasCourseAlreadyExistsError(RenderableExceptionWithDetails):
     display_text = 'Course already exists in Canvas with SIS ID {0}'
     status_code = 400  # Course already exists; bad request
 
