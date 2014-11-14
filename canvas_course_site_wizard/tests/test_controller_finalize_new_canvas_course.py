@@ -1,6 +1,7 @@
 from unittest import TestCase
 from mock import patch, DEFAULT
 from icommons_ui.exceptions import RenderableException
+from django.core.exceptions import ObjectDoesNotExist
 from canvas_course_site_wizard.models import SISCourseData
 from canvas_course_site_wizard.controller import finalize_new_canvas_course
 
@@ -48,7 +49,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         sync enrollment to Canvas), we should be logging an exception and exiting the
         finalization process without a return value and before proceeding with other steps.
         """
-        get_course_data.side_effect = Exception('Mock exception')
+        get_course_data.side_effect = ObjectDoesNotExist('Mock exception')
         with self.assertRaises(RenderableException):
             self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
         enroll_creator_in_new_course.assert_called_once_with(self.sis_course_id, self.user_id)

@@ -8,7 +8,6 @@ from braces.views import LoginRequiredMixin
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
 from django.shortcuts import redirect
-from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,11 +19,10 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
     course site on POST.
     """
     template_name = "canvas_course_site_wizard/canvas_wizard.html"
+    # This is currently the project-level 500 error page, which has RenderableException logic
+    custom_error_template_name = "500.html"
 
     def post(self, request, *args, **kwargs):
-
-        self.custom_error_template_name = settings.COURSE_WIZARD_CUSTOM_ERROR_TEMPLATE
-
         sis_course_id = self.object.pk
         sis_user_id = 'sis_user_id:%s' % request.user.username
         course = create_canvas_course(sis_course_id)

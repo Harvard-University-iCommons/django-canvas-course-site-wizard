@@ -2,7 +2,7 @@ from requests.exceptions import HTTPError
 from .models_api import get_course_data, get_template_for_school
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
-                         SISCourseDoesNotExistError, SISCourseInfoError, CanvasSectionCreateError,
+                         SISCourseDoesNotExistError, CanvasSectionCreateError,
                          CanvasEnrollmentError, MarkOfficialError, CopySISEnrollmentsError)
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
@@ -39,9 +39,7 @@ def create_canvas_course(sis_course_id):
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
         raise SISCourseDoesNotExistError(sis_course_id)
-    except Exception as e:
-        logger.exception('Error when fetching SIS data for course with sis_course_id=%s:' % sis_course_id)
-        raise SISCourseInfoError(sis_course_id)
+
 
     # 2. Attempt to create a canvas course
     try:

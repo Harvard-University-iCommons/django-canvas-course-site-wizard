@@ -58,10 +58,6 @@ class CanvasSectionAlreadyExists(RenderableExceptionWithDetails):
     status_code = 400  # Section already exists; bad request
 
 
-class SISCourseInfoError(RenderableExceptionWithDetails):
-    display_text = 'Error: CID {0} not found'
-
-
 class SISCourseDoesNotExistError(RenderableExceptionWithDetails):
     display_text = 'Error: CID {0} not found'
     status_code = 404  # Course Instance not found

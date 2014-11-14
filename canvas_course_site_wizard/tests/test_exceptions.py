@@ -1,9 +1,4 @@
 import unittest
-from django.core.exceptions import ImproperlyConfigured
-from mock import Mock, patch
-from django.http.request import HttpRequest
-from icommons_ui.mixins import CustomErrorPageMixin
-from django.http import Http404
 from canvas_course_site_wizard.exceptions import RenderableExceptionWithDetails
 
 

@@ -61,7 +61,7 @@ class CreateCanvasCourseTest(TestCase):
                                                            create_course_section, create_new_course):
         """
         Test  when get_course_data throws an ObjectDoesNotExist
-        Note: Http404 exception is one of the exceptions not visible to the test client. 
+        Note: Http404 exception is one of the exceptions not visible to the test client.
         So just checking for ObjectDoesNotExist
         """
         canvas_course_site_wizard.controller.create_canvas_course(self.sis_course_id)
