@@ -99,8 +99,8 @@ class CreateCanvasCourseTest(TestCase):
     def test_exception_when_create_new_course_method_raises_api_400(self, get_course_data,
                                                             create_course_section, create_new_course):
         """
-        Test to assert that a Canvas is raised when the create_new_course method
-        throws an exception
+        Test to assert that a CanvasCourseAlreadyExistsError is raised when the create_new_course method
+        throws a CanvasAPIError
         """
         create_new_course.side_effect = CanvasAPIError(status_code=400)
         with self.assertRaises(CanvasCourseAlreadyExistsError):

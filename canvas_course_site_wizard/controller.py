@@ -59,7 +59,8 @@ def create_canvas_course(sis_course_id):
         if api_error.status_code == 400:
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
         raise CanvasCourseCreateError(msg_details=sis_course_id)
-    logger.info("created course object, ret=%s" % new_course)
+    else:
+        logger.info("created course object, ret=%s" % new_course)
 
     # 3. Create course section after course creation
     try:
