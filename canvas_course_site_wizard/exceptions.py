@@ -1,3 +1,7 @@
+from icommons_ui.exceptions import RenderableException
+from django.conf import settings
+
+
 class NoTemplateExistsForSchool(Exception):
     def __init__(self, school_id):
         self.school_id = school_id
@@ -5,10 +9,55 @@ class NoTemplateExistsForSchool(Exception):
     def __unicode__(self):
         return u'No template exists for school_id=%s' % self.school_id
 
+    def __str__(self):
+        return 'No template exists for school_id=%s' % self.school_id
 
-class NoCanvasUserToEnroll(Exception):
-    def __init__(self, user_id):
-        self.user_id = user_id
 
-    def __unicode__(self):
-        return u'No Canvas user with user_id=%s.' % self.user_id
+class RenderableExceptionWithDetails(RenderableException):
+    # The parameter msg_details can be used to format the message (i.e. it can be substituted into the
+    # display text)
+    def __init__(self, msg_details, *args, **kw_args):
+        super(RenderableExceptionWithDetails, self).__init__(self, *args, **kw_args)
+        self.display_text = self.display_text.format(msg_details)
+
+
+class NoCanvasUserToEnroll(RenderableExceptionWithDetails):
+    # Do not display any additional information about the Canvas user not existing directly to the user;
+    # handle this as a failure to enroll the creator. Logs will capture the exact issue.
+    display_text = 'Error: Site creator not added for CID {0}'
+    status_code = 404  # Canvas user not found
+
+
+class CanvasEnrollmentError(RenderableExceptionWithDetails):
+    display_text = 'Error: Site creator not added for CID {0}'
+
+
+class CopySISEnrollmentsError(RenderableExceptionWithDetails):
+    display_text = 'Error: Sync to Canvas not working for CID {0}'
+
+
+class MarkOfficialError(RenderableExceptionWithDetails):
+    display_text = 'Official flag or external URL not set for CID {0}'
+
+
+class CanvasCourseCreateError(RenderableExceptionWithDetails):
+    display_text = 'Error: SIS ID not applied for CID {0}'
+
+
+class CanvasCourseAlreadyExistsError(RenderableExceptionWithDetails):
+    display_text = 'Course already exists in Canvas with SIS ID {0}'
+    status_code = 400  # Course already exists; bad request
+
+
+class CanvasSectionCreateError(RenderableExceptionWithDetails):
+    display_text = 'Error: Primary section not created for CID {0}'
+
+
+class CanvasSectionAlreadyExists(RenderableExceptionWithDetails):
+    display_text = 'Section already exists in Canvas with SIS ID {0}'
+    status_code = 400  # Section already exists; bad request
+
+
+class SISCourseDoesNotExistError(RenderableExceptionWithDetails):
+    display_text = 'Error: CID {0} not found'
+    status_code = 404  # Course Instance not found

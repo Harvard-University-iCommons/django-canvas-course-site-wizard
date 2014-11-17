@@ -1,6 +1,7 @@
 from .controller import (create_canvas_course, start_course_template_copy,
                          finalize_new_canvas_course, get_canvas_course_url)
 from .mixins import CourseSiteCreationAllowedMixin
+from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
 from .models import CanvasContentMigrationJob
 from braces.views import LoginRequiredMixin
@@ -12,12 +13,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMixin, TemplateView):
+class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMixin, CustomErrorPageMixin, TemplateView):
     """
     Serves up the canvas course site creation wizard on GET and creates the
     course site on POST.
     """
     template_name = "canvas_course_site_wizard/canvas_wizard.html"
+    # This is currently the project-level 500 error page, which has RenderableException logic
+    custom_error_template_name = "500.html"
 
     def post(self, request, *args, **kwargs):
         sis_course_id = self.object.pk
@@ -31,11 +34,6 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             # (i.e. run through remaining post-async job steps)
             course_url = finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id)
             return redirect(course_url)
-        except Exception as e:
-            # This is either a re-raised error or an unknown / unanticipated error; if it is the latter
-            # we need to provide some context in our logs to debug the error later
-            logger.exception(e)
-            raise
 
 
 class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
@@ -48,8 +46,8 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         """
         get_context_data allows us to pass additional values to the view.
         In this case I am passing in the canvas course url created by the calling
-        get_canvas_course_url. 
-        """    
+        get_canvas_course_url.
+        """
         context = super(CanvasCourseSiteStatusView, self).get_context_data(**kwargs)
         logger.debug('Rendering status page for migration job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
