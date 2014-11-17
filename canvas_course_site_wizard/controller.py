@@ -1,14 +1,15 @@
-from requests.exceptions import HTTPError
 from .models_api import get_course_data, get_template_for_school
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
-                         CanvasEnrollmentError, MarkOfficialError, CopySISEnrollmentsError)
+                         CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
+                         CopySISEnrollmentsError)
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
 from canvas_sdk.methods.users import get_user_profile
 from canvas_sdk.methods import content_migrations
+from canvas_sdk.exceptions import CanvasAPIError
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
@@ -40,22 +41,26 @@ def create_canvas_course(sis_course_id):
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
         raise SISCourseDoesNotExistError(sis_course_id)
 
-
     # 2. Attempt to create a canvas course
+    request_parameters = dict(
+        request_ctx=SDK_CONTEXT,
+        account_id='sis_account_id:%s' % course_data.sis_account_id,
+        course_name=course_data.course_name,
+        course_course_code=course_data.course_code,
+        course_term_id='sis_term_id:%s' % course_data.sis_term_id,
+        course_sis_course_id=sis_course_id,
+    )
     try:
-        request_parameters = dict(request_ctx=SDK_CONTEXT,
-                                  account_id='sis_account_id:%s' % course_data.sis_account_id,
-                                  course_name=course_data.course_name,
-                                  course_course_code=course_data.course_code,
-                                  course_term_id='sis_term_id:%s' % course_data.sis_term_id,
-                                  course_sis_course_id=sis_course_id)
         new_course = create_new_course(**request_parameters).json()
-        logger.info("created course object, ret=%s" % new_course)
-    except (HTTPError, Exception) as e:
+    except CanvasAPIError as api_error:
         logger.exception('Error building request_parameters or executing create_new_course() SDK call '
-                         'for new Canvas course with request=%s:' % request_parameters)
-        # other possible exceptions: term was None, Canvas was unreachable, etc
-        raise CanvasCourseCreateError(sis_course_id)
+                         'for new Canvas course with request=%s:', request_parameters)
+        # a 400 errors here means that the SIS id already exists in Canvas
+        if api_error.status_code == 400:
+            raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
+        raise CanvasCourseCreateError(msg_details=sis_course_id)
+    else:
+        logger.info("created course object, ret=%s" % new_course)
 
     # 3. Create course section after course creation
     try:
@@ -65,7 +70,7 @@ def create_canvas_course(sis_course_id):
                                   course_section_sis_section_id=sis_course_id)
         section = create_course_section(**request_parameters).json()
         logger.info("created section= %s" % section)
-    except (HTTPError, Exception) as e:
+    except CanvasAPIError as e:
         logger.exception('Error building request_parameters or executing create_course_section() SDK call '
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
