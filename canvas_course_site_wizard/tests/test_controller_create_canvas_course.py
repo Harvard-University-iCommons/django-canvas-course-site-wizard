@@ -164,7 +164,7 @@ class CreateCanvasCourseTest(TestCase):
         mail_mock.assert_called_with(self.sis_course_id, self.user, exception_data.display_text)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_canvas_api_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
+    def test_canvas_course_create_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
                                                            create_course_section, create_new_course):
         """
         Test to assert that a support email is sent  when  there is an CanvasAPIError resulting in CanvasCourseCreateError
@@ -203,11 +203,8 @@ class CreateCanvasCourseTest(TestCase):
         
         """
         create_new_course.side_effect = CanvasAPIError(status_code=400)
-
         exception_data = CanvasCourseAlreadyExistsError(self.sis_course_id)
         with self.assertRaises(CanvasCourseAlreadyExistsError):
             controller.create_canvas_course(self.sis_course_id, self.user)
         
         self.assertFalse(send_failure_msg_to_support.called)
-
-        # send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.user, exception_data.display_text)
