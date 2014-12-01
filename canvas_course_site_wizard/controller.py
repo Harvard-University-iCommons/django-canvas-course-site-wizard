@@ -29,7 +29,6 @@ def create_canvas_course(sis_course_id, sis_user_id):
     new_course = None
     section = None
     request_parameters = None
-    user = sis_user_id
 
     try:
         # 1. fetch the course instance info
@@ -43,7 +42,7 @@ def create_canvas_course(sis_course_id, sis_user_id):
         ex = SISCourseDoesNotExistError(sis_course_id)
         msg = ex.display_text
         #TLT-393: send an email to support group, in addition to showing error page to user
-        send_failure_msg_to_support(sis_course_id, user, msg)
+        send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
         raise ex
 
     # 2. Attempt to create a canvas course
@@ -64,9 +63,8 @@ def create_canvas_course(sis_course_id, sis_user_id):
         if api_error.status_code == 400:
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
 
-        logger.debug(" sending support email on CanvasCourseCreateError failure for  sis_course_id =%s" %sis_course_id)
         ex = CanvasCourseCreateError(msg_details=sis_course_id)
-        send_failure_msg_to_support(sis_course_id, user, ex.display_text)
+        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
     else:
         logger.info("created course object, ret=%s" % new_course)
@@ -84,9 +82,8 @@ def create_canvas_course(sis_course_id, sis_user_id):
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
         #send email in addition to showing error page to user
-        logger.debug(" sending email on CanvasSectionCreateError failure for  sis_course_id =%s" %sis_course_id)
         ex = CanvasSectionCreateError(sis_course_id)
-        send_failure_msg_to_support(sis_course_id, user, ex.display_text)
+        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
 
     return new_course
@@ -272,7 +269,6 @@ def send_failure_email(initiator_email, sis_course_id):
 
     # On failure, send message to both initiator and the support group (e.g. icommons-support)
     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
-    # to_address.append('sapna_mysore@hotmail.com')
     msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']
     complete_msg = msg.format(sis_course_id)
 
@@ -280,12 +276,12 @@ def send_failure_email(initiator_email, sis_course_id):
                  % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg, to_address)
 
-def send_failure_msg_to_support(sis_course_id, user, error_detail):
+def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
     """
     This is a utility to send an email to the support group when there is a  failure in course creation . 
 
     :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String
-    :param user: The userid initiating the course creation, a String
+    :param sis_user_id: The sis_user_id of user  initiating the course creation, a String
     :param error_detail: The error detail that's included in the email, a String 
     """
     to_address = []
@@ -293,8 +289,8 @@ def send_failure_msg_to_support(sis_course_id, user, error_detail):
     # send message to the support group 
     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
     msg = settings.CANVAS_EMAIL_NOTIFICATION['support_email_body_on_failure']
-    complete_msg = msg.format(sis_course_id, user, error_detail)
-    logger.debug(" send_failure_msg_to_support: sis_course_id=%s, user=%s, complete_msg=%s" % (sis_course_id, user, complete_msg))
+    complete_msg = msg.format(sis_course_id, sis_user_id, error_detail)
+    logger.debug(" send_failure_msg_to_support: sis_course_id=%s, user=%s, complete_msg=%s" % (sis_course_id, sis_user_id, complete_msg))
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['support_email_subject_on_failure'], complete_msg, to_address)
 
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):

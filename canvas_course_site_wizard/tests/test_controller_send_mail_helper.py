@@ -4,11 +4,9 @@ from django.core import mail
 from canvas_course_site_wizard.controller import send_email_helper
 from django.test.utils import override_settings
 
-import logging
+
 import unittest
 
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
 
 @patch.multiple('canvas_course_site_wizard.controller', send_mail = DEFAULT)
 
