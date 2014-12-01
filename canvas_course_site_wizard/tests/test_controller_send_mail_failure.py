@@ -4,17 +4,13 @@ from django.core import mail
 from canvas_course_site_wizard.controller import send_failure_email
 from django.test.utils import override_settings
 
-import logging
 import unittest
 
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
 
 @patch.multiple('canvas_course_site_wizard.controller', send_mail = DEFAULT)
 
 
 class SendMailFailureTest(TestCase):
-    longMessage = True
 
     def setUp(self):
         self.sis_course_id = "12345"
