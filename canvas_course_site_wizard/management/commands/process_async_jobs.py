@@ -97,6 +97,7 @@ class Command(NoArgsCommand):
             except Exception as e:
                 error_text = "There was a problem in processing the job for canvas course sis_course_id %s (HUID:%s)" \
                              % (job.sis_course_id, job.created_by_user_id)
+                # Note: equivalent to .error(error_text, exc_info=1) -- logs at ERROR level
                 logger.exception(error_text)
 
                 # Use the friendly display_text for the subject of the tech_logger email if it's available
