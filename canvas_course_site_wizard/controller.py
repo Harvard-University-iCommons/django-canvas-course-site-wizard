@@ -22,7 +22,7 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id):
+def create_canvas_course(sis_course_id, sis_user_id):
     """This method creates a canvas course for the sis_course_id provided."""
 
     # instantiate any variables required for method return or logger calls
@@ -39,7 +39,11 @@ def create_canvas_course(sis_course_id):
     except ObjectDoesNotExist as e:
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
-        raise SISCourseDoesNotExistError(sis_course_id)
+        ex = SISCourseDoesNotExistError(sis_course_id)
+        msg = ex.display_text
+        #TLT-393: send an email to support group, in addition to showing error page to user
+        send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
+        raise ex
 
     # 2. Attempt to create a canvas course
     request_parameters = dict(
@@ -58,7 +62,10 @@ def create_canvas_course(sis_course_id):
         # a 400 errors here means that the SIS id already exists in Canvas
         if api_error.status_code == 400:
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
-        raise CanvasCourseCreateError(msg_details=sis_course_id)
+
+        ex = CanvasCourseCreateError(msg_details=sis_course_id)
+        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+        raise ex
     else:
         logger.info("created course object, ret=%s" % new_course)
 
@@ -74,7 +81,10 @@ def create_canvas_course(sis_course_id):
         logger.exception('Error building request_parameters or executing create_course_section() SDK call '
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
-        raise CanvasSectionCreateError(sis_course_id)
+        #send email in addition to showing error page to user
+        ex = CanvasSectionCreateError(sis_course_id)
+        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+        raise ex
 
     return new_course
 
@@ -266,6 +276,22 @@ def send_failure_email(initiator_email, sis_course_id):
                  % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg, to_address)
 
+def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
+    """
+    This is a utility to send an email to the support group when there is a  failure in course creation . 
+
+    :param sis_course_id: The sis_course_id, so it can be appended to the email details, a String
+    :param sis_user_id: The sis_user_id of user  initiating the course creation, a String
+    :param error_detail: The error detail that's included in the email, a String 
+    """
+    to_address = []
+
+    # send message to the support group 
+    to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
+    msg = settings.CANVAS_EMAIL_NOTIFICATION['support_email_body_on_failure']
+    complete_msg = msg.format(sis_course_id, sis_user_id, error_detail)
+    logger.debug(" send_failure_msg_to_support: sis_course_id=%s, user=%s, complete_msg=%s" % (sis_course_id, sis_user_id, complete_msg))
+    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['support_email_subject_on_failure'], complete_msg, to_address)
 
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
     """

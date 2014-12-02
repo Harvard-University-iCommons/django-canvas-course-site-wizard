@@ -5,16 +5,18 @@ Process the Content Migration jobs in the CanvasContentMigrationJob table.
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
 from django.db.models import Q
-from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper, send_failure_email)
+from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper, send_failure_email,
+                                                  finalize_new_canvas_course)
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
-from canvas_course_site_wizard.controller import finalize_new_canvas_course
 from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
+from icommons_ui.exceptions import RenderableException
 import logging
 
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
 logger = logging.getLogger(__name__)
+tech_logger = logging.getLogger('tech_mail')
 
 
 class Command(NoArgsCommand):
@@ -70,12 +72,15 @@ class Command(NoArgsCommand):
                     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_subject'], complete_msg, to_address)
 
                 elif workflow_state == 'failed':
-                    logger.info('content migration failed for course with sis_course_id %s' % job.sis_course_id)
+                    error_text = 'Content migration failed for course with sis_course_id %s (HUID:%s)' \
+                                 % (job.sis_course_id, job.created_by_user_id)
+                    logger.info(error_text)
+                    tech_logger.error(error_text)
 
                     # Update the Job table with the new state
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FAILED
                     job.save(update_fields=['workflow_state'])
-                    #send email to notify of failure
+                    # send email to notify of failure
                     user_profile = get_canvas_user_profile(job.created_by_user_id)
                     send_failure_email(user_profile['primary_email'], job.sis_course_id)
 
@@ -89,19 +94,28 @@ class Command(NoArgsCommand):
                     message = 'content migration state is %s for course with sis_course_id %s' % (workflow_state, job.sis_course_id)
                     logger.info(message)
 
-            except KeyError as e:
-                logger.exception(e)
             except Exception as e:
-                logger.exception(" There was a problem in processing the job for canvas course  sis_course_id=%s, exception=%s" % (job.sis_course_id,e))
-                try :
-                    #if failure happened before user profile was fetched, get the user profile to retrieve email, else reuse teh user_profile info
-                    if user_profile == None:
+                error_text = "There was a problem in processing the job for canvas course sis_course_id %s (HUID:%s)" \
+                             % (job.sis_course_id, job.created_by_user_id)
+                # Note: equivalent to .error(error_text, exc_info=1) -- logs at ERROR level
+                logger.exception(error_text)
+
+                # Use the friendly display_text for the subject of the tech_logger email if it's available
+                if isinstance(e, RenderableException):
+                    error_text = '%s (HUID:%s)' % (e.display_text, job.created_by_user_id)
+                tech_logger.exception(error_text)
+
+                try:
+                    # if failure happened before user profile was fetched, get the user profile
+                    # to retrieve email, else reuse the user_profile info
+                    if user_profile is None:
                         user_profile = get_canvas_user_profile(job.created_by_user_id)
 
                     send_failure_email(user_profile['primary_email'], job.sis_course_id)
-                except Exception as e:
-                    #If exception occurs while sending failure email, log it
-                    logger.exception(" There was a problem in sending the failure notification  email to initiator and support staff for sis_course_id=%s, exception=%s" % (job.sis_course_id,e))
-
-        
-
+                except Exception:
+                    # If exception occurs while sending failure email, log it
+                    error_text = "There was a problem in sending the failure notification email to initiator " \
+                                 "and support staff for sis_course_id %s (HUID:%s)" \
+                                 % (job.sis_course_id, job.created_by_user_id)
+                    logger.exception(error_text)
+                    tech_logger.exception(error_text)
