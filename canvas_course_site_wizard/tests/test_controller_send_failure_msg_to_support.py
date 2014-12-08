@@ -32,7 +32,8 @@ class SendMailHelperTest(TestCase):
 								'support_email_address':'a',
 								'course_migration_failure_subject':'b',
 								'course_migration_failure_body':'c' ,
-								'from_email_address': 'd'
+								'from_email_address': 'd',
+                                'environment':'test'
         						}
         					)
 
