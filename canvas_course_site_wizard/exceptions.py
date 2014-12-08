@@ -54,6 +54,9 @@ class CanvasCourseAlreadyExistsError(RenderableExceptionWithDetails):
 
 class CanvasSectionCreateError(RenderableExceptionWithDetails):
     display_text = 'Error: Primary section not created for CID {0}'
+    #set the support_notified attribute for this exception, in order to customize the message to the user indicating that support has been notified. 
+    # *** Note : if there is a need for more such gernal purpose attributes in future, we could 
+    #implement this with a an Exception mixin that sets custom fields in a list or dict 
     support_notified = True
 
 class CanvasSectionAlreadyExists(RenderableExceptionWithDetails):

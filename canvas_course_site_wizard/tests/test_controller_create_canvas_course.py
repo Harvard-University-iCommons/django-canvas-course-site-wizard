@@ -220,12 +220,11 @@ class CreateCanvasCourseTest(TestCase):
         Test to assert that support_notified is set on CanvasSectionCreateError
         """
         create_course_section.side_effect = CanvasAPIError(status_code=400)
-
         exception_data = CanvasSectionCreateError(self.sis_course_id)
         with self.assertRaises(CanvasSectionCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-        self.assertEqual(True,exception_data.support_notified)
+        self.assertTrue(True, exception_data.support_notified)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_create_error_sets_support_notified(self, send_failure_msg_to_support, get_course_data,
