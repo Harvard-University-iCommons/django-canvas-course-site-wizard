@@ -246,9 +246,8 @@ class CreateCanvasCourseTest(TestCase):
         Test to assert that support_notified is NOT set on CanvasCourseAlreadyExistsError
         """
         create_new_course.side_effect = CanvasAPIError(status_code=400)
-        exception_data = CanvasCourseAlreadyExistsError(self.sis_course_id)
-        with self.assertRaises(CanvasCourseAlreadyExistsError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-        
-        self.assertTrue('support_notified' not in exception_data)
+        with self.assertRaises(CanvasCourseAlreadyExistsError) as cm:
+             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+
+        self.assertTrue('support_notified' not in cm.exception)
 
