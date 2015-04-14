@@ -82,7 +82,7 @@ def create_canvas_course(sis_course_id, sis_user_id):
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
         #send email in addition to showing error page to user
-        ex = CanvasSectionCreateError(sis_course_id)
+        ex = CanvasSectionCreateError(msg_details=sis_course_id)
         send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
 
@@ -289,7 +289,7 @@ def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
     # send message to the support group 
     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
     msg = settings.CANVAS_EMAIL_NOTIFICATION['support_email_body_on_failure']
-    complete_msg = msg.format(sis_course_id, sis_user_id, error_detail)
+    complete_msg = msg.format(sis_course_id, sis_user_id, error_detail,settings.CANVAS_EMAIL_NOTIFICATION['environment'] )
     logger.debug(" send_failure_msg_to_support: sis_course_id=%s, user=%s, complete_msg=%s" % (sis_course_id, sis_user_id, complete_msg))
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['support_email_subject_on_failure'], complete_msg, to_address)
 

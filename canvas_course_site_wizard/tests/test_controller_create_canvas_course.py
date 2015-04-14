@@ -64,7 +64,8 @@ class CreateCanvasCourseTest(TestCase):
         self.assertRaises(ObjectDoesNotExist, get_course_data, self.sis_course_id)
 
     @patch('canvas_course_site_wizard.controller.logger')
-    def test_object_not_found_exception_in_get_course_data_logs_error(self, log_replacement, get_course_data,
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_object_not_found_exception_in_get_course_data_logs_error(self, send_failure_msg_to_support, log_replacement, get_course_data,
                                                                       create_course_section, create_new_course):
         """
         Test that the logger.error logs error when when get_course_data throws an ObjectDoesNotExist
@@ -77,9 +78,9 @@ class CreateCanvasCourseTest(TestCase):
     # ------------------------------------------------------
     # Tests for create_canvas_course.create_course_section()
     # ------------------------------------------------------
-
+    @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
-    def test_create_new_course_method_is_called_with_proper_arguments(self, SDK_CONTEXT, get_course_data,
+    def test_create_new_course_method_is_called_with_proper_arguments(self, SDK_CONTEXT, logger, get_course_data,
                                                                       create_course_section, create_new_course):
         """
         Test to assert that create_new_course method is called by create_canvas_course controller method
@@ -108,7 +109,8 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(CanvasCourseAlreadyExistsError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-    def test_exception_when_create_new_course_method_raises_api_404(self, get_course_data,
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_exception_when_create_new_course_method_raises_api_404(self, send_failure_msg_to_support, get_course_data,
                                                             create_course_section, create_new_course):
         """
         Test to assert that a RenderableException is raised when the create_new_course SDK call
@@ -138,7 +140,8 @@ class CreateCanvasCourseTest(TestCase):
                                                  course_section_name=mock_primary_section_name,
                                                  course_section_sis_section_id=self.sis_course_id)
 
-    def test_when_create_course_section_method_raises_api_error(self, get_course_data,
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_when_create_course_section_method_raises_api_error(self, send_failure_msg_to_support,get_course_data,
                                                                 create_course_section, create_new_course):
         """
         Test to assert that a RenderableException is raised when the create_course_section SDK call
@@ -208,3 +211,43 @@ class CreateCanvasCourseTest(TestCase):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         
         self.assertFalse(send_failure_msg_to_support.called)
+
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_canvas_section_error_sets_support_notified(self, send_failure_msg_to_support, get_course_data,
+                                                           create_course_section, create_new_course):
+        """
+        Test to assert that support_notified is set on CanvasSectionCreateError
+        """
+        create_course_section.side_effect = CanvasAPIError(status_code=400)
+        exception_data = CanvasSectionCreateError(self.sis_course_id)
+        with self.assertRaises(CanvasSectionCreateError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+
+        self.assertTrue(True, exception_data.support_notified)
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_canvas_course_create_error_sets_support_notified(self, send_failure_msg_to_support, get_course_data,
+                                                           create_course_section, create_new_course):
+        """
+        Test to assert that support_notified is set on CanvasCourseCreateError
+        """
+        create_new_course.side_effect = CanvasAPIError(status_code=404)
+        exception_data = CanvasCourseCreateError(msg_details=self.sis_course_id)
+        with self.assertRaises(CanvasCourseCreateError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+
+        self.assertEqual(True,exception_data.support_notified)
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_canvas_course_already_exists_error_doesnt_set_support_notified(self, send_failure_msg_to_support, get_course_data,
+                                                           create_course_section, create_new_course):
+        """
+        Test to assert that support_notified is NOT set on CanvasCourseAlreadyExistsError
+        """
+        create_new_course.side_effect = CanvasAPIError(status_code=400)
+        with self.assertRaises(CanvasCourseAlreadyExistsError) as cm:
+             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+
+        self.assertTrue('support_notified' not in cm.exception)
+
