@@ -56,4 +56,21 @@ def get_courses_for_term(term_id, is_in_canvas=False):
     return CourseInstance.objects.filter(term__term_id=term_id).count()
 
 
+class BulkCreateObject(object):
+    """
+    This a temp hack to fill in for the new model until it's created.
+    """
+    status = ""
 
+    def __init__(self, status):
+        self.status = status
+
+def get_bulk_create_record(term_id):
+    """
+    Temp hack to fill in for the database
+    :param term_id:
+    :return:
+    """
+    if(term_id==4650):
+        return BulkCreateObject('IN_PROGRESS')
+    return BulkCreateObject('COMPLETE')

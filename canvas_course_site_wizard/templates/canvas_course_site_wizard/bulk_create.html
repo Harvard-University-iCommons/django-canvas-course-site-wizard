@@ -2,17 +2,26 @@
 
 {% block page_title %} Canvas Course Site Wizard {% endblock page_title %}
 
+{% block stylesheet %}
+{{ block.super }}
+{% endblock %}
+
 {% block content %}
 
 <h3>{{term}}</h3>
 
 <p>
+    School: {{term.school.school_id}}<br />
     Total Courses: {{ total_courses }}<br />
-    Total Canvas Courses: {{ total_canvas_courses }}
+    Total Canvas Courses: {{ total_canvas_courses }}<br />
+    Status: {{ bulk_create_status }} <br />
 </p>
 
 <p>
-    <button id="bulk-create-btn" type="button" class="btn btn-primary">Bulk Create Courses</button>
+    <button id="bulk-create-btn" type="button"  class="btn btn-primary {% if bulk_create_status  == 'IN_PROGRESS' %} disabled {% endif %}">Bulk Create Courses</button>
+    {% if bulk_create_status  == 'IN_PROGRESS' %}
+    The bulk creation process for this term is <strong>{{bulk_create_status}}</strong>
+    {% endif %}
 </p>
 
 <p>
@@ -20,3 +29,9 @@
 </p>
 
 {% endblock content %}
+
+{% block javascript %}
+{{ block.super }}
+
+{% endblock %}
+

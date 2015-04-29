@@ -1,4 +1,4 @@
-from .models_api import (get_course_data, get_template_for_school, get_courses_for_term)
+from .models_api import (get_course_data, get_template_for_school, get_courses_for_term, get_bulk_create_record)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
@@ -341,3 +341,12 @@ def get_total_courses_for_term(term_id):
     :return: MEthos returns an integer representing the number of courses found
     """
     return get_courses_for_term(term_id)
+
+def get_bulk_create_status(term_id):
+    """
+    get the status of the bulk create job. This status is used by the view to enable
+    or disable the bulk create button.
+    :param term_id: The term_id of the term
+    :return: Methos returns the status of the bulk create job
+    """
+    return get_bulk_create_record(term_id).status
