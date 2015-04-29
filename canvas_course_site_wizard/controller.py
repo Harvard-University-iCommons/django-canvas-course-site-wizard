@@ -1,4 +1,4 @@
-from .models_api import get_course_data, get_template_for_school
+from .models_api import (get_course_data, get_template_for_school, get_courses_for_term)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
@@ -325,3 +325,19 @@ def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_ba
     course_url = '%scourses/%s' % (base_url, course_id)
 
     return course_url
+
+def get_canvas_course_count_for_term(term_id):
+    """
+    return the count of courses for the term that already exist in Canvas
+    :param term_id: the term_id of the term from the course manager database
+    :return: MEthos returns an integer representing the number of courses found
+    """
+    return get_courses_for_term(term_id, is_in_canvas=True)
+
+def get_total_courses_for_term(term_id):
+    """
+    return the count of courses that exist for the term
+    :param term_id: the term_id of the term from the course manager database
+    :return: MEthos returns an integer representing the number of courses found
+    """
+    return get_courses_for_term(term_id)

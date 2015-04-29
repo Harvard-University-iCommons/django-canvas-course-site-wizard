@@ -1,0 +1,22 @@
+{% extends "icommons_ui/base_ext.html" %}
+
+{% block page_title %} Canvas Course Site Wizard {% endblock page_title %}
+
+{% block content %}
+
+<h3>{{term}}</h3>
+
+<p>
+    Total Courses: {{ total_courses }}<br />
+    Total Canvas Courses {{ total_canvas_courses }}
+</p>
+
+<p>
+    <button id="bulk-create-btn" type="button" class="btn btn-primary">Bulk Create Courses</button>
+</p>
+
+<p>
+    <a href="/tools/term_tool/term/{{term.term_id}}/edit">back to edit term</a>
+</p>
+
+{% endblock content %}
