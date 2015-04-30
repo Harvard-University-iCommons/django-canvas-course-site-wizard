@@ -60,6 +60,7 @@ def get_courses_for_term(term_id, is_in_canvas=None):
 
 class BulkCreateObject(object):
     """
+    TODO - this will be deleted when new database table is created.
     This a temp hack to fill in for the new model until it's created.
     """
     status = ""
@@ -69,9 +70,8 @@ class BulkCreateObject(object):
 
 def get_bulk_create_record(term_id):
     """
-    Temp hack to fill in for the database
-    :param term_id:
-    :return:
+    TODO - This method needs to be rewritten when database table is ready.
+    What's here now is a temp hack.
     """
     if(term_id==4650):
         return BulkCreateObject('IN_PROGRESS')

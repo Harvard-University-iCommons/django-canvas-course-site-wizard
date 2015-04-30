@@ -1,7 +1,6 @@
 from .controller import (create_canvas_course, start_course_template_copy,
                          finalize_new_canvas_course, get_canvas_course_url,
-                         get_canvas_course_count_for_term, get_total_courses_for_term,
-                         get_bulk_create_status, get_term_course_counts)
+                         get_bulk_create_status_for_term, get_term_course_counts)
 from .mixins import CourseSiteCreationAllowedMixin
 from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
@@ -77,5 +76,5 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
         context['total_courses'] = course_counts['total_courses']
         context['canvas_courses'] = course_counts['canvas_courses']
         context['not_in_canvas'] = course_counts['not_in_canvas']
-        context['bulk_create_status'] = get_bulk_create_status(self.object.pk)
+        context['bulk_create_status'] = get_bulk_create_status_for_term(self.object.pk)
         return context

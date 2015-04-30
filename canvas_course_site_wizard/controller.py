@@ -328,19 +328,23 @@ def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_ba
 
 def get_term_course_counts(term_id):
     """
-    return a dict that contains the count of courses that exist for the term,
-    the count of courses in canvas, and the count of courses not in canvas.
+    return a dict that contains the following:
+        {
+            'total_courses' : integer,  Total number of courses in the term
+            'canvas_courses' : integer, Total numner of courses that already have Canvas sites
+            'not_in_canvas' : integer,  Total numner of courses that do not have Canvas sites (this is just total_courses - canvas_courses)
+        }
     :param term_id: the term_id of the term from the course manager database
     :return: Method returns dict
     """
     data = {}
-    data['total_courses'] = get_total_courses_for_term(term_id)
+    data['total_courses'] = get_courses_for_term(term_id)
     data['canvas_courses'] = get_courses_for_term(term_id, is_in_canvas=True)
     data['not_in_canvas'] = data['total_courses'] - data['canvas_courses']
-    print '%s' % data
+
     return data
 
-def get_bulk_create_status(term_id):
+def get_bulk_create_status_for_term(term_id):
     """
     get the status of the bulk create job. This status is used by the view to enable
     or disable the bulk create button.
