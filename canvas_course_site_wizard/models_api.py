@@ -41,19 +41,21 @@ def get_template_for_school(school_code):
     """
     return CanvasSchoolTemplate.objects.get(school_id=school_code).template_id
 
-def get_courses_for_term(term_id, is_in_canvas=False):
+def get_courses_for_term(term_id, is_in_canvas=None):
     """
     Get the count of all the courses in the term. If is_in_canvas is true, only get
     the count of the courses that are already in canvas by looking to see if the sync_to_canvas flaf is
     set to true in the course manager database.
     :param term_id: the term_id of the term
-    :param is_in_canvas: (optional) if privided the method will only return a count of the courses that already exist in Canvas
+    :param is_in_canvas: (optional) if provided the method will only return a count of the courses that already exist in Canvas
     :return: The method returns a count of the number of courses, if no courses are found the method will return 0.
     """
+    kwargs = {}
+    kwargs['term__term_id'] = term_id
     if is_in_canvas:
-        return CourseInstance.objects.filter(term__term_id=term_id, sync_to_canvas=True).count()
+        kwargs['sync_to_canvas'] = True
 
-    return CourseInstance.objects.filter(term__term_id=term_id).count()
+    return CourseInstance.objects.filter(**kwargs).count()
 
 
 class BulkCreateObject(object):

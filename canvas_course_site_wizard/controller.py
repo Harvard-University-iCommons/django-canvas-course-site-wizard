@@ -326,21 +326,19 @@ def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_ba
 
     return course_url
 
-def get_canvas_course_count_for_term(term_id):
+def get_term_course_counts(term_id):
     """
-    return the count of courses for the term that already exist in Canvas
+    return a dict that contains the count of courses that exist for the term,
+    the count of courses in canvas, and the count of courses not in canvas.
     :param term_id: the term_id of the term from the course manager database
-    :return: MEthos returns an integer representing the number of courses found
+    :return: Method returns dict
     """
-    return get_courses_for_term(term_id, is_in_canvas=True)
-
-def get_total_courses_for_term(term_id):
-    """
-    return the count of courses that exist for the term
-    :param term_id: the term_id of the term from the course manager database
-    :return: MEthos returns an integer representing the number of courses found
-    """
-    return get_courses_for_term(term_id)
+    data = {}
+    data['total_courses'] = get_total_courses_for_term(term_id)
+    data['canvas_courses'] = get_courses_for_term(term_id, is_in_canvas=True)
+    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses']
+    print '%s' % data
+    return data
 
 def get_bulk_create_status(term_id):
     """
