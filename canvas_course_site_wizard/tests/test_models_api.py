@@ -1,7 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.test import TestCase
-from canvas_course_site_wizard.models_api import get_template_for_school
-from canvas_course_site_wizard.models import CanvasSchoolTemplate
+from canvas_course_site_wizard.models_api import (get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term)
+from canvas_course_site_wizard.models import (CanvasSchoolTemplate, BulkJob)
+import datetime
+from mock import patch
 
 class ModelsApiTest(TestCase):
     longMessage = True
@@ -9,6 +11,16 @@ class ModelsApiTest(TestCase):
     def setUp(self):
         self.school_id = 'fas'
         self.template_id = 123456
+        self.term_id = 4545
+        self.bulk_job_id = 999
+        self.created_at = datetime.datetime.now()
+        self.updated_at = datetime.datetime.now()
+        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL, created_at=self.created_at, updated_at=self.updated_at)
+        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_FAILED, created_at=self.created_at, updated_at=self.updated_at)
+        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_FINALIZING, created_at=self.created_at, updated_at=self.updated_at)
+        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_PENDING, created_at=self.created_at, updated_at=self.updated_at)
+        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_SETUP, created_at=self.created_at, updated_at=self.updated_at)
+
 
     def test_single_template_exists_for_school(self):
         """ Data api method should return the template_id for a given school that has a matching row """
@@ -37,5 +49,44 @@ class ModelsApiTest(TestCase):
 
         with self.assertRaises(MultipleObjectsReturned):
             get_template_for_school(self.school_id)
+
+    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
+    def test_get_courses_for_term_term_id_only(self, mock_ci):
+        """ test that the call to the course instance model has the correct parameters when only the term_id is provided """
+        courses = get_courses_for_term(self.term_id)
+        mock_ci.assert_called_once_with(term__term_id=self.term_id)
+
+    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
+    def test_get_courses_for_term_term_id_and_status(self, mock_ci):
+        """ test that the call to the course instance model has the correct parameters when both term_id and is_in_canvas are provided """
+        courses = get_courses_for_term(self.term_id, is_in_canvas=True)
+        mock_ci.assert_called_once_with(term__term_id=self.term_id, sync_to_canvas=True)
+
+    def test_get_bulk_job_records_for_term(self):
+        """ test that the call to the bulk_job model reutrns the correct results when only the term_id is provided """
+        test_data_set = [
+            '<BulkJob: (BulkJob ID=2: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=3: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=1: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=4: sis_term_id=4545)>',
+        ]
+
+        records = get_bulk_job_records_for_term(self.term_id)
+        self.assertQuerysetEqual(records, test_data_set, ordered=False)
+
+    def test_get_bulk_job_records_for_term_with_in_progress(self):
+        """
+        test that the call to the bulk_job model reutrns the correct results when the term_id and in_progress options are provided.
+        We should only be returning the jobs that are not in one of the final states ('notification_successful', 'notification_failed')
+        """
+        test_data_set = [
+            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=3: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=4: sis_term_id=4545)>',
+        ]
+
+        records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
+        self.assertQuerysetEqual(records, test_data_set, ordered=False)
 
     #TODO: once we figure out how to deal with legacy data, we can add integration tests for retrieving course data

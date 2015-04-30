@@ -5,7 +5,7 @@ from canvas_course_site_wizard.models_api import (get_content_migration_data_for
 from canvas_course_site_wizard.models import CanvasContentMigrationJob
 
 
-class ModelsApiTest(TestCase):
+class ModelsApiTestJobMigration(TestCase):
     longMessage = True
 
     def setUp(self):

@@ -60,13 +60,11 @@ def get_courses_for_term(term_id, is_in_canvas=None):
 
 def get_bulk_job_records_for_term(term_id, in_progress=None):
     """
-    Get the bulk job records from the BulkJob table for the sis_term_id provided.
+    Get the bulk job records from the BulkJob table for the sis_term_id provided where in_progress is true.
     """
-
     term_id_query = Q(sis_term_id=term_id)
     if in_progress:
-        status_query = Q(status__ne='STATUS_NOTIFICATION_SUCCESSFUL')
-        status_query |= Q(status__ne='STATUS_NOTIFICATION_FAILED ')
-        return BulkJob.objects.filter(term_id_query, status_query)
+        status_list = [BulkJob.STATUS_SETUP, BulkJob.STATUS_PENDING, BulkJob.STATUS_FINALIZING]
+        return BulkJob.objects.filter(sis_term_id=term_id, status__in=status_list)
 
     return BulkJob.objects.filter(term_id_query)
