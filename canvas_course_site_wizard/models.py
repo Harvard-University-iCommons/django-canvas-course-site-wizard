@@ -188,7 +188,8 @@ class BulkJob(models.Model):
     STATUS_FINALIZING = 'finalizing'
     STATUS_NOTIFICATION_SUCCESSFUL = 'notification_successful'
     STATUS_NOTIFICATION_FAILED = 'notification_failed'
-    #  status choices
+
+    # status choices
     STATUS_CHOICES = (
         (STATUS_SETUP, STATUS_SETUP),
         (STATUS_PENDING, STATUS_PENDING),
