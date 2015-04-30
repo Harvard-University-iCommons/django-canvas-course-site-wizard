@@ -157,6 +157,8 @@ class CanvasContentMigrationJob(models.Model):
     status_url = models.CharField(max_length=200)
     workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
     created_by_user_id = models.CharField(max_length=20)
+    bulk_job_id = models.IntegerField(max_length=11, null=True, blank=True)
+
     
     class Meta:
         db_table = u'canvas_content_migration_job'
@@ -178,3 +180,32 @@ class CanvasSchoolTemplate(models.Model):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
         return "(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
                                                                                self.template_id)
+
+class BulkJob(models.Model):
+    # status values
+    STATUS_SETUP = 'setup'
+    STATUS_PENDING = 'pending'
+    STATUS_FINALIZING = 'finalizing'
+    STATUS_NOTIFICATION_SUCCESSFUL = 'notification_successful'
+    STATUS_NOTIFICATION_FAILED = 'notification_failed'
+    #  status choices
+    STATUS_CHOICES = (
+        (STATUS_SETUP, STATUS_SETUP),
+        (STATUS_PENDING, STATUS_PENDING),
+        (STATUS_FINALIZING, STATUS_FINALIZING),
+        (STATUS_NOTIFICATION_SUCCESSFUL, STATUS_NOTIFICATION_SUCCESSFUL),
+        (STATUS_NOTIFICATION_FAILED, STATUS_NOTIFICATION_FAILED),
+    )
+    bulk_job_id = models.IntegerField(max_length=11, db_index=True)
+    school_id = models.CharField(max_length=10)
+    sis_term_id = models.IntegerField(max_length=11)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_SETUP)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by_user_id = models.CharField(max_length=20)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = u'bulk_job'
+
+    def __unicode__(self):
+        return "(BulkJob ID=%s: sis_term_id=%s | %s)" % (self.pk, self.sis_term_id)
