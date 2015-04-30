@@ -1,4 +1,4 @@
-from .models_api import (get_course_data, get_template_for_school, get_courses_for_term, get_bulk_create_record)
+from .models_api import (get_course_data, get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
@@ -337,18 +337,28 @@ def get_term_course_counts(term_id):
     :param term_id: the term_id of the term from the course manager database
     :return: Method returns dict
     """
-    data = {}
-    data['total_courses'] = get_courses_for_term(term_id)
-    data['canvas_courses'] = get_courses_for_term(term_id, is_in_canvas=True)
-    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses']
+    data = dict()
+    data['total_courses'] = get_courses_for_term(term_id) # will be 0 if no courses returned
+    data['canvas_courses'] = get_courses_for_term(term_id, is_in_canvas=True) # will be 0 if no courses returned
+    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses'] # will be 0 if no courses returned above
 
     return data
 
-def get_bulk_create_status_for_term(term_id):
+
+def is_bulk_job_in_progress(term_id):
     """
-    get the status of the bulk create job. This status is used by the view to enable
-    or disable the bulk create button.
+    determine if there are any bulk jobs in progress, if so return true, if not return False
+    :param term_id:
+    :return:
+    """
+    if get_bulk_job_records_for_term(term_id, in_progress=True).count() > 0:
+        return True
+    return False
+
+def get_bulk_jobs_for_term(term_id):
+    """
+    get all of the bulk create jobs for the term.
     :param term_id: The term_id of the term
-    :return: Methos returns the status of the bulk create job
+    :return: Method returns a queryset of all the bulk jobs
     """
-    return get_bulk_create_record(term_id).status
+    return get_bulk_job_records_for_term(term_id)

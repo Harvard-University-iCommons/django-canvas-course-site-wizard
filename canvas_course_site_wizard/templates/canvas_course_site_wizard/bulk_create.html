@@ -18,9 +18,9 @@
 </div>
 
 <p>
-    <button id="bulk-create-btn" type="button"  class="btn btn-primary {% if bulk_create_status  == 'IN_PROGRESS' %} disabled {% endif %}">Bulk Create Courses</button>
-    {% if bulk_create_status  == 'IN_PROGRESS' %}
-    Bulk creation for this term is <strong>{{bulk_create_status}}</strong>
+    <button id="bulk-create-btn" type="button"  class="btn btn-primary {% if is_job_in_progress %} disabled {% endif %}">Bulk Create Courses</button>
+    {% if is_job_in_progress %}
+    There is a bulk creation job for this term in progress
     {% endif %}
 </p>
 

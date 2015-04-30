@@ -1,5 +1,6 @@
-from .models import SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate
+from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkJob)
 from icommons_common.models import (CourseInstance, Term)
+from django.db.models import Q
 
 def get_course_data(course_sis_id):
     """
@@ -50,29 +51,22 @@ def get_courses_for_term(term_id, is_in_canvas=None):
     :param is_in_canvas: (optional) if provided the method will only return a count of the courses that already exist in Canvas
     :return: The method returns a count of the number of courses, if no courses are found the method will return 0.
     """
-    kwargs = {}
+    kwargs = dict()
     kwargs['term__term_id'] = term_id
     if is_in_canvas:
         kwargs['sync_to_canvas'] = True
 
     return CourseInstance.objects.filter(**kwargs).count()
 
+def get_bulk_job_records_for_term(term_id, in_progress=None):
+    """
+    Get the bulk job records from the BulkJob table for the sis_term_id provided.
+    """
 
-class BulkCreateObject(object):
-    """
-    TODO - this will be deleted when new database table is created.
-    This a temp hack to fill in for the new model until it's created.
-    """
-    status = ""
+    term_id_query = Q(sis_term_id=term_id)
+    if in_progress:
+        status_query = Q(status__ne='STATUS_NOTIFICATION_SUCCESSFUL')
+        status_query |= Q(status__ne='STATUS_NOTIFICATION_FAILED ')
+        return BulkJob.objects.filter(term_id_query, status_query)
 
-    def __init__(self, status):
-        self.status = status
-
-def get_bulk_create_record(term_id):
-    """
-    TODO - This method needs to be rewritten when database table is ready.
-    What's here now is a temp hack.
-    """
-    if(term_id==4650):
-        return BulkCreateObject('IN_PROGRESS')
-    return BulkCreateObject('COMPLETE')
+    return BulkJob.objects.filter(term_id_query)
