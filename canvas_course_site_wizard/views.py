@@ -12,6 +12,7 @@ from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
 from django.shortcuts import redirect
 import logging
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -79,4 +80,5 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
         context['not_in_canvas'] = course_counts['not_in_canvas']
         context['is_job_in_progress'] = is_bulk_job_in_progress(self.object.pk)
         context['bulk_jobs'] = get_bulk_jobs_for_term(self.object.pk)
+        context['ext_tools_term_edit_url'] = '%s/%s/edit' % (settings.COURSE_WIZARD['EXT_TOOLS_TERM_EDIT_URL'], self.object.pk)
         return context
