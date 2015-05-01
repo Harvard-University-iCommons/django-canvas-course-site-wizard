@@ -1,6 +1,5 @@
 from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkJob)
 from icommons_common.models import (CourseInstance, Term)
-from django.db.models import Q
 
 def get_course_data(course_sis_id):
     """
@@ -62,9 +61,10 @@ def get_bulk_job_records_for_term(term_id, in_progress=None):
     """
     Get the bulk job records from the BulkJob table for the sis_term_id provided where in_progress is true.
     """
-    term_id_query = Q(sis_term_id=term_id)
+    kwargs = dict()
+    kwargs['sis_term_id'] = term_id
     if in_progress:
         status_list = [BulkJob.STATUS_SETUP, BulkJob.STATUS_PENDING, BulkJob.STATUS_FINALIZING]
-        return BulkJob.objects.filter(sis_term_id=term_id, status__in=status_list)
+        kwargs['status__in'] = status_list
 
-    return BulkJob.objects.filter(term_id_query)
+    return BulkJob.objects.filter(**kwargs)
