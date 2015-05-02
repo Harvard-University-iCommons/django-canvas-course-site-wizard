@@ -1,8 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.test import TestCase
 from canvas_course_site_wizard.models_api import (get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term)
-from canvas_course_site_wizard.models import (CanvasSchoolTemplate, BulkJob)
-import datetime
+from canvas_course_site_wizard.models import CanvasSchoolTemplate
+from setup_bulk_jobs import create_bulk_jobs
 from mock import patch
 
 class ModelsApiTest(TestCase):
@@ -13,14 +13,7 @@ class ModelsApiTest(TestCase):
         self.template_id = 123456
         self.term_id = 4545
         self.bulk_job_id = 999
-        self.created_at = datetime.datetime.now()
-        self.updated_at = datetime.datetime.now()
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_FAILED, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_FINALIZING, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_PENDING, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_SETUP, created_at=self.created_at, updated_at=self.updated_at)
-
+        create_bulk_jobs(self.term_id, self.bulk_job_id)
 
     def test_single_template_exists_for_school(self):
         """ Data api method should return the template_id for a given school that has a matching row """
@@ -81,9 +74,9 @@ class ModelsApiTest(TestCase):
         We should only be returning the jobs that are not in one of the final states ('notification_successful', 'notification_failed')
         """
         test_data_set = [
-            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=3: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=1: sis_term_id=4545)>',
             '<BulkJob: (BulkJob ID=4: sis_term_id=4545)>',
+            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
         ]
 
         records = get_bulk_job_records_for_term(self.term_id, in_progress=True)

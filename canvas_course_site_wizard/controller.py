@@ -1,4 +1,5 @@
-from .models_api import (get_course_data, get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term)
+from .models_api import (get_course_data, get_template_for_school,
+                         get_courses_for_term, get_bulk_job_records_for_term)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
@@ -337,9 +338,10 @@ def get_term_course_counts(term_id):
     :param term_id: the term_id of the term from the course manager database
     :return: Method returns dict
     """
-    data = dict()
-    data['total_courses'] = get_courses_for_term(term_id) # will be 0 if no courses returned
-    data['canvas_courses'] = get_courses_for_term(term_id, is_in_canvas=True) # will be 0 if no courses returned
+    data = {
+        'total_courses' : get_courses_for_term(term_id), # will be 0 if no courses returned
+        'canvas_courses' : get_courses_for_term(term_id, is_in_canvas=True), # will be 0 if no courses returned
+    }
     data['not_in_canvas'] = data['total_courses'] - data['canvas_courses'] # will be 0 if no courses returned above
 
     return data
@@ -351,9 +353,7 @@ def is_bulk_job_in_progress(term_id):
     :param term_id:
     :return:
     """
-    if get_bulk_job_records_for_term(term_id, in_progress=True).count() > 0:
-        return True
-    return False
+    return get_bulk_job_records_for_term(term_id, in_progress=True).count() > 0
 
 def get_bulk_jobs_for_term(term_id):
     """

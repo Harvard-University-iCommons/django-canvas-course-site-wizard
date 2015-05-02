@@ -1,7 +1,6 @@
 from unittest import TestCase
 from canvas_course_site_wizard.controller import is_bulk_job_in_progress
-from canvas_course_site_wizard.models import BulkJob
-import datetime
+from setup_bulk_jobs import create_bulk_jobs
 
 class TestControllerIsBulkJobInProgress(TestCase):
     """
@@ -10,16 +9,9 @@ class TestControllerIsBulkJobInProgress(TestCase):
 
     def setUp(self):
         self.template_id = 123456
-        self.term_id = 4545
-        self.bulk_job_id = 999
-        self.created_at = datetime.datetime.now()
-        self.updated_at = datetime.datetime.now()
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_NOTIFICATION_FAILED, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_FINALIZING, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_PENDING, created_at=self.created_at, updated_at=self.updated_at)
-        BulkJob.objects.create(bulk_job_id=self.bulk_job_id, sis_term_id=self.term_id, status=BulkJob.STATUS_SETUP, created_at=self.created_at, updated_at=self.updated_at)
-
+        self.term_id = 4848
+        self.bulk_job_id = 901
+        create_bulk_jobs(self.term_id, self.bulk_job_id)
 
     def test_is_bulk_job_in_progress_when_true(self):
         """
