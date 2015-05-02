@@ -74,10 +74,7 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
         """
         context = super(CanvasBulkCreateStatusView, self).get_context_data(**kwargs)
         logger.debug('bulk create job %s' % self.object)
-        course_counts = get_term_course_counts(self.object.pk)
-        context['total_courses'] = course_counts['total_courses']
-        context['canvas_courses'] = course_counts['canvas_courses']
-        context['not_in_canvas'] = course_counts['not_in_canvas']
+        context.update(get_term_course_counts(self.object.pk))
         context['is_job_in_progress'] = is_bulk_job_in_progress(self.object.pk)
         context['bulk_jobs'] = get_bulk_jobs_for_term(self.object.pk)
         context['ext_tools_term_edit_url'] = '%s/%s/edit' % (settings.COURSE_WIZARD['EXT_TOOLS_TERM_EDIT_URL'], self.object.pk)
