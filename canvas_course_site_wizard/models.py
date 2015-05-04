@@ -181,7 +181,11 @@ class CanvasSchoolTemplate(models.Model):
         return "(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
                                                                                self.template_id)
 
-class BulkJob(models.Model):
+
+class BulkCanvasCourseCreationJob(models.Model):
+    """
+    This model maps the DB table that stores data about the bulk canvas course jobs.
+    """
     # status values
     STATUS_SETUP = 'setup'
     STATUS_PENDING = 'pending'
@@ -206,7 +210,7 @@ class BulkJob(models.Model):
     updated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = u'bulk_job'
+        db_table = u'bulk_canvas_course_creation_job'
 
     def __unicode__(self):
         return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)

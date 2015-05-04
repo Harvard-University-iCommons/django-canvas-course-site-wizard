@@ -18,11 +18,11 @@ class TestControllerGetBulkJobsForTerm(TestCase):
         Tests whether get_bulk_jobs_for_term returns all the jobs for the term provided.
         """
         data = [
-            '<BulkJob: (BulkJob ID=5: sis_term_id=4700)>',
-            '<BulkJob: (BulkJob ID=2: sis_term_id=4700)>',
-            '<BulkJob: (BulkJob ID=4: sis_term_id=4700)>',
-            '<BulkJob: (BulkJob ID=1: sis_term_id=4700)>',
-            '<BulkJob: (BulkJob ID=3: sis_term_id=4700)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4700)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4700)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=4: sis_term_id=4700)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4700)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=3: sis_term_id=4700)>',
         ]
         result = get_bulk_jobs_for_term(self.term_id)
         self.assertQuerysetEqual(result, data, ordered=False)

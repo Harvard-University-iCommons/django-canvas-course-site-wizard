@@ -1,5 +1,6 @@
-from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkJob)
+from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkCanvasCourseCreationJob)
 from icommons_common.models import (CourseInstance, Term)
+
 
 def get_course_data(course_sis_id):
     """
@@ -9,6 +10,7 @@ def get_course_data(course_sis_id):
     exception if multiple instances match the input id.
     """
     return SISCourseData.objects.select_related('course').get(pk=course_sis_id)
+
 
 def get_content_migration_data_for_canvas_course_id(canvas_course_id):
     """
@@ -21,6 +23,7 @@ def get_content_migration_data_for_canvas_course_id(canvas_course_id):
     else:
 		return None
 
+
 def get_content_migration_data_for_sis_course_id(sis_course_id):
     """
     Retrieve the content migration job data given the sis_course_id.
@@ -32,6 +35,7 @@ def get_content_migration_data_for_sis_course_id(sis_course_id):
     else:
 		return None
 
+
 def get_template_for_school(school_code):
     """
     Retrieve a single course template id for the given school code.  An
@@ -40,6 +44,7 @@ def get_template_for_school(school_code):
     will be thrown.
     """
     return CanvasSchoolTemplate.objects.get(school_id=school_code).template_id
+
 
 def get_courses_for_term(term_id, is_in_canvas=None):
     """
@@ -56,6 +61,7 @@ def get_courses_for_term(term_id, is_in_canvas=None):
 
     return CourseInstance.objects.filter(**kwargs).count()
 
+
 def get_bulk_job_records_for_term(term_id, in_progress=None):
     """
     Get the bulk job records from the BulkJob table for the sis_term_id provided where in_progress is true.
@@ -63,7 +69,8 @@ def get_bulk_job_records_for_term(term_id, in_progress=None):
 
     kwargs = { 'sis_term_id' : term_id }
     if in_progress:
-        status_list = [BulkJob.STATUS_SETUP, BulkJob.STATUS_PENDING, BulkJob.STATUS_FINALIZING]
+        status_list = [BulkCanvasCourseCreationJob.STATUS_SETUP, BulkCanvasCourseCreationJob.STATUS_PENDING,
+                       BulkCanvasCourseCreationJob.STATUS_FINALIZING]
         kwargs['status__in'] = status_list
 
-    return BulkJob.objects.filter(**kwargs)
+    return BulkCanvasCourseCreationJob.objects.filter(**kwargs)
