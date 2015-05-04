@@ -212,7 +212,7 @@ class BulkCanvasCourseCreationJob(models.Model):
     updated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = u'bulk_canvas_course_creation_job'
+        db_table = u'bulk_canvas_course_crtn_job'
 
     def __unicode__(self):
         return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
