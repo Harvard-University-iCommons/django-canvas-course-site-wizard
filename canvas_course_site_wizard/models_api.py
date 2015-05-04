@@ -1,4 +1,5 @@
-from .models import SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate
+from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkJob)
+from icommons_common.models import (CourseInstance, Term)
 
 def get_course_data(course_sis_id):
     """
@@ -40,3 +41,29 @@ def get_template_for_school(school_code):
     """
     return CanvasSchoolTemplate.objects.get(school_id=school_code).template_id
 
+def get_courses_for_term(term_id, is_in_canvas=None):
+    """
+    Get the count of all the courses in the term. If is_in_canvas is true, only get
+    the count of the courses that are already in canvas by looking to see if the sync_to_canvas flag is
+    set to true in the course manager database.
+    :param term_id: the term_id of the term
+    :param is_in_canvas: (optional) if provided the method will only return a count of the courses that already exist in Canvas
+    :return: The method returns a count of the number of courses, if no courses are found the method will return 0.
+    """
+    kwargs = { 'term__term_id' : term_id }
+    if is_in_canvas:
+        kwargs['sync_to_canvas'] = True
+
+    return CourseInstance.objects.filter(**kwargs).count()
+
+def get_bulk_job_records_for_term(term_id, in_progress=None):
+    """
+    Get the bulk job records from the BulkJob table for the sis_term_id provided where in_progress is true.
+    """
+
+    kwargs = { 'sis_term_id' : term_id }
+    if in_progress:
+        status_list = [BulkJob.STATUS_SETUP, BulkJob.STATUS_PENDING, BulkJob.STATUS_FINALIZING]
+        kwargs['status__in'] = status_list
+
+    return BulkJob.objects.filter(**kwargs)

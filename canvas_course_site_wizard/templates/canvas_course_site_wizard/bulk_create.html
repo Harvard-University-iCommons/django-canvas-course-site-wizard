@@ -1,0 +1,60 @@
+{% extends "icommons_ui/base_ext.html" %}
+
+{% block page_title %} Canvas Course Site Wizard {% endblock page_title %}
+
+{% block stylesheet %}
+{{ block.super }}
+{% endblock %}
+
+{% block content %}
+
+<h3>{{term}}</h3>
+
+<div class="well well-lg">
+    School: {{ term.school.school_id }}<br />
+    Courses in term: {{ total_courses }}<br />
+    Courses in Canvas: {{ canvas_courses }}<br />
+    Courses not in Canvas: {{ not_in_canvas }}
+</div>
+
+<p>
+    <button id="bulk-create-btn" type="button"  class="btn btn-primary {% if is_job_in_progress %} disabled {% endif %}">Bulk Create Courses</button>
+    {% if is_job_in_progress %}
+    There is a bulk creation job for this term in progress
+    {% endif %}
+</p>
+
+<div class="well well-lg">
+{% if bulk_jobs %}
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Job Status</th>
+        <th>Create On</th>
+        <th>Created By</th>
+    </tr>
+    {% for job in bulk_jobs.items %}
+    <tr>
+        <td>job.bulk_job_id</td>
+        <td>job.status</td>
+        <td>job.created_at</td>
+        <td>job.created_by_user_id</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+    There are currently no jobs in process or complete.
+{% endif %}
+</div>
+
+<p>
+    <a href="{{ext_tools_term_edit_url}}">back to edit term</a>
+</p>
+
+{% endblock content %}
+
+{% block javascript %}
+{{ block.super }}
+
+{% endblock %}
+

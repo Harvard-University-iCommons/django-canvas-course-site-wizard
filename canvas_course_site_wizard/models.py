@@ -209,4 +209,4 @@ class BulkJob(models.Model):
         db_table = u'bulk_job'
 
     def __unicode__(self):
-        return "(BulkJob ID=%s: sis_term_id=%s | %s)" % (self.pk, self.sis_term_id)
+        return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
