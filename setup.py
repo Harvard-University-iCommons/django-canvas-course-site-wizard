@@ -34,7 +34,7 @@ setup(
     install_requires=[
         "Django>=1.6",
         "django-braces",
-        "canvas-python-sdk>=0.6b4",
+        "canvas-python-sdk>=0.7.4",
         "django-icommons-common",
     ],
     tests_require=[

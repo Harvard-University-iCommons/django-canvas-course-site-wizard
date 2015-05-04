@@ -1,4 +1,5 @@
-from .models_api import get_course_data, get_template_for_school
+from .models_api import (get_course_data, get_template_for_school,
+                         get_courses_for_term, get_bulk_job_records_for_term)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
@@ -349,3 +350,39 @@ def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_ba
     course_url = '%scourses/%s' % (base_url, course_id)
 
     return course_url
+
+def get_term_course_counts(term_id):
+    """
+    return a dict that contains the following:
+        {
+            'total_courses' : integer,  Total number of courses in the term
+            'canvas_courses' : integer, Total numner of courses that already have Canvas sites
+            'not_in_canvas' : integer,  Total numner of courses that do not have Canvas sites (this is just total_courses - canvas_courses)
+        }
+    :param term_id: the term_id of the term from the course manager database
+    :return: Method returns dict
+    """
+    data = {
+        'total_courses' : get_courses_for_term(term_id), # will be 0 if no courses returned
+        'canvas_courses' : get_courses_for_term(term_id, is_in_canvas=True), # will be 0 if no courses returned
+    }
+    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses'] # will be 0 if no courses returned above
+
+    return data
+
+
+def is_bulk_job_in_progress(term_id):
+    """
+    determine if there are any bulk jobs in progress, if so return true, if not return False
+    :param term_id:
+    :return:
+    """
+    return get_bulk_job_records_for_term(term_id, in_progress=True).count() > 0
+
+def get_bulk_jobs_for_term(term_id):
+    """
+    get all of the bulk create jobs for the term.
+    :param term_id: The term_id of the term
+    :return: Method returns a queryset of all the bulk jobs
+    """
+    return get_bulk_job_records_for_term(term_id)
