@@ -58,11 +58,11 @@ class ModelsApiTest(TestCase):
     def test_get_bulk_job_records_for_term(self):
         """ test that the call to the bulk_job model reutrns the correct results when only the term_id is provided """
         test_data_set = [
-            '<BulkJob: (BulkJob ID=2: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=3: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=1: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=4: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=3: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=4: sis_term_id=4545)>',
         ]
 
         records = get_bulk_job_records_for_term(self.term_id)
@@ -74,9 +74,9 @@ class ModelsApiTest(TestCase):
         We should only be returning the jobs that are not in one of the final states ('notification_successful', 'notification_failed')
         """
         test_data_set = [
-            '<BulkJob: (BulkJob ID=1: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=4: sis_term_id=4545)>',
-            '<BulkJob: (BulkJob ID=5: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=4: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4545)>',
         ]
 
         records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
