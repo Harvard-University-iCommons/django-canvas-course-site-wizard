@@ -64,7 +64,7 @@ def get_courses_for_term(term_id, is_in_canvas=None):
 
 def get_bulk_job_records_for_term(term_id, in_progress=None):
     """
-    Get the bulk job records from the BulkJob table for the sis_term_id provided where in_progress is true.
+    Get the bulk job records from the BulkCanvasCourseCreationJob table for the sis_term_id provided where in_progress is true.
     """
 
     kwargs = { 'sis_term_id' : term_id }

@@ -66,9 +66,6 @@ class ModelsApiTest(TestCase):
         ]
 
         records = get_bulk_job_records_for_term(self.term_id)
-        print("\n\n")
-        print(records)
-        print()
         self.assertQuerysetEqual(records, test_data_set, ordered=False)
 
     def test_get_bulk_job_records_for_term_with_in_progress(self):
@@ -83,6 +80,6 @@ class ModelsApiTest(TestCase):
         ]
 
         records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
-        self.assertQuerysetEqual(records, test_data_set,  ordered=False)
+        self.assertQuerysetEqual(records, test_data_set, ordered=False)
 
     #TODO: once we figure out how to deal with legacy data, we can add integration tests for retrieving course data

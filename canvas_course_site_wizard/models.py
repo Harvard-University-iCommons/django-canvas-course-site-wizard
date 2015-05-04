@@ -184,7 +184,9 @@ class CanvasSchoolTemplate(models.Model):
 
 class BulkCanvasCourseCreationJob(models.Model):
     """
-    This model maps the DB table that stores data about the bulk canvas course jobs.
+    This model maps the DB table that stores data about the 'bulk canvas course creation job'. Each job
+    may have multiple canvas courses as part of the bulk create process, which are present in
+    CanvasContentMigrationJob and referenced using the bulk_job_id
     """
     # status values
     STATUS_SETUP = 'setup'
