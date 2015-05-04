@@ -48,6 +48,11 @@ class Command(NoArgsCommand):
                 response = client.get(SDK_CONTEXT, job.status_url)
                 progress_response = response.json()
                 workflow_state = progress_response['workflow_state']
+                # if the job's bulk_feed_id is not None AND it is not empty or blank, set the flag
+                if job.bulk_feed_id and job.bulk_feed_id.strip():
+                    bulk_feed_flag = True
+                else:
+                    bulk_feed_flag = False
                 
                 if workflow_state == 'completed':
                     logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
@@ -57,19 +62,23 @@ class Command(NoArgsCommand):
                     job.save(update_fields=['workflow_state'])
 
                     logger.debug('Workflow state updated, starting finalization process...')
-                    canvas_course_url = finalize_new_canvas_course(job.canvas_course_id, job.sis_course_id,
-                                                                   'sis_user_id:%s' % job.created_by_user_id)
+                    canvas_course_url = finalize_new_canvas_course(job.canvas_course_id,
+                                                                   job.sis_course_id,
+                                                                   'sis_user_id:%s' % job.created_by_user_id,
+                                                                   job.bulk_feed_id)
 
-                    #Once finalized successfully, only the initiator needs to be emailed
-                    user_profile = get_canvas_user_profile(job.created_by_user_id)
-                    to_address = []
-                    to_address.append(user_profile['primary_email'])
-                    success_msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_body']
-                    logger.debug("notifying success via email: to_addr=%s and adding course url =%s" % (to_address, canvas_course_url))
+                    # if bulk_feed_flag is not true, then proceed with email generation to user
+                    if not bulk_feed_flag:
+                        # Once finalized successfully, only the initiator needs to be emailed
+                        user_profile = get_canvas_user_profile(job.created_by_user_id)
+                        to_address = []
+                        to_address.append(user_profile['primary_email'])
+                        success_msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_body']
+                        logger.debug("notifying success via email: to_addr=%s and adding course url =%s" % (to_address, canvas_course_url))
 
-                    #add the course url to the  message
-                    complete_msg = success_msg.format(canvas_course_url)
-                    send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_subject'], complete_msg, to_address)
+                        # add the course url to the  message
+                        complete_msg = success_msg.format(canvas_course_url)
+                        send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_subject'], complete_msg, to_address)
 
                 elif workflow_state == 'failed':
                     error_text = 'Content migration failed for course with sis_course_id %s (HUID:%s)' \
@@ -80,9 +89,11 @@ class Command(NoArgsCommand):
                     # Update the Job table with the new state
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FAILED
                     job.save(update_fields=['workflow_state'])
-                    # send email to notify of failure
-                    user_profile = get_canvas_user_profile(job.created_by_user_id)
-                    send_failure_email(user_profile['primary_email'], job.sis_course_id)
+
+                    if not bulk_feed_flag:
+                        # send email to notify of failure if it's not a bulk fed course
+                        user_profile = get_canvas_user_profile(job.created_by_user_id)
+                        send_failure_email(user_profile['primary_email'], job.sis_course_id)
 
                 else:
                     """
@@ -100,22 +111,23 @@ class Command(NoArgsCommand):
                 # Note: equivalent to .error(error_text, exc_info=1) -- logs at ERROR level
                 logger.exception(error_text)
 
-                # Use the friendly display_text for the subject of the tech_logger email if it's available
-                if isinstance(e, RenderableException):
-                    error_text = '%s (HUID:%s)' % (e.display_text, job.created_by_user_id)
-                tech_logger.exception(error_text)
-
-                try:
-                    # if failure happened before user profile was fetched, get the user profile
-                    # to retrieve email, else reuse the user_profile info
-                    if user_profile is None:
-                        user_profile = get_canvas_user_profile(job.created_by_user_id)
-
-                    send_failure_email(user_profile['primary_email'], job.sis_course_id)
-                except Exception:
-                    # If exception occurs while sending failure email, log it
-                    error_text = "There was a problem in sending the failure notification email to initiator " \
-                                 "and support staff for sis_course_id %s (HUID:%s)" \
-                                 % (job.sis_course_id, job.created_by_user_id)
-                    logger.exception(error_text)
+                if not bulk_feed_flag:
+                    # Use the friendly display_text for the subject of the tech_logger email if it's available
+                    if isinstance(e, RenderableException):
+                        error_text = '%s (HUID:%s)' % (e.display_text, job.created_by_user_id)
                     tech_logger.exception(error_text)
+
+                    try:
+                        # if failure happened before user profile was fetched, get the user profile
+                        # to retrieve email, else reuse the user_profile info
+                        if user_profile is None:
+                            user_profile = get_canvas_user_profile(job.created_by_user_id)
+
+                        send_failure_email(user_profile['primary_email'], job.sis_course_id)
+                    except Exception:
+                        # If exception occurs while sending failure email, log it
+                        error_text = "There was a problem in sending the failure notification email to initiator " \
+                                     "and support staff for sis_course_id %s (HUID:%s)" \
+                                     % (job.sis_course_id, job.created_by_user_id)
+                        logger.exception(error_text)
+                        tech_logger.exception(error_text)

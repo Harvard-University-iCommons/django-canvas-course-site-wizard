@@ -22,13 +22,15 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id, sis_user_id):
+def create_canvas_course(sis_course_id, sis_user_id, bulk_job_creation):
     """This method creates a canvas course for the sis_course_id provided."""
 
     # instantiate any variables required for method return or logger calls
     new_course = None
     section = None
     request_parameters = None
+
+
 
     try:
         # 1. fetch the course instance info
@@ -39,13 +41,17 @@ def create_canvas_course(sis_course_id, sis_user_id):
     except ObjectDoesNotExist as e:
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
+
         ex = SISCourseDoesNotExistError(sis_course_id)
-        msg = ex.display_text
-        #TLT-393: send an email to support group, in addition to showing error page to user
-        send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
+        #If the course is part of bulk job, do not send individual email. .
+        if not bulk_job_creation:
+            msg = ex.display_text
+            #TLT-393: send an email to support group, in addition to showing error page to user
+            send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
         raise ex
 
     # 2. Attempt to create a canvas course
+
     request_parameters = dict(
         request_ctx=SDK_CONTEXT,
         account_id='sis_account_id:%s' % course_data.sis_account_id,
@@ -64,9 +70,10 @@ def create_canvas_course(sis_course_id, sis_user_id):
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
 
         ex = CanvasCourseCreateError(msg_details=sis_course_id)
-        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+        if not bulk_job_creation:
+            send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
-    else:
+    # else:
         logger.info("created course object, ret=%s" % new_course)
 
     # 3. Create course section after course creation
@@ -83,28 +90,39 @@ def create_canvas_course(sis_course_id, sis_user_id):
                          % (new_course.get('id', '<no ID>'), request_parameters))
         #send email in addition to showing error page to user
         ex = CanvasSectionCreateError(msg_details=sis_course_id)
-        send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+        if not bulk_job_creation:
+            send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
 
     return new_course
 
 
-def start_course_template_copy(sis_course, canvas_course_id, user_id):
+def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_id=None):
     """
     This method will retrieve the template site associated with an SISCourseData object and start the
     Canvas process of copying the template content into the canvas course site.  A CanvasContentMigrationJob
     row will be created with the async process data from Canvas and the resulting data object will be
     returned.  If the school associated with the sis data object does not have a template, a
     NoTemplateExistsForSchool exception will be raised.
+    Based on the bulk_jb_id being passed, the copy process will handle singletons differently from bulk
+    course creation in terms of email generation, etc.
     """
 
     school_code = sis_course.school_code
+
+    # if the bulk_job_id is not None AND it is not empty or blank, set the bulk flag
+    if bulk_job_id and bulk_job_id.strip():
+        bulk_job_flag = True
+
 
     try:
         logger.debug('Fetching template for school_code=%s...' % school_code)
         template_id = get_template_for_school(school_code)
     except ObjectDoesNotExist:
         logger.debug('Did not find a template for course %s.' % sis_course.pk)
+        # To-Do: Placeholder for additional logic to handle this case for bulk job created courses.
+        # Possible flag for a record to be created in CanvasContentMigrationJob with a special status so that it
+        # can summarized as part of bulk job. Currently there isn't a record inserted, when there is no template
         raise NoTemplateExistsForSchool(school_code)
 
     # Initiate course copy for template_id
@@ -130,7 +148,7 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id):
     return migration_job
 
 
-def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
+def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id, bulk_job_id=None):
     """
     Performs all synchronous tasks required to initialize a new canvas course after the course template
     has been applied, or after checking for a template if the course has no template.
@@ -142,18 +160,24 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id):
         :param user_id: The user ID of the creator/instructor to enroll in the course; this should be
         either the Canvas user ID or the SIS user ID prepended with the string 'sis_user_id:'
         :type user_id: string
+        :param bulk_job_id: The bulk_job_id of the of the course, if it is part of bulk job creation, else None
+        :type bulk_job_id: int
         :raises: Logs and re-raises various exceptions raised by its component processes
     """
 
-    # Enroll instructor / creator
-    try:
-        enrollment = enroll_creator_in_new_course(sis_course_id, user_id)
-        logger.info('Enrolled user_id=%s in new course with Canvas course id=%s' % (user_id, canvas_course_id))
-        logger.debug("enrollment result: %s" % enrollment)
-    except Exception as e:
-        logger.exception('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s:'
-                         % (user_id, canvas_course_id))
-        raise CanvasEnrollmentError(sis_course_id)
+    """
+    Enroll instructor/creator if this is a single course creation, but not if it is part of bulk job
+    creation.(TLT-1132)
+    """
+    if bulk_job_id is not None:
+        try:
+            enrollment = enroll_creator_in_new_course(sis_course_id, user_id)
+            logger.info('Enrolled user_id=%s in new course with Canvas course id=%s' % (user_id, canvas_course_id))
+            logger.debug("enrollment result: %s" % enrollment)
+        except Exception as e:
+            logger.exception('Error enrolling course creator with user_id=%s in new course with Canvas course id=%s:'
+                             % (user_id, canvas_course_id))
+            raise CanvasEnrollmentError(sis_course_id)
 
     # Copy SIS enrollments to new Canvas course
     try:
@@ -286,7 +310,7 @@ def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
     """
     to_address = []
 
-    # send message to the support group 
+    # send message to the support group
     to_address.append(settings.CANVAS_EMAIL_NOTIFICATION['support_email_address'])
     msg = settings.CANVAS_EMAIL_NOTIFICATION['support_email_body_on_failure']
     complete_msg = msg.format(sis_course_id, sis_user_id, error_detail,settings.CANVAS_EMAIL_NOTIFICATION['environment'] )
