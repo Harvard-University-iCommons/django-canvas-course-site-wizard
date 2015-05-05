@@ -23,15 +23,19 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id, sis_user_id, bulk_job_flag=False):
-    """This method creates a canvas course for the sis_course_id provided."""
+def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
+    """This method creates a canvas course for the sis_course_id provided. The bulk_job_id
+        would be passed in if it's invoked from a bulk feed process.
+    """
 
     # instantiate any variables required for method return or logger calls
     new_course = None
     section = None
-    request_parameters = None
+    bulk_job_flag = False
 
-
+    # if the job's bulk_job_id is not None AND it is not empty or blank, set the bulk_job_flag
+    if bulk_job_id is not None and bulk_job_id.strip():
+        bulk_job_flag = True
 
     try:
         # 1. fetch the course instance info

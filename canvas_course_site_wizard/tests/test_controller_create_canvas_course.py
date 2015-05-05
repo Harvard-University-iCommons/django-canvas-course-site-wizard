@@ -16,6 +16,7 @@ class CreateCanvasCourseTest(TestCase):
     def setUp(self):
         self.sis_course_id = "305841"
         self.sis_user_id="123456"
+        self.bulk_job_id="10"
 
     def get_mock_of_get_course_data(self):
         # mock the properties
@@ -135,7 +136,7 @@ class CreateCanvasCourseTest(TestCase):
         mock_canvas_course_id = '12345'
         mock_primary_section_name = course_model_mock.primary_section_name.return_value
         create_new_course.return_value.json.return_value = {'id': mock_canvas_course_id}
-        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, None)
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         create_course_section.assert_called_with(request_ctx=SDK_CONTEXT, course_id=mock_canvas_course_id,
                                                  course_section_name=mock_primary_section_name,
                                                  course_section_sis_section_id=self.sis_course_id)
@@ -177,7 +178,7 @@ class CreateCanvasCourseTest(TestCase):
         exception_data = SISCourseDoesNotExistError(self.sis_course_id)
 
         with self.assertRaises(SISCourseDoesNotExistError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
             self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
@@ -204,7 +205,7 @@ class CreateCanvasCourseTest(TestCase):
         """
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
 
         self.assertFalse(send_failure_msg_to_support.called)
 
@@ -236,7 +237,7 @@ class CreateCanvasCourseTest(TestCase):
 
         exception_data = CanvasSectionCreateError(self.sis_course_id)
         with self.assertRaises(CanvasSectionCreateError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
 
         self.assertFalse(send_failure_msg_to_support.called)
 
