@@ -14,6 +14,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         self.sis_course_id = '123456'
         self.user_id = 999
         self.test_return_value = None
+        self.bulk_job_id =10
 
     def test_finalization_success(self, enroll_creator_in_new_course, logger, get_course_data, get_canvas_course_url):
         """
@@ -51,7 +52,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         """
         get_course_data.side_effect = ObjectDoesNotExist('Mock exception')
         with self.assertRaises(RenderableException):
-            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
+            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id, None)
         enroll_creator_in_new_course.assert_called_once_with(self.sis_course_id, self.user_id)
         get_course_data.assert_called_once_with(self.sis_course_id)
         self.assertTrue(logger.exception.called)
@@ -64,7 +65,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         """
         get_course_data().set_sync_to_canvas.side_effect = Exception('Mock exception')
         with self.assertRaises(RenderableException):
-            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
+            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id, None)
         get_course_data().set_sync_to_canvas.assert_called_with(SISCourseData.TURN_ON_SYNC_TO_CANVAS)
         self.assertFalse(get_canvas_course_url.called)
         self.assertTrue(logger.exception.called)
@@ -79,7 +80,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         """
         get_canvas_course_url.side_effect = Exception('Mock exception')
         with self.assertRaises(RenderableException):
-            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
+            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id, None)
         get_canvas_course_url.assert_called_once_with(canvas_course_id=self.canvas_course_id)
         self.assertFalse(get_course_data().set_sync_to_canvas().called)
         self.assertTrue(logger.exception.called)
@@ -94,8 +95,19 @@ class FinalizeNewCanvasCourseTest(TestCase):
         test_url = 'test_url/'
         get_canvas_course_url.return_value = test_url
         with self.assertRaises(RenderableException):
-            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
+            self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id, None)
         get_canvas_course_url.assert_called_once_with(canvas_course_id=self.canvas_course_id)
         get_course_data().set_sync_to_canvas().set_official_course_site_url.assert_called_once_with(test_url)
         self.assertTrue(logger.exception.called)
         self.assertIsNone(self.test_return_value)
+
+    def test_creator_not_enrolled_for_bulk_created_course(self, enroll_creator_in_new_course, logger, get_course_data,
+                                                          get_canvas_course_url):
+        """
+        Test that the the creator/initiator does not get enrolled in a course when the course is part of bulk job
+        """
+        test_url = 'test_url/'
+        get_canvas_course_url.return_value = test_url
+        self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id,
+                                                            self.bulk_job_id)
+        self.assertFalse(enroll_creator_in_new_course.called)

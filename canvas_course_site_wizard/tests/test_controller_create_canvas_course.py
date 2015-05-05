@@ -135,7 +135,7 @@ class CreateCanvasCourseTest(TestCase):
         mock_canvas_course_id = '12345'
         mock_primary_section_name = course_model_mock.primary_section_name.return_value
         create_new_course.return_value.json.return_value = {'id': mock_canvas_course_id}
-        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, None)
         create_course_section.assert_called_with(request_ctx=SDK_CONTEXT, course_id=mock_canvas_course_id,
                                                  course_section_name=mock_primary_section_name,
                                                  course_section_sis_section_id=self.sis_course_id)
@@ -149,7 +149,7 @@ class CreateCanvasCourseTest(TestCase):
         """
         create_course_section.side_effect = CanvasAPIError(status_code=400)
         with self.assertRaises(RenderableException):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, None)
 
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
@@ -167,6 +167,20 @@ class CreateCanvasCourseTest(TestCase):
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_object_not_found_exception_in_get_course_data_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support, get_course_data,
+                                                           create_course_section, create_new_course):
+        """
+        Test to assert that for a course that is created as part of a bulk job, the support email is
+        not sent  when get_course_data raises an ObjectDoesNotExist
+        """
+        get_course_data.side_effect = ObjectDoesNotExist
+        exception_data = SISCourseDoesNotExistError(self.sis_course_id)
+
+        with self.assertRaises(SISCourseDoesNotExistError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+            self.assertFalse(send_failure_msg_to_support.called)
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_create_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
                                                            create_course_section, create_new_course):
         """
@@ -180,6 +194,19 @@ class CreateCanvasCourseTest(TestCase):
 
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
         self.assertTrue('Error: SIS ID not applied for CID' in exception_data.display_text)
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_canvas_course_create_error_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support, get_course_data,
+                                                           create_course_section, create_new_course):
+        """
+        Test to assert that a for a course that is created as part of a bulk job, the support email is not sent
+        when  there is an CanvasAPIError resulting in CanvasCourseCreateError
+        """
+        create_new_course.side_effect = CanvasAPIError(status_code=404)
+        with self.assertRaises(CanvasCourseCreateError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+
+        self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_section_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
@@ -196,6 +223,22 @@ class CreateCanvasCourseTest(TestCase):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
+
+    @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
+    def test_canvas_section_error_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support,
+                                                        get_course_data, create_course_section, create_new_course):
+        """
+        Test to assert that a support email is NOT sent for bulk created courses, when  there is an CanvasAPIError
+         resulting in CanvasSectionCreateError
+
+        """
+        create_course_section.side_effect = CanvasAPIError(status_code=400)
+
+        exception_data = CanvasSectionCreateError(self.sis_course_id)
+        with self.assertRaises(CanvasSectionCreateError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, True)
+
+        self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_exists_error_doesnt_send_support_email(self, send_failure_msg_to_support, get_course_data,
@@ -247,7 +290,7 @@ class CreateCanvasCourseTest(TestCase):
         """
         create_new_course.side_effect = CanvasAPIError(status_code=400)
         with self.assertRaises(CanvasCourseAlreadyExistsError) as cm:
-             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
         self.assertTrue('support_notified' not in cm.exception)
 

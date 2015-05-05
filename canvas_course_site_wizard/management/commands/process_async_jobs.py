@@ -34,6 +34,8 @@ class Command(NoArgsCommand):
         jobs = CanvasContentMigrationJob.objects.filter(Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED) | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING))
 
         for job in jobs:
+            #initialize the bulk_job_flag
+            bulk_job_flag = False
             try:
                 """
                 TODO - it turns out we only really need the job_id of the content migration
@@ -48,12 +50,11 @@ class Command(NoArgsCommand):
                 response = client.get(SDK_CONTEXT, job.status_url)
                 progress_response = response.json()
                 workflow_state = progress_response['workflow_state']
-                # if the job's bulk_feed_id is not None AND it is not empty or blank, set the flag
-                if job.bulk_feed_id and job.bulk_feed_id.strip():
-                    bulk_feed_flag = True
-                else:
-                    bulk_feed_flag = False
-                
+
+                # if the job's bulk_job_id is not None AND it is not empty or blank, set the flag
+                if job.bulk_job_id is not None and job.bulk_job_id.strip():
+                    bulk_job_flag = True
+
                 if workflow_state == 'completed':
                     logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
                     # Update the Job table with the completed state immediately to indicate that the template
@@ -62,13 +63,27 @@ class Command(NoArgsCommand):
                     job.save(update_fields=['workflow_state'])
 
                     logger.debug('Workflow state updated, starting finalization process...')
-                    canvas_course_url = finalize_new_canvas_course(job.canvas_course_id,
+                    try:
+                        canvas_course_url = finalize_new_canvas_course(job.canvas_course_id,
                                                                    job.sis_course_id,
                                                                    'sis_user_id:%s' % job.created_by_user_id,
-                                                                   job.bulk_feed_id)
+                                                                   job.bulk_job_id)
+                    except Exception as e:
+                        # Catch exceptions from finalize method to set the workflow_state to 'finalize_failed'
+                        # and then re raise it so that generic tasks like tech logger, email generation will continue
+                        # to be handled in the larger try block
 
-                    # if bulk_feed_flag is not true, then proceed with email generation to user
-                    if not bulk_feed_flag:
+                        job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZE_FAILED
+                        job.save(update_fields=['workflow_state'])
+
+                        raise
+
+                    # Update the Job table with the 'finalized' state if finalize is successful
+                    job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZED
+                    job.save(update_fields=['workflow_state'])
+
+                    # if bulk_job_flag is not true, then proceed with email generation to user
+                    if not bulk_job_flag:
                         # Once finalized successfully, only the initiator needs to be emailed
                         user_profile = get_canvas_user_profile(job.created_by_user_id)
                         to_address = []
@@ -90,7 +105,7 @@ class Command(NoArgsCommand):
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FAILED
                     job.save(update_fields=['workflow_state'])
 
-                    if not bulk_feed_flag:
+                    if not bulk_job_flag:
                         # send email to notify of failure if it's not a bulk fed course
                         user_profile = get_canvas_user_profile(job.created_by_user_id)
                         send_failure_email(user_profile['primary_email'], job.sis_course_id)
@@ -111,12 +126,13 @@ class Command(NoArgsCommand):
                 # Note: equivalent to .error(error_text, exc_info=1) -- logs at ERROR level
                 logger.exception(error_text)
 
-                if not bulk_feed_flag:
-                    # Use the friendly display_text for the subject of the tech_logger email if it's available
-                    if isinstance(e, RenderableException):
-                        error_text = '%s (HUID:%s)' % (e.display_text, job.created_by_user_id)
-                    tech_logger.exception(error_text)
+                # Use the friendly display_text for the subject of the tech_logger email if it's available
+                if isinstance(e, RenderableException):
+                    error_text = '%s (HUID:%s)' % (e.display_text, job.created_by_user_id)
+                tech_logger.exception(error_text)
 
+                # send email if it's not a bulk created course
+                if not bulk_job_flag:
                     try:
                         # if failure happened before user profile was fetched, get the user profile
                         # to retrieve email, else reuse the user_profile info

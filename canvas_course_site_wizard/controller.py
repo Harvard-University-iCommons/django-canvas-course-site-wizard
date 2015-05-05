@@ -23,7 +23,7 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id, sis_user_id, bulk_job_creation):
+def create_canvas_course(sis_course_id, sis_user_id, bulk_job_flag=False):
     """This method creates a canvas course for the sis_course_id provided."""
 
     # instantiate any variables required for method return or logger calls
@@ -45,7 +45,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_creation):
 
         ex = SISCourseDoesNotExistError(sis_course_id)
         #If the course is part of bulk job, do not send individual email. .
-        if not bulk_job_creation:
+        if not bulk_job_flag:
             msg = ex.display_text
             #TLT-393: send an email to support group, in addition to showing error page to user
             send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
@@ -71,11 +71,11 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_creation):
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
 
         ex = CanvasCourseCreateError(msg_details=sis_course_id)
-        if not bulk_job_creation:
+        if not bulk_job_flag:
             send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
-    # else:
-        logger.info("created course object, ret=%s" % new_course)
+
+    logger.info("created course object, ret=%s" % new_course)
 
     # 3. Create course section after course creation
     try:
@@ -91,7 +91,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_creation):
                          % (new_course.get('id', '<no ID>'), request_parameters))
         #send email in addition to showing error page to user
         ex = CanvasSectionCreateError(msg_details=sis_course_id)
-        if not bulk_job_creation:
+        if not bulk_job_flag:
             send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
 
@@ -170,7 +170,7 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id, bulk_jo
     Enroll instructor/creator if this is a single course creation, but not if it is part of bulk job
     creation.(TLT-1132)
     """
-    if bulk_job_id is not None:
+    if bulk_job_id is None:
         try:
             enrollment = enroll_creator_in_new_course(sis_course_id, user_id)
             logger.info('Enrolled user_id=%s in new course with Canvas course id=%s' % (user_id, canvas_course_id))
