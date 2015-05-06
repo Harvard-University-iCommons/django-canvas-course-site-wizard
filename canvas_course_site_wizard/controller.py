@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
-    """This method creates a canvas course for the sis_course_id provided. The bulk_job_id
+    """This method creates a canvas course for the sis_course_id provided, initiated by the sis_user_id. The bulk_job_id
         would be passed in if it's invoked from a bulk feed process.
     """
 
@@ -33,8 +33,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     section = None
     bulk_job_flag = False
 
-    # if the job's bulk_job_id is not None AND it is not empty or blank, set the bulk_job_flag
-    if bulk_job_id is not None and bulk_job_id.strip():
+    # if the bulk_job_id is not None, set the bulk_job_flag
+    if bulk_job_id is not None:
         bulk_job_flag = True
 
     try:
@@ -115,8 +115,8 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
 
     school_code = sis_course.school_code
 
-    # if the bulk_job_id is not None AND it is not empty or blank, set the bulk flag
-    if bulk_job_id and bulk_job_id.strip():
+    # if the bulk_job_id is not None, set the bulk flag
+    if bulk_job_id:
         bulk_job_flag = True
 
 
@@ -126,8 +126,8 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
     except ObjectDoesNotExist:
         logger.debug('Did not find a template for course %s.' % sis_course.pk)
         # To-Do: Placeholder for additional logic to handle this case for bulk job created courses.
-        # Possible flag for a record to be created in CanvasContentMigrationJob with a special status so that it
-        # can summarized as part of bulk job. Currently there isn't a record inserted, when there is no template
+        # Possibly update record in  CanvasContentMigrationJob with an appropriate status so that ir can properly be
+        # summarized as part of bulk job summary. Currently there isn't a record , when there is no template
         raise NoTemplateExistsForSchool(school_code)
 
     # Initiate course copy for template_id

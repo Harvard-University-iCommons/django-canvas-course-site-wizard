@@ -52,7 +52,7 @@ class Command(NoArgsCommand):
                 workflow_state = progress_response['workflow_state']
 
                 # if the job's bulk_job_id is not None AND it is not empty or blank, set the flag
-                if job.bulk_job_id is not None and job.bulk_job_id.strip():
+                if job.bulk_job_id is not None:
                     bulk_job_flag = True
 
                 if workflow_state == 'completed':
@@ -69,7 +69,7 @@ class Command(NoArgsCommand):
                                                                    'sis_user_id:%s' % job.created_by_user_id,
                                                                    job.bulk_job_id)
                     except Exception as e:
-                        # Catch exceptions from finalize method to set the workflow_state to 'finalize_failed'
+                        # Catch exceptions from finalize method to set the workflow_state to STATUS_FINALIZE_FAILED
                         # and then re raise it so that generic tasks like tech logger, email generation will continue
                         # to be handled in the larger try block
 
@@ -78,7 +78,7 @@ class Command(NoArgsCommand):
 
                         raise
 
-                    # Update the Job table with the 'finalized' state if finalize is successful
+                    # Update the Job table with the STATUS_FINALIZED state if finalize is successful
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZED
                     job.save(update_fields=['workflow_state'])
 

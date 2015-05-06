@@ -138,9 +138,9 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
 
 class CanvasContentMigrationJob(models.Model):
     # Workflow status values.
-    # Adding states 'finalize' and 'finalize_failed' to record the state of the
-    # 'finalize_new_canvas_course'  process that occurs after content migration. Also,  adding 'pre_migration'
-    # for the status of the course records that will be inserted prior content migration but after course creation
+    # Adding states 'finalize' and 'finalize_failed' to record the state of the 'finalize_new_canvas_course'
+    # process that occurs after content migration. Also,  adding 'setup' and 'setup_failed'
+    # for the status of the course records that will be inserted prior to content migration
 
     STATUS_SETUP = 'setup'
     STATUS_SETUP_FAILED = 'setup_failed'
