@@ -142,7 +142,8 @@ class CanvasContentMigrationJob(models.Model):
     # 'finalize_new_canvas_course'  process that occurs after content migration. Also,  adding 'pre_migration'
     # for the status of the course records that will be inserted prior content migration but after course creation
 
-    STATUS_PRE_MIGRATION = 'pre_migration'
+    STATUS_SETUP = 'setup'
+    STATUS_SETUP_FAILED = 'setup_failed'
     STATUS_QUEUED = 'queued'
     STATUS_RUNNING = 'running'
     STATUS_COMPLETED = 'completed'
@@ -157,7 +158,8 @@ class CanvasContentMigrationJob(models.Model):
         (STATUS_FAILED, STATUS_FAILED),
         (STATUS_FINALIZED, STATUS_FINALIZED),
         (STATUS_FINALIZED, STATUS_FINALIZED),
-        (STATUS_PRE_MIGRATION,STATUS_PRE_MIGRATION)
+        (STATUS_SETUP,STATUS_SETUP),
+        (STATUS_SETUP_FAILED,STATUS_SETUP_FAILED),
     )
     canvas_course_id = models.IntegerField(max_length=10, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
