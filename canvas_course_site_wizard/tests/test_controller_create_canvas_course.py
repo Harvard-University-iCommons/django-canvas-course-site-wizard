@@ -154,7 +154,8 @@ class CreateCanvasCourseTest(TestCase):
 
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_object_not_found_exception_in_get_course_data_sends_support_email(self, send_failure_msg_to_support, get_course_data,
+    def test_object_not_found_exception_in_get_course_data_sends_support_email(self, send_failure_msg_to_support,
+                                                                               get_course_data,
                                                            create_course_section, create_new_course):
         """
         Test to assert that a support email is sent  when get_course_data raises an ObjectDoesNotExist
@@ -168,8 +169,8 @@ class CreateCanvasCourseTest(TestCase):
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_object_not_found_exception_in_get_course_data_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support, get_course_data,
-                                                           create_course_section, create_new_course):
+    def test_object_not_found_exception_in_get_course_data_doesnt_sends_support_email_for_bulk_created_course(
+            self, send_failure_msg_to_support, get_course_data, create_course_section, create_new_course):
         """
         Test to assert that for a course that is created as part of a bulk job, the support email is
         not sent  when get_course_data raises an ObjectDoesNotExist

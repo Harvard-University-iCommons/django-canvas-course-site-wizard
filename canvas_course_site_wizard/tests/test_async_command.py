@@ -110,7 +110,7 @@ class CommandsTestCase(TestCase):
 
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
     def test_process_async_jobs_doesnt_send_email_for_bulk_created_course_on_completed_status(self, filter_mock, client,
-                                                                                              send_email_helper, **kwargs):
+                                                                                              send_email_helper, tech_logger, **kwargs):
         """
         test that the send_email_helper is not called for a bulk created course,
         when the workflow_state of the job changes to 'completed'
@@ -131,7 +131,6 @@ class CommandsTestCase(TestCase):
         irrespective of the workflow_state
         """
         mock_client_json(client, ANY)
-        # mock_user_profile(get_canvas_user_profile)
         iterable_ccmjob_mock = MagicMock()
         filter_mock.return_value = iterable_ccmjob_mock
         iterable_ccmjob_mock.__iter__ = Mock(return_value=iter([self.m_canvas_content_migration_job_with_bulk_id]))
@@ -139,6 +138,20 @@ class CommandsTestCase(TestCase):
         start_job_with_noargs()
         self.assertFalse(send_email_helper.called)
 
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
+    def test_process_async_jobs_on_failure_for_bulk_course_calls_tech_logger(self, filter_mock, client,
+                                                                             get_canvas_user_profile, send_email_helper,
+                                                                             tech_logger, **kwargs):
+        """
+        test that the tech_logger is called even for bulk jobs when there is a failure.
+        """
+        mock_client_json(client, 'failed')
+        iterable_ccmjob_mock = MagicMock()
+        filter_mock.return_value = iterable_ccmjob_mock
+        iterable_ccmjob_mock.__iter__ = Mock(return_value=iter([self.m_canvas_content_migration_job_with_bulk_id]))
+
+        start_job_with_noargs()
+        self.assertTrue(tech_logger.error.called)
 
     def test_process_async_jobs_on_failed_status(self, client, get_canvas_user_profile, send_email_helper, tech_logger,
             **kwargs):
@@ -159,6 +172,7 @@ class CommandsTestCase(TestCase):
             get_canvas_user_profile, finalize_new_canvas_course, send_failure_email, **kwargs):
         """
         test that the sync jobs send a failure email notification on any exception raised by finalize_new_canvas_course
+        for a non-bulk created course
         """
 
         mock_client_json(client, 'completed')
@@ -243,10 +257,10 @@ class CommandsTestCase(TestCase):
     def test_job_workflow_state_saved_when_status_complete_and_finalize_throws_exception(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated to 'finalize_failed'
+        Test that the content migration workflow state is updated to STATUS_FINALIZE_FAILED
         when there is an exception in finalizing
         """
-        mock_client_json(client, 'completed')
+        mock_client_json(client, CanvasContentMigrationJob.STATUS_COMPLETED)
         finalize_new_canvas_course.side_effect = Exception
 
         start_job_with_noargs()
