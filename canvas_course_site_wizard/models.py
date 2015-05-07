@@ -144,6 +144,9 @@ class CanvasContentMigrationJob(models.Model):
      Canvas runs asynchronously). It is now used to track the whole Canvas course creation process, from the
      initial setup of a new Canvas course, to the migration (if required), to the finalization steps
      (e.g. syncing registrar feeds to Canvas, marking courses as official, etc.).
+     New states: 'finalize' and 'finalize_failed' record the state of the 'finalize_new_canvas_course'
+     process that occurs after content migration. 'setup' and 'setup_failed' track the status of course
+     records prior to content migration.
     """
     # Workflow status values
     STATUS_SETUP = 'setup'
