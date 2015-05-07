@@ -61,7 +61,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         m_bulk_job.ready_to_finalize.return_value = False
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
-        m_logger.debug.assert_any_call('Job 1 is not ready to be finalized, leaving pending.')
+        m_logger.debug.assert_any_call('Job %s is not ready to be finalized, leaving pending.', 1)
         self.assertEqual(m_logger.error.call_count, 0)
         self.assertEqual(m_logger.exception.call_count, 0)
 
@@ -74,13 +74,14 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         start_job_with_noargs()
         # Bulk job should have been updated twice: once at the start of finalizing process, once at the end
         self.assertEqual(m_bulk_job.update_status.call_count, 2)
+        m_bulk_job.update_status.assert_called_with(BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)
         self.assertEqual(m_send.call_count, 1)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._send_notification')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_save_fails_before_notification(self, m_queryset, m_send, m_logger, **kwargs):
-        """  """
+        """ if we fail updating the job status before the send step, failure is logged and no notification is sent """
         m_bulk_job = get_mock_bulk_job()
         m_bulk_job.update_status.side_effect = [False]
         m_queryset.return_value = [m_bulk_job]
@@ -94,7 +95,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._send_notification')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_save_fails_after_notification(self, m_queryset, m_send, m_logger, **kwargs):
-        """  """
+        """ if we fail updating the job status after the notification is sent failure is still logged """
         m_bulk_job = get_mock_bulk_job()
         m_bulk_job.update_status.side_effect = [True, False]
         m_queryset.return_value = [m_bulk_job]
