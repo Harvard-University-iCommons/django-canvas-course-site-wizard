@@ -1,8 +1,11 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase
-from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJobProxy as BulkJob,
-                                              CanvasContentMigrationJob as SubJob)
+from mock import patch, Mock
+from canvas_course_site_wizard.models import (
+    BulkCanvasCourseCreationJobProxy as BulkJob,
+    CanvasContentMigrationJob as SubJob
+)
 
 
 def _create_bulk_job(bulk_job_id, sis_term_id=1, status=BulkJob.STATUS_SETUP):
@@ -24,7 +27,7 @@ def _create_subjob(content_migration_id, canvas_course_id=1, sis_course_id='1',
     )
 
 
-class BulkCanvasCourseCreationJobProxyIntegrationTest(TestCase):
+class BulkCanvasCourseCreationJobProxyIntegrationTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -106,3 +109,37 @@ class BulkCanvasCourseCreationJobProxyIntegrationTest(TestCase):
         subjob_finalized.delete()
         subjob_finalize_failed.delete()
         subjob_setup_failed.delete()
+
+
+class BulkCanvasCourseCreationJobProxyTests(TestCase):
+
+    @patch('canvas_course_site_wizard.models.BulkCanvasCourseCreationJobProxy.save')
+    def test_update_status_success(self, m_save):
+        """ If no exception is raised in the save() call then the function should return True (indicating success) """
+        job = BulkJob()
+        result = job.update_status(BulkJob.STATUS_SETUP)
+        self.assertTrue(m_save.called)
+        self.assertTrue(result)
+
+    @patch('canvas_course_site_wizard.models.BulkCanvasCourseCreationJobProxy.save')
+    def test_update_status_fail_raise(self, m_save):
+        """ If raise_exception is True, an exception in the save() call should bubble up """
+        result = None
+        job = BulkJob()
+        m_save.side_effect = Exception
+        with self.assertRaises(Exception):
+            result = job.update_status(BulkJob.STATUS_SETUP, raise_exception=True)
+        self.assertTrue(m_save.called)
+        self.assertIsNone(result)
+
+    @patch('canvas_course_site_wizard.models.BulkCanvasCourseCreationJobProxy.save')
+    def test_update_status_fail_gracefully(self, m_save):
+        """
+        If raise_exception is not provided, or is False, an exception in the save() call should not bubble up,
+         and the function should return False (indicating failure)
+        """
+        job = BulkJob()
+        m_save.side_effect = Exception
+        result = job.update_status(BulkJob.STATUS_SETUP)
+        self.assertTrue(m_save.called)
+        self.assertFalse(result)

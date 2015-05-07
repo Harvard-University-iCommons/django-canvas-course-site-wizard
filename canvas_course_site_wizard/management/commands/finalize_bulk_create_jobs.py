@@ -40,24 +40,19 @@ class Command(NoArgsCommand):
 
             logger.info('Finalizing job %s...' % job.bulk_job_id)
 
-            job.status = BulkJob.STATUS_FINALIZING
-            try:
-                job.save(update_fields=['status'])
-            except Exception as e:
+            if not job.update_status(BulkJob.STATUS_FINALIZING):
                 logger.exception("Job %s: problem saving finalization status" % job.bulk_job_id)
                 continue
 
             logger.debug('Job %s status updated to %s, notifying job creator %s...'
                          % (job.id, job.status, job.created_by_user_id))
 
-            if _send_notification(job):
-                job_status = BulkJob.STATUS_NOTIFICATION_SUCCESSFUL
-            else:
-                job_status = BulkJob.STATUS_NOTIFICATION_FAILED
+            job_notification_status = BulkJob.STATUS_NOTIFICATION_SUCCESSFUL  # assumes notification success
 
-            try:
-                job.save(update_fields=['status'])
-            except Exception as e:
+            if not _send_notification(job):
+                job_notification_status = BulkJob.STATUS_NOTIFICATION_FAILED
+
+            if not job.update_status(job_notification_status):
                 logger.exception("Job %s: problem saving notification status" % job.bulk_job_id)
                 continue
 

@@ -270,6 +270,21 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
     def get_jobs_by_status(cls, status):
         return list(BulkCanvasCourseCreationJobProxy.objects.filter(status=status))
 
+    def update_status(self, status, raise_exception=False):
+        """
+        Updates job status. Return True if update succeeded. If raise_exception param is not True, or not provided,
+         it will return False if update fails. If raise_exception is True, it will re-raise failures/exceptions.
+        """
+        self.status = status
+        try:
+            self.save(update_fields=['status'])
+        except Exception as e:
+            if raise_exception:
+                raise e
+            else:
+                return False
+        return True
+
     def get_completed_subjobs(self):
         """ Returns a list of subjobs in a known finalized state """
         subjobs = CanvasContentMigrationJob.objects.filter(

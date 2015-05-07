@@ -1,8 +1,10 @@
 from django.test import TestCase
 from mock import patch, ANY, DEFAULT, Mock, MagicMock
-from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs import (_send_notification,
-                                                                                     _format_notification_email_body,
-                                                                                     _format_notification_email_subject)
+from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs import (
+    _send_notification,
+    _format_notification_email_body,
+    _format_notification_email_subject
+)
 from canvas_course_site_wizard.models import BulkCanvasCourseCreationJobProxy as BulkJob
 from canvas_course_site_wizard.management.commands import finalize_bulk_create_jobs
 from django.test.utils import override_settings
@@ -14,7 +16,17 @@ def start_job_with_noargs():
 
 
 def get_mock_bulk_job():
-    return Mock(spec=BulkJob, id=1, bulk_job_id=1, school_id='colgsas', sis_term_id=1, created_by_user_id='12345678')
+    return Mock(
+        spec=BulkJob,
+        id=1,
+        bulk_job_id=1,
+        school_id='colgsas',
+        sis_term_id=1,
+        created_by_user_id='12345678',
+        status=BulkJob.STATUS_PENDING,
+        update_status=Mock(return_value=True),
+        ready_to_finalize=Mock(return_value=True)
+    )
 
 
 mock_settings_dict = {
@@ -25,7 +37,7 @@ mock_settings_dict = {
 }
 
 @override_settings(BULK_COURSE_CREATION=mock_settings_dict)
-class FinalizeBulkCanvasCourseCreationJobsCommandTestCase(TestCase):
+class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
     """
     tests for the finalize_bulk_create_jobs management command.
     """
@@ -46,7 +58,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTestCase(TestCase):
     def test_finalize_bulk_create_jobs_pending_jobs_leave_pending(self, m_queryset, m_logger, **kwargs):
         """ exit gracefully if the pending jobs still have pending subjobs (so bulk jobs should not be finalized) """
         m_bulk_job = get_mock_bulk_job()
-        m_bulk_job.ready_to_finalize.side_effect = [False]
+        m_bulk_job.ready_to_finalize.return_value = False
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
         m_logger.debug.assert_any_call('Job 1 is not ready to be finalized, leaving pending.')
@@ -58,11 +70,10 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTestCase(TestCase):
     def test_finalize_bulk_create_jobs_finalize_pending_jobs(self, m_queryset, m_send, **kwargs):
         """ if the pending jobs have no pending subjobs (ie they are all in terminal state) then finalize bulk jobs """
         m_bulk_job = get_mock_bulk_job()
-        m_bulk_job.ready_to_finalize.side_effect = [True]
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
         # Bulk job should have been updated twice: once at the start of finalizing process, once at the end
-        self.assertEqual(m_bulk_job.save.call_count, 2)
+        self.assertEqual(m_bulk_job.update_status.call_count, 2)
         self.assertEqual(m_send.call_count, 1)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
@@ -71,12 +82,11 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTestCase(TestCase):
     def test_finalize_bulk_create_jobs_save_fails_before_notification(self, m_queryset, m_send, m_logger, **kwargs):
         """  """
         m_bulk_job = get_mock_bulk_job()
-        m_bulk_job.ready_to_finalize.side_effect = [True]
-        m_bulk_job.save.side_effect = [Exception]
+        m_bulk_job.update_status.side_effect = [False]
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
         self.assertEqual(m_logger.call_count, 1)
-        self.assertEqual(m_bulk_job.save.call_count, 1)
+        self.assertEqual(m_bulk_job.update_status.call_count, 1)
         # Notification should not be sent for this job
         self.assertEqual(m_send.call_count, 0)
 
@@ -86,12 +96,11 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTestCase(TestCase):
     def test_finalize_bulk_create_jobs_save_fails_after_notification(self, m_queryset, m_send, m_logger, **kwargs):
         """  """
         m_bulk_job = get_mock_bulk_job()
-        m_bulk_job.ready_to_finalize.side_effect = [True]
-        m_bulk_job.save.side_effect = [None, Exception]
+        m_bulk_job.update_status.side_effect = [True, False]
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
         self.assertEqual(m_logger.call_count, 1)
-        self.assertEqual(m_bulk_job.save.call_count, 2)
+        self.assertEqual(m_bulk_job.update_status.call_count, 2)
         # Notification should already be sent for this job
         self.assertEqual(m_send.call_count, 1)
 
