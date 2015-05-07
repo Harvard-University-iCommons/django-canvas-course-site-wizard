@@ -34,8 +34,6 @@ class Command(NoArgsCommand):
         jobs = CanvasContentMigrationJob.objects.filter(Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED) | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING))
 
         for job in jobs:
-            #initialize the bulk_job_flag
-            bulk_job_flag = False
             try:
                 """
                 TODO - it turns out we only really need the job_id of the content migration
@@ -50,10 +48,6 @@ class Command(NoArgsCommand):
                 response = client.get(SDK_CONTEXT, job.status_url)
                 progress_response = response.json()
                 workflow_state = progress_response['workflow_state']
-
-                # if the job's bulk_job_id is not None AND it is not empty or blank, set the flag
-                if job.bulk_job_id is not None:
-                    bulk_job_flag = True
 
                 if workflow_state == 'completed':
                     logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
@@ -82,12 +76,11 @@ class Command(NoArgsCommand):
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZED
                     job.save(update_fields=['workflow_state'])
 
-                    # if bulk_job_flag is not true, then proceed with email generation to user
-                    if not bulk_job_flag:
+                    # if this is not a bulk_job then proceed with email generation to user
+                    if not job.bulk_job_id:
                         # Once finalized successfully, only the initiator needs to be emailed
                         user_profile = get_canvas_user_profile(job.created_by_user_id)
-                        to_address = []
-                        to_address.append(user_profile['primary_email'])
+                        to_address = [user_profile['primary_email']]
                         success_msg = settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_body']
                         logger.debug("notifying success via email: to_addr=%s and adding course url =%s" % (to_address, canvas_course_url))
 
@@ -105,7 +98,7 @@ class Command(NoArgsCommand):
                     job.workflow_state = CanvasContentMigrationJob.STATUS_FAILED
                     job.save(update_fields=['workflow_state'])
 
-                    if not bulk_job_flag:
+                    if not job.bulk_job_id:
                         # send email to notify of failure if it's not a bulk fed course
                         user_profile = get_canvas_user_profile(job.created_by_user_id)
                         send_failure_email(user_profile['primary_email'], job.sis_course_id)
@@ -132,11 +125,11 @@ class Command(NoArgsCommand):
                 tech_logger.exception(error_text)
 
                 # send email if it's not a bulk created course
-                if not bulk_job_flag:
+                if not job.bulk_job_id:
                     try:
                         # if failure happened before user profile was fetched, get the user profile
                         # to retrieve email, else reuse the user_profile info
-                        if user_profile is None:
+                        if not user_profile:
                             user_profile = get_canvas_user_profile(job.created_by_user_id)
 
                         send_failure_email(user_profile['primary_email'], job.sis_course_id)

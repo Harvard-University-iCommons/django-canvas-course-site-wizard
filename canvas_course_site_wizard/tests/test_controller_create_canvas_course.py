@@ -15,8 +15,8 @@ class CreateCanvasCourseTest(TestCase):
 
     def setUp(self):
         self.sis_course_id = "305841"
-        self.sis_user_id="123456"
-        self.bulk_job_id="10"
+        self.sis_user_id = "123456"
+        self.bulk_job_id = 10
 
     def get_mock_of_get_course_data(self):
         # mock the properties
@@ -180,7 +180,8 @@ class CreateCanvasCourseTest(TestCase):
 
         with self.assertRaises(SISCourseDoesNotExistError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-            self.assertFalse(send_failure_msg_to_support.called)
+
+        self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_create_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
@@ -236,7 +237,6 @@ class CreateCanvasCourseTest(TestCase):
         """
         create_course_section.side_effect = CanvasAPIError(status_code=400)
 
-        exception_data = CanvasSectionCreateError(self.sis_course_id)
         with self.assertRaises(CanvasSectionCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
 
@@ -251,7 +251,6 @@ class CreateCanvasCourseTest(TestCase):
         
         """
         create_new_course.side_effect = CanvasAPIError(status_code=400)
-        exception_data = CanvasCourseAlreadyExistsError(self.sis_course_id)
         with self.assertRaises(CanvasCourseAlreadyExistsError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         
@@ -269,7 +268,7 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(CanvasSectionCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-        self.assertTrue(True, exception_data.support_notified)
+        self.assertTrue(exception_data.support_notified)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_create_error_sets_support_notified(self, send_failure_msg_to_support, get_course_data,
@@ -282,7 +281,7 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(CanvasCourseCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-        self.assertEqual(True,exception_data.support_notified)
+        self.assertTrue(exception_data.support_notified)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
     def test_canvas_course_already_exists_error_doesnt_set_support_notified(self, send_failure_msg_to_support, get_course_data,

@@ -14,7 +14,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         self.sis_course_id = '123456'
         self.user_id = 999
         self.test_return_value = None
-        self.bulk_job_id =10
+        self.bulk_job_id = 10
 
     def test_finalization_success(self, enroll_creator_in_new_course, logger, get_course_data, get_canvas_course_url):
         """

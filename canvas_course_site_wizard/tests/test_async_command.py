@@ -50,7 +50,6 @@ class CommandsTestCase(TestCase):
         self.status_check = {
             'workflow_state': 'completed',
         }
-        self.bulk_job_id = None,
         self.migration = self.create_migration_job_from_setup()
 
     def create_migration_job_from_setup(self):
@@ -68,7 +67,7 @@ class CommandsTestCase(TestCase):
         spec=CanvasContentMigrationJob,
         id=2,
         bulk_job_id=2,
-        canvas_course_id = 12345,
+        canvas_course_id=12345,
         sis_course_id=6789,
         status_url='http://example.com/1234',
         created_by_user_id='123'
@@ -109,28 +108,13 @@ class CommandsTestCase(TestCase):
         send_email_helper.assert_called_once_with(ANY, ANY, ANY)
 
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
-    def test_process_async_jobs_doesnt_send_email_for_bulk_created_course_on_completed_status(self, filter_mock, client,
-                                                                                              send_email_helper, tech_logger, **kwargs):
-        """
-        test that the send_email_helper is not called for a bulk created course,
-        when the workflow_state of the job changes to 'completed'
-        """
-        mock_client_json(client, 'completed')
-        iterable_ccmjob_mock = MagicMock()
-        filter_mock.return_value = iterable_ccmjob_mock
-        iterable_ccmjob_mock.__iter__ = Mock(return_value=iter([self.m_canvas_content_migration_job_with_bulk_id]))
-
-        start_job_with_noargs()
-        self.assertFalse(send_email_helper.called)
-
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
-    def test_process_async_jobs_doesnt_send_email_for_bulk_created_course_on_any_status(self, filter_mock, client,
-                                                                                           send_email_helper, **kwargs):
+    def test_process_async_jobs_doesnt_send_email_for_bulk_created_course(self, filter_mock, client,
+                                                                          send_email_helper, **kwargs):
         """
         test that the send_email_helper is not called for a bulk created course,
         irrespective of the workflow_state
         """
-        mock_client_json(client, ANY)
+        mock_client_json(client, 'this can be anything')
         iterable_ccmjob_mock = MagicMock()
         filter_mock.return_value = iterable_ccmjob_mock
         iterable_ccmjob_mock.__iter__ = Mock(return_value=iter([self.m_canvas_content_migration_job_with_bulk_id]))

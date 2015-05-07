@@ -152,14 +152,14 @@ class CanvasContentMigrationJob(models.Model):
     STATUS_FINALIZE_FAILED = 'finalize_failed'
     # Workflow status choices
     WORKFLOW_STATUS_CHOICES = (
+        (STATUS_SETUP, STATUS_SETUP),
+        (STATUS_SETUP_FAILED, STATUS_SETUP_FAILED),
         (STATUS_QUEUED, STATUS_QUEUED),
         (STATUS_RUNNING, STATUS_RUNNING),
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
         (STATUS_FINALIZED, STATUS_FINALIZED),
-        (STATUS_FINALIZED, STATUS_FINALIZED),
-        (STATUS_SETUP,STATUS_SETUP),
-        (STATUS_SETUP_FAILED,STATUS_SETUP_FAILED),
+        (STATUS_FINALIZE_FAILED, STATUS_FINALIZE_FAILED),
     )
     canvas_course_id = models.IntegerField(max_length=10, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
@@ -171,7 +171,6 @@ class CanvasContentMigrationJob(models.Model):
     created_by_user_id = models.CharField(max_length=20)
     bulk_job_id = models.IntegerField(max_length=11, null=True, blank=True)
 
-    
     class Meta:
         db_table = u'canvas_content_migration_job'
 
