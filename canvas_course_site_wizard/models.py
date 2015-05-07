@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+from django.db.models import Q
 from icommons_common.models import CourseInstance, CourseSite, SiteMap, SiteMapType
 from django.conf import settings
 from django.db import models
@@ -137,11 +139,16 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
 
 
 class CanvasContentMigrationJob(models.Model):
-    # Workflow status values.
-    # Adding states 'finalize' and 'finalize_failed' to record the state of the 'finalize_new_canvas_course'
-    # process that occurs after content migration. Also,  adding 'setup' and 'setup_failed'
-    # for the status of the course records that will be inserted prior to content migration
-
+    """
+    This model was originally for tracking the status of Canvas migration jobs (i.e. template copy jobs, which
+     Canvas runs asynchronously). It is now used to track the whole Canvas course creation process, from the
+     initial setup of a new Canvas course, to the migration (if required), to the finalization steps
+     (e.g. syncing registrar feeds to Canvas, marking courses as official, etc.).
+     New states: 'finalize' and 'finalize_failed' record the state of the 'finalize_new_canvas_course'
+     process that occurs after content migration. 'setup' and 'setup_failed' track the status of course
+     records prior to content migration.
+    """
+    # Workflow status values
     STATUS_SETUP = 'setup'
     STATUS_SETUP_FAILED = 'setup_failed'
     STATUS_QUEUED = 'queued'
@@ -227,3 +234,94 @@ class BulkCanvasCourseCreationJob(models.Model):
 
     def __unicode__(self):
         return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
+
+
+class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
+    """
+    A proxy model for BulkCanvasCourseCreationJob; exposes its fields and
+    provides additional methods that encapsulate business logic
+    """
+    class Meta:
+        proxy = True
+
+    @classmethod
+    def get_long_running_jobs(cls, older_than_date=None, older_than_minutes=None):
+        """
+        Returns a list of bulk create job objects in a non-terminal state older than
+         the time provided by either the older_than_date argument (expects a datetime) or
+         the older_than_minutes argument (expects an integer number of minutes representing job age)
+        """
+
+        if older_than_date is not None and older_than_minutes is not None:
+            raise ValueError("requires just one of older_than_date or older_than_minutes, not both")
+
+        if older_than_minutes is not None:
+            older_than_date = datetime.now() - timedelta(minutes=older_than_minutes)
+        elif older_than_date is None:
+            raise ValueError("requires either older_than_date or older_than_minutes")
+
+        intermediate_states = [
+            BulkCanvasCourseCreationJobProxy.STATUS_SETUP,
+            BulkCanvasCourseCreationJobProxy.STATUS_PENDING,
+            BulkCanvasCourseCreationJobProxy.STATUS_FINALIZING
+        ]
+
+        return list(BulkCanvasCourseCreationJobProxy.objects.filter(
+            updated_at__lte=older_than_date, status__in=intermediate_states))
+
+    @classmethod
+    def get_jobs_by_status(cls, status):
+        return list(BulkCanvasCourseCreationJobProxy.objects.filter(status=status))
+
+    def update_status(self, status, raise_exception=False):
+        """
+        Updates job status. Return True if update succeeded. If raise_exception param is not True, or not provided,
+         it will return False if update fails. If raise_exception is True, it will re-raise failures/exceptions.
+        """
+        self.status = status
+        try:
+            self.save(update_fields=['status'])
+        except Exception as e:
+            if raise_exception:
+                raise e
+            else:
+                return False
+        return True
+
+    def get_completed_subjobs(self):
+        """ Returns a list of subjobs in a known finalized state """
+        subjobs = CanvasContentMigrationJob.objects.filter(
+            workflow_state=CanvasContentMigrationJob.STATUS_FINALIZED,
+            bulk_job_id=self.pk
+        )
+        return list(subjobs)
+
+    def get_completed_subjobs_count(self):
+        return len(self.get_completed_subjobs())
+
+    def get_failed_subjobs(self):
+        """ Returns a list of subjobs in a known failed state """
+        subjobs = CanvasContentMigrationJob.objects.filter(
+            Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP_FAILED)
+            | Q(workflow_state=CanvasContentMigrationJob.STATUS_FAILED)
+            | Q(workflow_state=CanvasContentMigrationJob.STATUS_FINALIZE_FAILED),
+            bulk_job_id=self.pk
+        )
+        return list(subjobs)
+
+    def get_failed_subjobs_count(self):
+        return len(self.get_failed_subjobs())
+
+    def ready_to_finalize(self):
+        """
+        A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
+        (i.e. all subjobs are in a terminal state)
+        """
+        subjob_count = CanvasContentMigrationJob.objects.filter(
+            Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED)
+            | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING)
+            | Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
+            | Q(workflow_state=CanvasContentMigrationJob.STATUS_COMPLETED),
+            bulk_job_id=self.pk
+        ).count()
+        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
