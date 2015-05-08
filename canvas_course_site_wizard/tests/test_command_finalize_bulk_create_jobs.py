@@ -19,7 +19,6 @@ def get_mock_bulk_job():
     return Mock(
         spec=BulkJob,
         id=1,
-        bulk_job_id=1,
         school_id='colgsas',
         sis_term_id=1,
         created_by_user_id='12345678',

@@ -11,8 +11,7 @@ class TestControllerGetTermCourseCounts(TestCase):
     def setUp(self):
         self.template_id = 123456
         self.term_id = 4848
-        self.bulk_job_id = 901
-        create_bulk_jobs(self.term_id, self.bulk_job_id)
+        create_bulk_jobs(self.term_id)
 
     @patch('canvas_course_site_wizard.controller.get_courses_for_term')
     def test_get_term_course_counts(self, mock_course_call):

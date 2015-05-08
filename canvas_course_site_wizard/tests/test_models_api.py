@@ -5,6 +5,7 @@ from canvas_course_site_wizard.models import CanvasSchoolTemplate
 from setup_bulk_jobs import create_bulk_jobs
 from mock import patch
 
+
 class ModelsApiTest(TestCase):
     longMessage = True
 
@@ -12,8 +13,7 @@ class ModelsApiTest(TestCase):
         self.school_id = 'fas'
         self.template_id = 123456
         self.term_id = 4545
-        self.bulk_job_id = 999
-        create_bulk_jobs(self.term_id, self.bulk_job_id)
+        create_bulk_jobs(self.term_id)
 
     def test_single_template_exists_for_school(self):
         """ Data api method should return the template_id for a given school that has a matching row """
