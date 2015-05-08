@@ -12,6 +12,7 @@ from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from icommons_ui.exceptions import RenderableException
 import logging
+import fcntl
 
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
@@ -31,6 +32,16 @@ class Command(NoArgsCommand):
         select all the active job in the CanvasContentMigrationJob table and check
         the status using the canvas_sdk.progress method
         """
+
+        pid_file = getattr(settings, 'PROCESS_ASYNC_JOBS_PID_FILE', 'process_async_jobs.pid')
+        fp = open(pid_file, 'w')
+        try:
+            fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            # another instance is running
+            logger.error("another instance of the command is already running")
+            return
+
         jobs = CanvasContentMigrationJob.objects.filter(Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED) | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING))
 
         for job in jobs:

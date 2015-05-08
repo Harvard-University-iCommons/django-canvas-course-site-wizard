@@ -1,6 +1,7 @@
 from datetime import datetime
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
+import fcntl
 from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper)
 from canvas_course_site_wizard.models import BulkCanvasCourseCreationJobProxy as BulkJob
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
@@ -21,6 +22,16 @@ class Command(NoArgsCommand):
     help = "Notifies the user and/or support team for any bulk course create jobs which are finished"
 
     def handle_noargs(self, **options):
+
+        pid_file = getattr(settings, 'FINALIZE_BULK_CREATE_JOBS_PID_FILE', 'finalize_bulk_create_jobs.pid')
+        fp = open(pid_file, 'w')
+        try:
+            fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            # another instance is running
+            logger.error("another instance of the command is already running")
+            return
+
         start_time = datetime.now()
 
         jobs = BulkJob.get_jobs_by_status(BulkJob.STATUS_PENDING)
