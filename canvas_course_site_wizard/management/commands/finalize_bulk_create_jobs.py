@@ -34,15 +34,15 @@ class Command(NoArgsCommand):
             logger.info('Found %d pending bulk create jobs.', jobs_count)
 
         for job in jobs:
-            logger.debug('Checking if all subjobs are finished for pending bulk create job %s ', job.bulk_job_id)
+            logger.debug('Checking if all subjobs are finished for pending bulk create job %s ', job.pk)
             if not job.ready_to_finalize():
-                logger.debug('Job %s is not ready to be finalized, leaving pending.', job.bulk_job_id)
+                logger.debug('Job %s is not ready to be finalized, leaving pending.', job.pk)
                 continue
 
-            logger.info('Finalizing job %s...', job.bulk_job_id)
+            logger.info('Finalizing job %s...', job.pk)
 
             if not job.update_status(BulkJob.STATUS_FINALIZING):
-                logger.exception("Job %s: problem saving finalization status", job.bulk_job_id)
+                logger.exception("Job %s: problem saving finalization status", job.pk)
                 continue
 
             logger.debug('Job %s status updated to %s, notifying job creator %s...',
@@ -54,7 +54,7 @@ class Command(NoArgsCommand):
                 job_notification_status = BulkJob.STATUS_NOTIFICATION_FAILED
 
             if not job.update_status(job_notification_status):
-                logger.exception("Job %s: problem saving notification status", job.bulk_job_id)
+                logger.exception("Job %s: problem saving notification status", job.pk)
                 continue
 
             logger.info('Job %s status updated to %s', job.id, job.status)
@@ -82,7 +82,7 @@ def _send_notification(job):
     except Exception as e:
         # todo: do we need all these multilayered logs?
         error_text = (
-            "Job %s: problem getting canvas user profile for user %s" % (job.bulk_job_id, job.created_by_user_id)
+            "Job %s: problem getting canvas user profile for user %s" % (job.pk, job.created_by_user_id)
         )
         logger.exception(error_text)
         _log_notification_failure(job)
@@ -102,7 +102,7 @@ def _send_notification(job):
         send_email_helper(subject, body, notification_to_address_list)
     except Exception as e:
         # todo: do we need all these multilayered logs?
-        logger.exception("Job %s: problem sending notification", job.bulk_job_id)
+        logger.exception("Job %s: problem sending notification", job.pk)
         _log_notification_failure(job)
         return False
 
@@ -143,7 +143,7 @@ def _log_notification_failure(job):
     try:
         error_text = (
             "There was a problem in sending bulk job %s failure notification email to initiator %s "
-            "and support staff for bulk job %s" % (job.bulk_job_id, job.created_by_user_id, job.sis_course_id)
+            "and support staff for bulk job %s" % (job.pk, job.created_by_user_id, job.sis_course_id)
         )
     except Exception as e:
         error_text = "There was a problem in sending a bulk job failure notification email (no job details available)"

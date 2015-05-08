@@ -221,10 +221,10 @@ class BulkCanvasCourseCreationJob(models.Model):
         (STATUS_NOTIFICATION_SUCCESSFUL, STATUS_NOTIFICATION_SUCCESSFUL),
         (STATUS_NOTIFICATION_FAILED, STATUS_NOTIFICATION_FAILED),
     )
-    bulk_job_id = models.IntegerField(max_length=11, db_index=True)
+    bulk_job_id = models.IntegerField(max_length=11, null=True)
     school_id = models.CharField(max_length=10)
     sis_term_id = models.IntegerField(max_length=11)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_SETUP)
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_SETUP)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by_user_id = models.CharField(max_length=20)
     updated_at = models.DateTimeField(auto_now_add=True)
