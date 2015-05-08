@@ -1,16 +1,15 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase
-from mock import patch, Mock
+from mock import patch
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
     CanvasContentMigrationJob as SubJob
 )
 
 
-def _create_bulk_job(bulk_job_id, sis_term_id=1, status=BulkJob.STATUS_SETUP):
+def _create_bulk_job(sis_term_id=1, status=BulkJob.STATUS_SETUP):
     return BulkJob.objects.create(
-        bulk_job_id=bulk_job_id,
         sis_term_id=sis_term_id,
         status=status
     )

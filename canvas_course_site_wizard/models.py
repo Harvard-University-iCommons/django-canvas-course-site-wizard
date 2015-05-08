@@ -204,7 +204,7 @@ class BulkCanvasCourseCreationJob(models.Model):
     """
     This model maps the DB table that stores data about the 'bulk canvas course creation job'. Each job
     may have multiple canvas courses as part of the bulk create process, which are present in
-    CanvasContentMigrationJob and referenced using the bulk_job_id
+    CanvasContentMigrationJob and referenced using that model's bulk_job_id
     """
     # status values
     STATUS_SETUP = 'setup'
@@ -221,10 +221,9 @@ class BulkCanvasCourseCreationJob(models.Model):
         (STATUS_NOTIFICATION_SUCCESSFUL, STATUS_NOTIFICATION_SUCCESSFUL),
         (STATUS_NOTIFICATION_FAILED, STATUS_NOTIFICATION_FAILED),
     )
-    bulk_job_id = models.IntegerField(max_length=11, db_index=True)
     school_id = models.CharField(max_length=10)
     sis_term_id = models.IntegerField(max_length=11)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_SETUP)
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_SETUP)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by_user_id = models.CharField(max_length=20)
     updated_at = models.DateTimeField(auto_now_add=True)
@@ -292,7 +291,7 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
         """ Returns a list of subjobs in a known finalized state """
         subjobs = CanvasContentMigrationJob.objects.filter(
             workflow_state=CanvasContentMigrationJob.STATUS_FINALIZED,
-            bulk_job_id=self.pk
+            bulk_job_id=self.id
         )
         return list(subjobs)
 
@@ -305,7 +304,7 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
             Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP_FAILED)
             | Q(workflow_state=CanvasContentMigrationJob.STATUS_FAILED)
             | Q(workflow_state=CanvasContentMigrationJob.STATUS_FINALIZE_FAILED),
-            bulk_job_id=self.pk
+            bulk_job_id=self.id
         )
         return list(subjobs)
 
@@ -322,6 +321,6 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
             | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING)
             | Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
             | Q(workflow_state=CanvasContentMigrationJob.STATUS_COMPLETED),
-            bulk_job_id=self.pk
+            bulk_job_id=self.id
         ).count()
         return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
