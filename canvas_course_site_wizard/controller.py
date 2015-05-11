@@ -1,6 +1,9 @@
 from .models_api import (get_course_data, get_template_for_school,
-                         get_courses_for_term, get_bulk_job_records_for_term)
-from .models import CanvasContentMigrationJob, SISCourseData
+                         get_courses_for_term, get_bulk_job_records_for_term,
+                         select_courses_for_bulk_create)
+from .models import (CanvasContentMigrationJob,
+                     SISCourseData,
+                     BulkCanvasCourseCreationJob)
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
                          CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
@@ -366,8 +369,10 @@ def get_term_course_counts(term_id):
     data = {
         'total_courses': get_courses_for_term(term_id),  # will be 0 if no courses returned
         'canvas_courses': get_courses_for_term(term_id, is_in_canvas=True),  # will be 0 if no courses returned
+        'isites_courses': get_courses_for_term(term_id, is_in_isite=True),
+        'not_created': get_courses_for_term(term_id, not_created=True),
     }
-    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses']  # will be 0 if no courses returned above
+    data['external'] = data['total_courses'] - data['canvas_courses'] - data['isites_courses'] - data['not_created'] # will be 0 if no courses returned above
 
     return data
 
@@ -388,3 +393,41 @@ def get_bulk_jobs_for_term(term_id):
     :return: Method returns a queryset of all the bulk jobs
     """
     return get_bulk_job_records_for_term(term_id)
+
+
+def get_courses_for_bulk_create(sis_term_id):
+    """
+
+    :param sis_term_id:
+    :return:
+    """
+    return select_courses_for_bulk_create(sis_term_id)
+
+
+def bulk_create_courses(courses, sis_user_id, bulk_job_id):
+    """
+
+    :param courses:
+    :param sis_user_id:
+    :param bulk_job_id:
+    :return:
+    """
+    messages = []
+    for sis_course_id in courses:
+        try:
+            sis_course_data = get_course_data(sis_course_id)
+        except ObjectDoesNotExist as e:
+            logger.error('Course id %s does not exist, skipping....' % sis_course_id)
+            messages.append('Course id %s does not exist, skipped.' % sis_course_id)
+
+        logger.info('create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
+        course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
+
+        try:
+            start_course_template_copy(sis_course_data, course['id'], sis_user_id)
+        except NoTemplateExistsForSchool:
+            # If there is no template to copy, immediately finalize the new course
+            # (i.e. run through remaining post-async job steps)
+            finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
+
+    return messages
