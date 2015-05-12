@@ -1,7 +1,7 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase
-from mock import patch, Mock
+from mock import patch
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
     CanvasContentMigrationJob as SubJob
@@ -39,9 +39,10 @@ class BulkCanvasCourseCreationJobProxyIntegrationTests(TestCase):
         SubJob.objects.all().delete()
         sub_id_generator = count(1)
         for index, (status, _) in enumerate(BulkJob.STATUS_CHOICES):
-            _create_bulk_job(index, status=status)
+            bulk_job = _create_bulk_job(index, status=status)
             for subjob_status, _ in SubJob.WORKFLOW_STATUS_CHOICES:
-                _create_subjob(sub_id_generator.next(), workflow_state=subjob_status, bulk_job_id=index)
+                _create_subjob(sub_id_generator.next(), workflow_state=subjob_status,
+                               bulk_job_id=bulk_job.id)
 
     @classmethod
     def tearDownClass(cls):
