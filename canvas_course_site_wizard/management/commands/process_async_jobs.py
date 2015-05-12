@@ -12,6 +12,7 @@ from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from icommons_ui.exceptions import RenderableException
 import logging
+import fcntl
 
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
@@ -31,6 +32,17 @@ class Command(NoArgsCommand):
         select all the active job in the CanvasContentMigrationJob table and check
         the status using the canvas_sdk.progress method
         """
+
+        # open and lock the file used for determining if another process is running
+        _pid_file = getattr(settings, 'PROCESS_ASYNC_JOBS_PID_FILE', 'process_async_jobs.pid')
+        _pid_file_handle = open(_pid_file, 'w')
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            # another instance is running
+            logger.error("another instance of the command is already running")
+            return
+
         jobs = CanvasContentMigrationJob.objects.filter(Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED) | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING))
 
         for job in jobs:
@@ -140,3 +152,10 @@ class Command(NoArgsCommand):
                                      % (job.sis_course_id, job.created_by_user_id)
                         logger.exception(error_text)
                         tech_logger.exception(error_text)
+
+        # unlock and close the file used for determining if another process is running
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_UN)
+            _pid_file_handle.close()
+        except IOError:
+            logger.error("could not release lock on pid file or close pid file properly")

@@ -1,6 +1,7 @@
 from datetime import datetime
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
+import fcntl
 from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper)
 from canvas_course_site_wizard.models import BulkCanvasCourseCreationJobProxy as BulkJob
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
@@ -21,6 +22,17 @@ class Command(NoArgsCommand):
     help = "Notifies the user and/or support team for any bulk course create jobs which are finished"
 
     def handle_noargs(self, **options):
+
+        # open and lock the file used for determining if another process is running
+        _pid_file = getattr(settings, 'FINALIZE_BULK_CREATE_JOBS_PID_FILE', 'finalize_bulk_create_jobs.pid')
+        _pid_file_handle = open(_pid_file, 'w')
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            # another instance is running
+            logger.error("another instance of the command is already running")
+            return
+
         start_time = datetime.now()
 
         jobs = BulkJob.get_jobs_by_status(BulkJob.STATUS_PENDING)
@@ -28,8 +40,6 @@ class Command(NoArgsCommand):
         jobs_count = len(jobs)
         if not jobs_count:
             logger.info('No pending bulk create jobs found.')
-            logger.info('command took %s seconds to run', str(datetime.now() - start_time)[:-7])
-            return
         else:
             logger.info('Found %d pending bulk create jobs.', jobs_count)
 
@@ -62,6 +72,13 @@ class Command(NoArgsCommand):
         _log_bulk_job_statistics()
 
         logger.info('command took %s seconds to run', str(datetime.now() - start_time)[:-7])
+
+        # unlock and close the file used for determining if another process is running
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_UN)
+            _pid_file_handle.close()
+        except IOError:
+            logger.error("could not release lock on pid file or close pid file properly")
 
 
 def _send_notification(job):
