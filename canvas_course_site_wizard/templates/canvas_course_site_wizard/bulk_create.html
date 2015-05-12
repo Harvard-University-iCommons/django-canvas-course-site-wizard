@@ -78,7 +78,7 @@
         $(document).ready(function(){
             function updateAlertsWithJsonResponse(json) {
                 $.each(json, function(key, value){
-                    var $alertDiv = (key == 'success') ? $("#messages") : $("#errors");
+                    var $alertDiv = (key == 'success') ? $("#messages") : $("#errors")
                     $alertDiv.find('.alert-text').append('<p>' + value + '</p>');
                     $alertDiv.removeClass('hidden');
                 });
@@ -90,7 +90,7 @@
             });
 
             $('#bulk-create-btn').click(function(){
-//                $(this).off('click');
+                $(this).prop('disabled', true);
                 var url = "{% url 'ccsw-bulk-create' term.term_id %}";
                 var ajax_req = $.ajax({
                     url: url,

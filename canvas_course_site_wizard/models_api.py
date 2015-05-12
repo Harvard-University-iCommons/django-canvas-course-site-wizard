@@ -72,12 +72,14 @@ def get_courses_for_term(term_id, is_in_canvas=None, is_in_isite=None, not_creat
 
 def get_bulk_job_records_for_term(term_id, in_progress=None):
     """
-    Get the bulk job records from the BulkCanvasCourseCreationJob table for the sis_term_id provided where in_progress is true.
+    Get the bulk job records from the BulkCanvasCourseCreationJob table for the sis_term_id.
+    if in_progress is true, get only those jobs that have an active status.
     """
 
     kwargs = { 'sis_term_id' : term_id }
     if in_progress:
-        status_list = [BulkCanvasCourseCreationJob.STATUS_SETUP, BulkCanvasCourseCreationJob.STATUS_PENDING,
+        status_list = [BulkCanvasCourseCreationJob.STATUS_SETUP,
+                       BulkCanvasCourseCreationJob.STATUS_PENDING,
                        BulkCanvasCourseCreationJob.STATUS_FINALIZING]
         kwargs['status__in'] = status_list
 

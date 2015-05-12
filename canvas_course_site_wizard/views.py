@@ -120,8 +120,8 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
             return HttpResponse(json.dumps({'success': 'no courses are available to create for term %s' % sis_term_id}),
                                     content_type="application/json", status=500)
 
-        messages = bulk_create_courses(courses, request.user.username, job.pk)
+        errors, messages = bulk_create_courses(courses, request.user.username, job.pk)
 
-        json_data = json.dumps({'success': 'processing courses for term %s ' % sis_term_id, 'messages': messages, })
+        json_data = json.dumps({'success': messages, 'errors': errors,})
         return HttpResponse(json_data, content_type="application/json")
 
