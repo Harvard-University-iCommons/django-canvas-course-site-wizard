@@ -427,7 +427,7 @@ def bulk_create_courses(courses, sis_user_id, bulk_job_id):
             #if there is not course data for the sis_course_id, log it and continue to the next id in the list.
             continue
 
-        logger.info('create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
+        logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
         try:
             course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
         except CanvasCourseAlreadyExistsError:

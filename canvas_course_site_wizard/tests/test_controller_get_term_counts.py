@@ -19,11 +19,13 @@ class TestControllerGetTermCourseCounts(TestCase):
         Tests whether get_term_course_counts returns the correct result.
         """
         test_data = {
-            'canvas_courses': 99,
-            'not_in_canvas': 0,
-            'total_courses': 99
+            'total_courses': 25,
+            'canvas_courses': 25,
+            'isites_courses' : 25,
+            'not_created' : 25,
         }
-        mock_course_call.return_value = 99
+        test_data['external'] = test_data['total_courses'] - test_data['canvas_courses'] - test_data['isites_courses'] - test_data['not_created']
+        mock_course_call.return_value = 25
         result = get_term_course_counts(self.term_id)
         self.assertEqual(result, test_data)
 
