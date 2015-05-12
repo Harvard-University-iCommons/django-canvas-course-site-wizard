@@ -23,7 +23,8 @@ class CreateCanvasCourseTest(TestCase):
         course_model_mock = MagicMock(sis_account_id="school:gse",
                                       course_code="GSE",
                                       course_name="GSE test course",
-                                      sis_term_id="gse term")
+                                      sis_term_id="gse term",
+                                      shopping_active=False)
         # mock the methods
         course_model_mock.primary_section_name.return_value = "Primary section"
         return course_model_mock
@@ -89,16 +90,23 @@ class CreateCanvasCourseTest(TestCase):
         """
         course_model_mock = self.get_mock_of_get_course_data()
         get_course_data.return_value = course_model_mock
-        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
         course_code_argument = course_model_mock.course_code
         course_name_argument = course_model_mock.course_name
         course_term_id_argument = 'sis_term_id:' + course_model_mock.sis_term_id
         course_sis_course_id_argument = self.sis_course_id
-        create_new_course.assert_called_with(request_ctx=SDK_CONTEXT, account_id=sis_account_id_argument,
-                                             course_name=course_name_argument, course_course_code=course_code_argument,
-                                             course_term_id=course_term_id_argument,
-                                             course_sis_course_id=course_sis_course_id_argument)
+        course_shopping_active = course_model_mock.shopping_active
+
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        create_new_course.assert_called_with(
+            request_ctx=SDK_CONTEXT,
+            account_id=sis_account_id_argument,
+            course_name=course_name_argument,
+            course_course_code=course_code_argument,
+            course_term_id=course_term_id_argument,
+            course_sis_course_id=course_sis_course_id_argument,
+            course_is_public_to_auth_users=course_shopping_active
+        )
 
     def test_exception_when_create_new_course_method_raises_api_400(self, get_course_data,
                                                             create_course_section, create_new_course):
