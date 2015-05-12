@@ -23,10 +23,11 @@ class Command(NoArgsCommand):
 
     def handle_noargs(self, **options):
 
-        pid_file = getattr(settings, 'FINALIZE_BULK_CREATE_JOBS_PID_FILE', 'finalize_bulk_create_jobs.pid')
-        fp = open(pid_file, 'w')
+        # open and lock the file used for determining if another process is running
+        _pid_file = getattr(settings, 'FINALIZE_BULK_CREATE_JOBS_PID_FILE', 'finalize_bulk_create_jobs.pid')
+        _pid_file_handle = open(_pid_file, 'w')
         try:
-            fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
             # another instance is running
             logger.error("another instance of the command is already running")
@@ -39,8 +40,6 @@ class Command(NoArgsCommand):
         jobs_count = len(jobs)
         if not jobs_count:
             logger.info('No pending bulk create jobs found.')
-            logger.info('command took %s seconds to run', str(datetime.now() - start_time)[:-7])
-            return
         else:
             logger.info('Found %d pending bulk create jobs.', jobs_count)
 
@@ -73,6 +72,13 @@ class Command(NoArgsCommand):
         _log_bulk_job_statistics()
 
         logger.info('command took %s seconds to run', str(datetime.now() - start_time)[:-7])
+
+        # unlock and close the file used for determining if another process is running
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_UN)
+            _pid_file_handle.close()
+        except IOError:
+            logger.error("could not release lock on pid file or close pid file properly")
 
 
 def _send_notification(job):

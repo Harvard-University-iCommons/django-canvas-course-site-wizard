@@ -33,10 +33,11 @@ class Command(NoArgsCommand):
         the status using the canvas_sdk.progress method
         """
 
-        pid_file = getattr(settings, 'PROCESS_ASYNC_JOBS_PID_FILE', 'process_async_jobs.pid')
-        fp = open(pid_file, 'w')
+        # open and lock the file used for determining if another process is running
+        _pid_file = getattr(settings, 'PROCESS_ASYNC_JOBS_PID_FILE', 'process_async_jobs.pid')
+        _pid_file_handle = open(_pid_file, 'w')
         try:
-            fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
             # another instance is running
             logger.error("another instance of the command is already running")
@@ -151,3 +152,10 @@ class Command(NoArgsCommand):
                                      % (job.sis_course_id, job.created_by_user_id)
                         logger.exception(error_text)
                         tech_logger.exception(error_text)
+
+        # unlock and close the file used for determining if another process is running
+        try:
+            fcntl.lockf(_pid_file_handle, fcntl.LOCK_UN)
+            _pid_file_handle.close()
+        except IOError:
+            logger.error("could not release lock on pid file or close pid file properly")
