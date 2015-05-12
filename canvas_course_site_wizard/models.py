@@ -85,8 +85,6 @@ class SISCourseDataMixin(object):
         """
         Shopping status of the course; ie the course is shoppable (returns True) if it is in a term for which shopping
          is turned on and the course is not explicitly excluded from shopping.
-         Note that this returns status at the time the course was loaded -- it does not reflect changes since load time
-         unless you explicitly reload the course from the DB)
         :returns: boolean
         """
         return self.term.shopping_active and not self.exclude_from_shopping
