@@ -418,7 +418,7 @@ def bulk_create_courses(courses, sis_user_id, bulk_job_id):
     sis_user_id_str = 'sis_user_id:%s' % sis_user_id
     messages = []
     errors = []
-    for sis_course_id in courses[:5]:
+    for sis_course_id in courses:
         try:
             sis_course_data = get_course_data(sis_course_id)
         except ObjectDoesNotExist as ex:
