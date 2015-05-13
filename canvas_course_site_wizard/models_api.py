@@ -1,5 +1,8 @@
-from .models import (SISCourseData, CanvasContentMigrationJob, CanvasSchoolTemplate, BulkCanvasCourseCreationJob)
-from icommons_common.models import (CourseInstance, Term)
+from .models import (SISCourseData,
+                     CanvasContentMigrationJob,
+                     CanvasSchoolTemplate, 
+                     BulkCanvasCourseCreationJob)
+from icommons_common.models import CourseInstance
 
 
 def get_course_data(course_sis_id):
