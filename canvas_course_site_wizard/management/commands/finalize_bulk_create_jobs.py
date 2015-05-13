@@ -44,7 +44,6 @@ class Command(NoArgsCommand):
             logger.info('Found %d pending bulk create jobs.', jobs_count)
 
         for job in jobs:
-
             logger.debug('Checking if all subjobs are finished for pending bulk create job %s ', job.id)
             if not job.ready_to_finalize():
                 logger.debug('Job %s is not ready to be finalized, leaving pending.', job.id)
@@ -121,7 +120,6 @@ def _send_notification(job):
     except Exception as e:
         # todo: do we need all these multilayered logs?
         logger.exception("Job %s: problem sending notification", job.id)
-
         _log_notification_failure(job)
         return False
 
@@ -163,7 +161,6 @@ def _log_notification_failure(job):
         error_text = (
             "There was a problem in sending bulk job %s failure notification email to initiator %s "
             "and support staff for bulk job %s" % (job.id, job.created_by_user_id, job.sis_course_id)
-
         )
     except Exception as e:
         error_text = "There was a problem in sending a bulk job failure notification email (no job details available)"
