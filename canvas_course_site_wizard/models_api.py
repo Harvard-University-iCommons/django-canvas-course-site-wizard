@@ -1,6 +1,6 @@
 from .models import (SISCourseData,
                      CanvasContentMigrationJob,
-                     CanvasSchoolTemplate, 
+                     CanvasSchoolTemplate,
                      BulkCanvasCourseCreationJob)
 from icommons_common.models import CourseInstance
 
