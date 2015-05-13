@@ -88,17 +88,23 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
         return context
 
     def post(self, request, *args, **kwargs):
-
+        """
+        Process bulk create jobs kicked off by the user for therm term and school specififed.
+        """
         sis_term_id = self.request.POST.get('term_id')
         school_id = self.request.POST.get('school_id')
 
+        # if no sis_term_id was supplied in the post request, return and let the user know
         if not sis_term_id:
             return HttpResponse(json.dumps({'error': 'no term_id provided', }),
                                     content_type="application/json", status=500)
+
+        # if no school id was supplied in the post request, return and let the user know
         if not school_id:
             return HttpResponse(json.dumps({'error': 'no school_id provided', }),
                                     content_type="application/json", status=500)
 
+        # if a bulk job is already in progress return and let the user know
         if is_bulk_job_in_progress(sis_term_id):
             return HttpResponse(json.dumps({'success': 'bulk job already in progress for term %s' % sis_term_id, }),
                                 content_type="application/json")
@@ -107,6 +113,7 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
         courses = get_courses_for_bulk_create(sis_term_id)
         job = None
 
+        # if there are no courses in the term do not create a bulk job
         if courses.count() > 0:
             logger.info('Creating bulk job for term %s' % sis_term_id)
             job = BulkCanvasCourseCreationJob.objects.create(
