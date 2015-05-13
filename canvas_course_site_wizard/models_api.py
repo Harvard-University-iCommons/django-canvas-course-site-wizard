@@ -54,6 +54,7 @@ def get_courses_for_term(term_id, is_in_canvas=None, is_in_isite=None, not_creat
     :param term_id: the term_id of the term
     :param is_in_canvas: (optional) if provided the method will only return a count of the courses that already exist in Canvas
     :param is_in_isite: (optional) select courses that have isites
+    :param not_created: (optional) select courses with no external site
     :return: The method returns a count of the number of courses, if no courses are found the method will return 0.
     """
     kwargs = { 'term__term_id' : term_id }
