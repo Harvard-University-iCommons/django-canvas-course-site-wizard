@@ -84,6 +84,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         course_course_code=course_data.course_code,
         course_term_id='sis_term_id:%s' % course_data.sis_term_id,
         course_sis_course_id=sis_course_id,
+        course_is_public_to_auth_users=course_data.shopping_active
     )
     try:
         new_course = create_new_course(**request_parameters).json()
