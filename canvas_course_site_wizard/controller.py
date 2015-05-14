@@ -440,16 +440,9 @@ def bulk_create_courses(courses, sis_user_id, bulk_job_id):
     messages = []
     errors = []
     for sis_course_id in courses:
-        try:
-            sis_course_data = get_course_data(sis_course_id)
-        except ObjectDoesNotExist as ex:
-            logger.exception('Course id %s does not exist, skipping....' % sis_course_id)
-            errors.append('Course id %s does not exist, skipped' % sis_course_id)
-            #if there is not course data for the sis_course_id, log it and continue to the next id in the list.
-            continue
 
-        logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
         try:
+            logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
             course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
         except CanvasCourseAlreadyExistsError:
             logger.exception('course already exists in canvas with id %s' % sis_course_id)
@@ -458,6 +451,14 @@ def bulk_create_courses(courses, sis_user_id, bulk_job_id):
         except ContentMigrationJobCreationError:
             logger.exception('content migration error for course with id %s' % sis_course_id)
             errors.append('content migration error for course with id %s' % sis_course_id)
+            continue
+
+        try:
+            sis_course_data = get_course_data(sis_course_id)
+        except ObjectDoesNotExist as ex:
+            logger.exception('Course id %s does not exist, skipping....' % sis_course_id)
+            errors.append('Course id %s does not exist, skipped' % sis_course_id)
+            #if there is not course data for the sis_course_id, log it and continue to the next id in the list.
             continue
 
         try:
