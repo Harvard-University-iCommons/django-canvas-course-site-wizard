@@ -177,13 +177,13 @@ class CanvasContentMigrationJob(models.Model):
         (STATUS_FINALIZED, STATUS_FINALIZED),
         (STATUS_FINALIZE_FAILED, STATUS_FINALIZE_FAILED),
     )
-    canvas_course_id = models.IntegerField(db_index=True)
+    canvas_course_id = models.IntegerField(null=True, blank=True, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
-    content_migration_id = models.IntegerField()
+    content_migration_id = models.IntegerField(null=True, blank=True,)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
-    status_url = models.CharField(max_length=200)
-    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
+    status_url = models.CharField(null=True, blank=True, max_length=200)
+    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_SETUP)
     created_by_user_id = models.CharField(max_length=20)
     bulk_job_id = models.IntegerField(null=True, blank=True)
 

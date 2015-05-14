@@ -1,10 +1,11 @@
 from .models_api import (get_course_data, get_template_for_school,
-                         get_courses_for_term, get_bulk_job_records_for_term)
+                         get_courses_for_term, get_bulk_job_records_for_term,
+                         get_content_migration_data_for_sis_course_id)
 from .models import CanvasContentMigrationJob, SISCourseData
 from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
                          SISCourseDoesNotExistError, CanvasSectionCreateError,
                          CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
-                         CopySISEnrollmentsError)
+                         CopySISEnrollmentsError, ContentMigrationJobCreationError)
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
@@ -34,7 +35,28 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     section = None
 
     try:
-        # 1. fetch the course instance info
+        # 1. Insert a CanvasContentMigrationJob record on initiation with STATUS_SETUP status. This would  help in
+        # keeping track of the status of the various courses in the bulk job context as well as general reporting
+
+        logger.debug('Create content migration job tracking row...')
+        migration_job = CanvasContentMigrationJob.objects.create(
+            sis_course_id=sis_course_id,
+            created_by_user_id=sis_user_id,
+            workflow_state=CanvasContentMigrationJob.STATUS_SETUP,
+        )
+        logger.debug('Job row created: %s' % migration_job)
+    except Exception as e:
+        logger.exception('Error  in inserting CanvasContentMigrationJob record for '
+                         'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
+
+        # send email in addition to showing error page to user
+        ex = ContentMigrationJobCreationError(msg_details=sis_course_id)
+        if not bulk_job_id:
+            send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+        raise ex
+
+    try:
+        # 2. fetch the course instance info
         course_data = get_course_data(sis_course_id)
         logger.info("\n obtained course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
                     % (course_data, course_data.sis_account_id, course_data.course_name, course_data.course_code,
@@ -42,6 +64,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     except ObjectDoesNotExist as e:
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_content_migration_workflow_state(sis_course_id, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
 
         ex = SISCourseDoesNotExistError(sis_course_id)
         # If the course is part of bulk job, do not send individual email. .
@@ -51,7 +75,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
             send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
         raise ex
 
-    # 2. Attempt to create a canvas course
+    # 3. Attempt to create a canvas course
 
     request_parameters = dict(
         request_ctx=SDK_CONTEXT,
@@ -67,6 +91,9 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     except CanvasAPIError as api_error:
         logger.exception('Error building request_parameters or executing create_new_course() SDK call '
                          'for new Canvas course with request=%s:', request_parameters)
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_content_migration_workflow_state(sis_course_id, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
+
         # a 400 errors here means that the SIS id already exists in Canvas
         if api_error.status_code == 400:
             raise CanvasCourseAlreadyExistsError(msg_details=sis_course_id)
@@ -78,7 +105,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
 
     logger.info("created course object, ret=%s" % new_course)
 
-    # 3. Create course section after course creation
+    # 4. Create course section after course creation
     try:
         request_parameters = dict(request_ctx=SDK_CONTEXT,
                                   course_id=new_course['id'],
@@ -90,6 +117,9 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.exception('Error building request_parameters or executing create_course_section() SDK call '
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_content_migration_workflow_state(sis_course_id, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
+
         # send email in addition to showing error page to user
         ex = CanvasSectionCreateError(msg_details=sis_course_id)
         if not bulk_job_id:
@@ -117,9 +147,9 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
         template_id = get_template_for_school(school_code)
     except ObjectDoesNotExist:
         logger.debug('Did not find a template for course %s.' % sis_course.pk)
-        # To-Do: Placeholder for additional logic to handle this case for bulk job created courses.
-        # Possibly update record in  CanvasContentMigrationJob with an appropriate status so that ir can properly be
-        # summarized as part of bulk job summary. Currently there isn't a record , when there is no template
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_content_migration_workflow_state(sis_course.pk, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
+
         raise NoTemplateExistsForSchool(school_code)
 
     # Initiate course copy for template_id
@@ -132,16 +162,20 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
     ).json()
     logger.debug('content migration API call result: %s' % content_migration)
 
-    # Return newly created content_migration_job row that contains progress url
-    logger.debug('Create content migration job tracking row...')
-    migration_job = CanvasContentMigrationJob.objects.create(
-        canvas_course_id=canvas_course_id,
-        sis_course_id=sis_course.pk,
-        content_migration_id=content_migration['id'],
-        status_url=content_migration['progress_url'],
-        created_by_user_id=user_id,
-    )
-    logger.debug('Job row created: %s' % migration_job)
+    #  Update the status of  content_migration_job  with metadata (canvas id, workflow_state, progress url, etc)
+    logger.debug('Update content migration job tracking row...')
+
+    migration_job = get_content_migration_data_for_sis_course_id(sis_course.pk)
+    migration_job.canvas_course_id = canvas_course_id
+    migration_job.content_migration_id = content_migration['id']
+    migration_job.workflow_state = CanvasContentMigrationJob.STATUS_QUEUED
+    migration_job.status_url = content_migration['progress_url']
+    migration_job.created_by_user_id = user_id
+
+    migration_job.save(update_fields=['canvas_course_id', 'content_migration_id', 'status_url', 'workflow_state',
+                                      'created_by_user_id'])
+
+    logger.debug('Job row updated: %s' % migration_job)
     return migration_job
 
 
@@ -389,3 +423,15 @@ def get_bulk_jobs_for_term(term_id):
     :return: Method returns a queryset of all the bulk jobs
     """
     return get_bulk_job_records_for_term(term_id)
+
+def update_content_migration_workflow_state(sis_course_id, workflow_state):
+    """
+    Update the CanvasContentMigrationJob record of the sis_course_id with the workflow_state passed in
+    :param term_id: The term_id of the term
+    :param workflow_state: One of the states from the CanvasContentMigrationJob's  WORKFLOW_STATUS_CHOICES
+    """
+    course_job = get_content_migration_data_for_sis_course_id(sis_course_id)
+    if course_job:
+        course_job.workflow_state = workflow_state
+        course_job.save(update_fields=['workflow_state'])
+
