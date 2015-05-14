@@ -47,7 +47,6 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         """ exit gracefully if there are no jobs in the table that require checking pending subjobs """
         m_queryset.return_value = BulkJob.objects.none()
         start_job_with_noargs()
-        m_logger.info.assert_any_call('No pending bulk create jobs found.')
         self.assertEqual(m_logger.debug.call_count, 0)
         self.assertEqual(m_logger.error.call_count, 0)
         self.assertEqual(m_logger.exception.call_count, 0)
@@ -60,7 +59,6 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         m_bulk_job.ready_to_finalize.return_value = False
         m_queryset.return_value = [m_bulk_job]
         start_job_with_noargs()
-        m_logger.debug.assert_any_call('Job %s is not ready to be finalized, leaving pending.', 1)
         self.assertEqual(m_logger.error.call_count, 0)
         self.assertEqual(m_logger.exception.call_count, 0)
 

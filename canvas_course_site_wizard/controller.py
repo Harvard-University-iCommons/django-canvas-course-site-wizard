@@ -1,11 +1,5 @@
-from .models_api import (get_course_data, get_template_for_school,
-                         get_courses_for_term, get_bulk_job_records_for_term,
-                         get_content_migration_data_for_sis_course_id)
-from .models import CanvasContentMigrationJob, SISCourseData
-from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
-                         SISCourseDoesNotExistError, CanvasSectionCreateError,
-                         CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
-                         CopySISEnrollmentsError, ContentMigrationJobCreationError)
+import logging
+
 from canvas_sdk.methods.courses import create_new_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
@@ -15,9 +9,18 @@ from canvas_sdk.exceptions import CanvasAPIError
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
+
+from .models_api import (get_course_data, get_template_for_school,
+                         get_courses_for_term, get_bulk_job_records_for_term,
+                         select_courses_for_bulk_create, get_content_migration_data_for_sis_course_id)
+from .models import (CanvasContentMigrationJob,
+                     SISCourseData)
+from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
+                         SISCourseDoesNotExistError, CanvasSectionCreateError,
+                         CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
+                         CopySISEnrollmentsError, ContentMigrationJobCreationError)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
-import logging
 
 # Set up the request context that will be used for canvas API calls
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
@@ -176,6 +179,7 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
                                       'created_by_user_id'])
 
     logger.debug('Job row updated: %s' % migration_job)
+
     return migration_job
 
 
@@ -236,7 +240,6 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id, bulk_jo
 
     return canvas_course_url
 
-
 def enroll_creator_in_new_course(sis_course_id, user_id):
     """
     Silently enroll instructor / creator to the new course so it can be accessed immediately
@@ -276,9 +279,7 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
                                                           enrollment_enrollment_state='active')
 
     logger.debug("Enroll user response: %s" % current_user_enrollment_result.json())
-
     return current_user_enrollment_result.json()
-
 
 def get_canvas_user_profile(sis_user_id):
     """
@@ -290,7 +291,6 @@ def get_canvas_user_profile(sis_user_id):
     response = get_user_profile(request_ctx=SDK_CONTEXT, user_id='sis_user_id:%s' % sis_user_id)
     canvas_user_profile = response.json()
     return canvas_user_profile
-
 
 def send_email_helper(subject, message, to_address):
     """
@@ -306,7 +306,6 @@ def send_email_helper(subject, message, to_address):
     # If fail_silently is set to False, send_mail will raise exceptions. If True,
     # all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
-
 
 def send_failure_email(initiator_email, sis_course_id):
     """
@@ -331,7 +330,6 @@ def send_failure_email(initiator_email, sis_course_id):
                  % (to_address, settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_body']))
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_failure_subject'], complete_msg, to_address)
 
-
 def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
     """
     This is a utility to send an email to the support group when there is a  failure in course creation . 
@@ -350,7 +348,6 @@ def send_failure_msg_to_support(sis_course_id, sis_user_id, error_detail):
     logger.debug(" send_failure_msg_to_support: sis_course_id=%s, user=%s, complete_msg=%s",
                  sis_course_id, sis_user_id, complete_msg)
     send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['support_email_subject_on_failure'], complete_msg, to_address)
-
 
 def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_base_url=None):
     """
@@ -385,7 +382,6 @@ def get_canvas_course_url(canvas_course_id=None, sis_course_id=None, override_ba
 
     return course_url
 
-
 def get_term_course_counts(term_id):
     """
     return a dict that contains the following:
@@ -401,11 +397,12 @@ def get_term_course_counts(term_id):
     data = {
         'total_courses': get_courses_for_term(term_id),  # will be 0 if no courses returned
         'canvas_courses': get_courses_for_term(term_id, is_in_canvas=True),  # will be 0 if no courses returned
+        'isites_courses': get_courses_for_term(term_id, is_in_isite=True),
+        'not_created': get_courses_for_term(term_id, not_created=True),
     }
-    data['not_in_canvas'] = data['total_courses'] - data['canvas_courses']  # will be 0 if no courses returned above
+    data['external'] = data['total_courses'] - data['canvas_courses'] - data['isites_courses'] - data['not_created'] # will be 0 if no courses returned above
 
     return data
-
 
 def is_bulk_job_in_progress(term_id):
     """
@@ -415,7 +412,6 @@ def is_bulk_job_in_progress(term_id):
     """
     return get_bulk_job_records_for_term(term_id, in_progress=True).count() > 0
 
-
 def get_bulk_jobs_for_term(term_id):
     """
     get all of the bulk create jobs for the term.
@@ -423,6 +419,57 @@ def get_bulk_jobs_for_term(term_id):
     :return: Method returns a queryset of all the bulk jobs
     """
     return get_bulk_job_records_for_term(term_id)
+
+def get_courses_for_bulk_create(sis_term_id):
+    """
+    get the list of courses to create
+    :param sis_term_id: the id of the term that has the courses
+    :return: list of course sis_instance_id's
+    """
+    return select_courses_for_bulk_create(sis_term_id)
+
+def bulk_create_courses(courses, sis_user_id, bulk_job_id):
+    """
+    bulk create courses
+    :param courses: List of sis_course_id's for the courses to create
+    :param sis_user_id: the user id of the person makign the request
+    :param bulk_job_id: the bulk job id of the bulk create
+    :return: List of messages generated by the create
+    """
+    sis_user_id_str = 'sis_user_id:%s' % sis_user_id
+    messages = []
+    errors = []
+    for sis_course_id in courses:
+
+        try:
+            logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
+            course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
+        except CanvasCourseAlreadyExistsError:
+            logger.exception('course already exists in canvas with id %s' % sis_course_id)
+            errors.append('course already exists in canvas with id %s' % sis_course_id)
+            continue
+        except ContentMigrationJobCreationError:
+            logger.exception('content migration error for course with id %s' % sis_course_id)
+            errors.append('content migration error for course with id %s' % sis_course_id)
+            continue
+
+        try:
+            sis_course_data = get_course_data(sis_course_id)
+        except ObjectDoesNotExist as ex:
+            logger.exception('Course id %s does not exist, skipping....' % sis_course_id)
+            errors.append('Course id %s does not exist, skipped' % sis_course_id)
+            #if there is not course data for the sis_course_id, log it and continue to the next id in the list.
+            continue
+
+        try:
+            start_course_template_copy(sis_course_data, course['id'], sis_user_id, bulk_job_id=bulk_job_id)
+        except NoTemplateExistsForSchool:
+            # If there is no template to copy, immediately finalize the new course
+            # (i.e. run through remaining post-async job steps)
+            finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id_str, bulk_job_id=bulk_job_id)
+
+    messages.append('Completed processing courses')
+    return errors, messages
 
 def update_content_migration_workflow_state(sis_course_id, workflow_state):
     """
@@ -434,4 +481,5 @@ def update_content_migration_workflow_state(sis_course_id, workflow_state):
     if course_job:
         course_job.workflow_state = workflow_state
         course_job.save(update_fields=['workflow_state'])
+
 

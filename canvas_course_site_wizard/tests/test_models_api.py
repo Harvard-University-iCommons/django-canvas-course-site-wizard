@@ -1,9 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.test import TestCase
-from canvas_course_site_wizard.models_api import (get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term)
+from canvas_course_site_wizard.models_api import (get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term, select_courses_for_bulk_create)
 from canvas_course_site_wizard.models import CanvasSchoolTemplate
 from setup_bulk_jobs import create_bulk_jobs
-from mock import patch
+from mock import patch, call
 
 
 class ModelsApiTest(TestCase):
@@ -81,5 +81,23 @@ class ModelsApiTest(TestCase):
 
         records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
         self.assertQuerysetEqual(records, test_data_set, ordered=False)
+
+    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
+    def test_select_courses_for_bulk_create(self, mock_ci):
+        """
+        Test that the query was called with the correct parameters.
+        :param mock_ci:
+        :return:
+        """
+        courses = select_courses_for_bulk_create(self.term_id)
+
+        calls = [call(term_id=self.term_id, sites__external_id__isnull=True),
+                 call().exclude(sites__site_type_id='isite'),
+                 call().exclude().values_list('course_instance_id', flat=True)]
+
+        mock_ci.assert_has_calls(calls, any_order=True)
+
+
+
 
     #TODO: once we figure out how to deal with legacy data, we can add integration tests for retrieving course data
