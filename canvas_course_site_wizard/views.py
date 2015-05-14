@@ -109,7 +109,6 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
             return HttpResponse(json.dumps({'success': 'bulk job already in progress for term %s' % sis_term_id, }),
                                 content_type="application/json")
 
-        #TODO add bulk create logic here
         courses = get_courses_for_bulk_create(sis_term_id)
         job = None
 
