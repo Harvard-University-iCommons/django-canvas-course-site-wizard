@@ -1,13 +1,23 @@
 from unittest import TestCase
-from mock import patch, DEFAULT, MagicMock
+from mock import patch, DEFAULT, MagicMock, Mock, ANY
 from icommons_ui.exceptions import RenderableException
 from django.core.exceptions import ObjectDoesNotExist
 from canvas_sdk.exceptions import CanvasAPIError
 from canvas_course_site_wizard import controller
+from canvas_course_site_wizard.models import CanvasContentMigrationJob
 from canvas_course_site_wizard.exceptions import (CanvasCourseCreateError, CanvasCourseAlreadyExistsError,
-     SISCourseDoesNotExistError, CanvasSectionCreateError)
+                                                  SISCourseDoesNotExistError, CanvasSectionCreateError,
+                                                  ContentMigrationJobCreationError)
 
-
+m_canvas_content_migration_job = Mock(
+    spec=CanvasContentMigrationJob,
+    id=2,
+    canvas_course_id=9999,
+    sis_course_id=88323,
+    status_url='http://example.com/1234',
+    workflow_state='setup',
+    created_by_user_id='123'
+)
 @patch.multiple('canvas_course_site_wizard.controller',
                 get_course_data=DEFAULT, create_course_section=DEFAULT, create_new_course=DEFAULT)
 class CreateCanvasCourseTest(TestCase):
@@ -75,6 +85,88 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(RenderableException):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         self.assertTrue(log_replacement.error.called)
+
+    """
+     Tests for create_canvas_course.CanvasContentMigrationJob.objects.create
+    """
+
+    @patch('canvas_course_site_wizard.models.CanvasContentMigrationJob.objects.create')
+    def test_create_canvas_course_method_invokes_create_migration_record(self, canvas_content_mgrn_create, get_course_data,
+                                                             create_course_section, create_new_course, **kwargs):
+        """
+        Test that create_canvas_course method invokes a creation of CanvasContentMigrationJob record
+        with  workflow_state to STATUS_SETUP
+        """
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        self.assertTrue(canvas_content_mgrn_create.called)
+        canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
+                                                      workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
+
+
+    @patch('canvas_course_site_wizard.models.CanvasContentMigrationJob.objects.create')
+    def test_create_canvas_course_method_invokes_create_migration_record_for_bulk_job(self, canvas_content_mgrn_create, get_course_data,
+                                                             create_course_section, create_new_course, **kwargs):
+        """
+        Test that create_canvas_course method invokes a creation of CanvasContentMigrationJob record
+        with  workflow_state to STATUS_SETUP , for courses created by bulk job as well
+        """
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
+        self.assertTrue(canvas_content_mgrn_create.called)
+        canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
+                                                      workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
+
+
+
+    @patch('canvas_course_site_wizard.controller.CanvasContentMigrationJob')
+    def test_create_canvas_course_method_creates_migration_record(self, canvas_content_mgrn_db_mock, get_course_data,
+                                                             create_course_section, create_new_course, **kwargs):
+        """
+        Test that create_canvas_course method creates a CanvasContentMigrationJob record with right parameters
+        """
+        workflow_mock = MagicMock(workflow_status=CanvasContentMigrationJob.STATUS_SETUP)
+
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        args, kwargs = canvas_content_mgrn_db_mock.objects.create.call_args
+        canvas_content_mgrn_db_mock.objects.create.assert_called_with(sis_course_id=self.sis_course_id,
+                                                                      created_by_user_id=self.sis_user_id,
+                                                                      workflow_state=ANY)
+
+
+    @patch('canvas_course_site_wizard.controller.logger')
+    @patch('canvas_course_site_wizard.models.CanvasContentMigrationJob.objects.create')
+    def test_create_canvas_course_method_logs_on_job_creation_exception(self, canvas_content_mgrn_db_mock, logger, get_course_data,
+                                                             create_course_section, create_new_course, **kwargs):
+        """
+        Test that create_canvas_course method logs an error when CanvasContentMigrationJob creation has an exception
+        """
+        canvas_content_mgrn_db_mock.side_effect= Exception
+        with self.assertRaises(Exception):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        self.assertTrue(logger.exception.called)
+
+    @patch('canvas_course_site_wizard.models.CanvasContentMigrationJob.objects.create')
+    def test_custome_error_raised_when_job_creation_has_exception(self, canvas_content_mgrn_db_mock, get_course_data,
+                                                             create_course_section, create_new_course):
+        """
+        Test to assert that a ContentMigrationJobCreationError is raised when CanvasContentMigrationJob creation has an exception
+        """
+        canvas_content_mgrn_db_mock.side_effect= Exception
+        with self.assertRaises(ContentMigrationJobCreationError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+
+
+    @patch('canvas_course_site_wizard.controller.update_content_migration_workflow_state')
+    def test_404_exception_n_create_new_course_method_invokes_update_workflow_state(self, update_mock, get_course_data,
+                                                            create_course_section, create_new_course):
+        """
+        Test to assert that a RenderableException is raised when the create_new_course SDK call
+        throws an CanvasAPIError, update_content_migration_workflow_state is invoked to update the status
+        to STATUS_SETUP_FAILED
+        """
+        create_new_course.side_effect = CanvasAPIError(status_code=404)
+        with self.assertRaises(CanvasCourseCreateError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        update_mock.assert_called_with(self.sis_course_id, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
 
     # ------------------------------------------------------
     # Tests for create_canvas_course.create_course_section()
