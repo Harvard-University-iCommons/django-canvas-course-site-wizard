@@ -5,7 +5,8 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from canvas_course_site_wizard.controller import bulk_create_courses
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
-                                                  CanvasCourseAlreadyExistsError)
+                                                  CanvasCourseAlreadyExistsError,
+                                                  ContentMigrationJobCreationError)
 
 
 @patch.multiple('canvas_course_site_wizard.controller', get_course_data=DEFAULT, create_canvas_course=DEFAULT, start_course_template_copy=DEFAULT, finalize_new_canvas_course=DEFAULT)
@@ -56,7 +57,7 @@ class BulkCreateCoursesTest(TestCase):
         errors, messages = bulk_create_courses(self.courses, self.user_id, self.bulk_job_id)
         finalize_new_canvas_course.assert_has_calls(self.finalize_calls, any_order=True)
 
-    @patch('canvas_course_site_wizard.controller.logger.error')
+    @patch('canvas_course_site_wizard.controller.logger.exception')
     def test_bulk_create_courses_get_course_data_with_error(self, mock_logger, get_course_data, create_canvas_course, start_course_template_copy, finalize_new_canvas_course ):
         """
         Test that logger is called when get course data throws and exception
@@ -66,12 +67,22 @@ class BulkCreateCoursesTest(TestCase):
         mock_logger.assert_called_with(ANY)
         mock_logger.assertEqual(mock_logger.call_count, len(self.courses))
 
-    @patch('canvas_course_site_wizard.controller.logger.error')
-    def test_bulk_create_courses_create_new_course_error(self, mock_logger, get_course_data, create_canvas_course, start_course_template_copy, finalize_new_canvas_course ):
+    @patch('canvas_course_site_wizard.controller.logger.exception')
+    def test_bulk_create_courses_create_new_course_CAEerror(self, mock_logger, get_course_data, create_canvas_course, start_course_template_copy, finalize_new_canvas_course ):
         """
         Test that logger is called when create course throws and exception
         """
         create_canvas_course.side_effect = CanvasCourseAlreadyExistsError(msg_details=self.school_code)
+        errors, messages = bulk_create_courses(self.courses, self.user_id, self.bulk_job_id)
+        mock_logger.assert_called_with(ANY)
+        mock_logger.assertEqual(mock_logger.call_count, len(self.courses)-1)
+
+    @patch('canvas_course_site_wizard.controller.logger.exception')
+    def test_bulk_create_courses_create_new_course_CMJerror(self, mock_logger, get_course_data, create_canvas_course, start_course_template_copy, finalize_new_canvas_course ):
+        """
+        Test that logger is called when create course throws and exception
+        """
+        create_canvas_course.side_effect = ContentMigrationJobCreationError(msg_details=self.school_code)
         errors, messages = bulk_create_courses(self.courses, self.user_id, self.bulk_job_id)
         mock_logger.assert_called_with(ANY)
         mock_logger.assertEqual(mock_logger.call_count, len(self.courses)-1)
