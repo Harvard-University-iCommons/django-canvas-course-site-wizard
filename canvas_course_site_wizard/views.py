@@ -11,7 +11,7 @@ from .controller import (create_canvas_course, start_course_template_copy,
                          finalize_new_canvas_course, get_canvas_course_url,
                          get_bulk_jobs_for_term, get_term_course_counts,
                          is_bulk_job_in_progress, get_courses_for_bulk_create,
-                         setup_bulk_create_jobs)
+                         setup_bulk_jobs)
 from .mixins import CourseSiteCreationAllowedMixin
 from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
@@ -126,7 +126,7 @@ class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
             return HttpResponse(json.dumps({'success': 'no courses are available to create for term %s' % sis_term_id}),
                                     content_type="application/json", status=500)
 
-        errors = setup_bulk_create_jobs(courses, request.user.username, job.pk)
+        errors = setup_bulk_jobs(courses, request.user.username, job.pk)
         messages = dict()
         if errors:
             messages['errors'] = errors

@@ -37,10 +37,10 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     new_course = None
     section = None
 
-
         # 1. Insert a CanvasContentMigrationJob record on initiation with STATUS_SETUP status. This would  help in
         # keeping track of the status of the various courses in the bulk job context as well as general reporting
 
+    # if there a bulk job id, the CanvasContentMigrationJob record has already been created so skip it.
     if not bulk_job_id:
         try:
             logger.debug('Create content migration job tracking row...')
@@ -56,9 +56,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
                              'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
 
             # send email in addition to showing error page to user
-            # 58 - 62 review mey go away
             ex = ContentMigrationJobCreationError(msg_details=sis_course_id)
-            # if not bulk_job_id:
             send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
             raise ex
 
@@ -432,7 +430,7 @@ def get_courses_for_bulk_create(sis_term_id):
     """
     return select_courses_for_bulk_create(sis_term_id)
 
-def setup_bulk_create_jobs(courses, sis_user_id, bulk_job_id):
+def setup_bulk_jobs(courses, sis_user_id, bulk_job_id):
     """
     bulk create courses
     :param courses: List of sis_course_id's for the courses to create
