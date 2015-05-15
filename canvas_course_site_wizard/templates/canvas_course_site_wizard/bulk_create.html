@@ -99,7 +99,8 @@
                 }).fail(function(jqXHR) {
                     updateAlertsWithJsonResponse(jqXHR.responseJSON);
                 });
-
+                // reload the page to show the new status row
+                location.reload();
             });
         });
     </script>
