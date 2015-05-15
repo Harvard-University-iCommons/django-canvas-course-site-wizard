@@ -195,6 +195,33 @@ class CanvasContentMigrationJob(models.Model):
         return "(CanvasContentMigrationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
                                                                               self.workflow_state)
 
+class CanvasContentMigrationJobProxy(CanvasContentMigrationJob):
+    """
+    A proxy model for CanvasContentMigrationJob; exposes its fields and
+    provides additional methods that encapsulate business logic
+    """
+    class Meta:
+        proxy = True
+
+    @classmethod
+    def get_jobs_by_workflow_state(cls, workflow_state):
+        return list(CanvasContentMigrationJob.objects.filter(workflow_state=workflow_state))
+
+    def update_workflow_state(self, workflow_state, raise_exception=False):
+        """
+        Updates job workflow_state. Return True if update succeeded. If raise_exception param is not True, or not provided,
+         it will return False if update fails. If raise_exception is True, it will re-raise failures/exceptions.
+        """
+        self.workflow_state = workflow_state
+        try:
+            self.save(update_fields=['workflow_state'])
+        except Exception as e:
+            if raise_exception:
+                raise e
+            else:
+                return False
+        return True
+
 
 class CanvasSchoolTemplate(models.Model):
     template_id = models.IntegerField()
