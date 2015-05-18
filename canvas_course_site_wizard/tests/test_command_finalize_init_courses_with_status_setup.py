@@ -100,3 +100,4 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         start_course_template_copy.side_effect = NoTemplateExistsForSchool(self.school_code)
         _init_courses_with_status_setup()
         mock_logger.assert_has_calls(self.template_calls)
+
