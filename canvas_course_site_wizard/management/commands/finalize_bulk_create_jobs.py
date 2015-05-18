@@ -103,7 +103,7 @@ class Command(NoArgsCommand):
 def _init_courses_with_status_setup():
     """
     get all records in the content migration table that have the status 'setup'.
-    These are courses that have not been created, they only have a CanvasContentMigrationJob record.
+    These are courses that have not been created, they only have a CanvasContentMigrationJob with a 'setup' status.
     This method will create the course and update the status to QUEUED
     """
     create_jobs = CanvasContentMigrationJobProxy.get_jobs_by_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP)
