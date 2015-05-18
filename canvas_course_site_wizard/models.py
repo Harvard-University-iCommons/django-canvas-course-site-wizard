@@ -205,7 +205,11 @@ class CanvasContentMigrationJobProxy(CanvasContentMigrationJob):
 
     @classmethod
     def get_jobs_by_workflow_state(cls, workflow_state):
-        return list(CanvasContentMigrationJob.objects.filter(workflow_state=workflow_state))
+        """
+        Get all bulk jobs for the given workflow state
+        Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
+        """
+        return list(CanvasContentMigrationJob.objects.filter(workflow_state=workflow_state, bulk_job_id__innull=False))
 
     def update_workflow_state(self, workflow_state, raise_exception=False):
         """
