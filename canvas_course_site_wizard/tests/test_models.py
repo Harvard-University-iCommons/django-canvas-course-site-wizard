@@ -1,12 +1,13 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase, skip
-from icommons_common.models import Course, Term
+from icommons_common.models import (Course, Term, School)
 from mock import patch
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
     CanvasContentMigrationJob as SubJob,
-    SISCourseData)
+    SISCourseData
+)
 
 
 def _create_bulk_job(sis_term_id=1, status=BulkJob.STATUS_SETUP):
@@ -148,6 +149,7 @@ class BulkCanvasCourseCreationJobProxyTests(TestCase):
 
 class SISCourseDataIntegrationTests(TestCase):
 
+    @skip('Technical Debt: TLT-1467')
     def test_shopping_active(self):
         """ shopping is active for the course if course's term is shoppable and the course is not excluded """
         term = Term(shopping_active=True)
@@ -157,6 +159,7 @@ class SISCourseDataIntegrationTests(TestCase):
         )
         self.assertTrue(sis_course_data.shopping_active)
 
+    @skip('Technical Debt: TLT-1467')
     def test_shopping_inactive_when_excluded(self):
         """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
         term = Term(shopping_active=True)
@@ -166,6 +169,7 @@ class SISCourseDataIntegrationTests(TestCase):
         )
         self.assertFalse(sis_course_data.shopping_active)
 
+    @skip('Technical Debt: TLT-1467')
     def test_shopping_inactive_when_term_inactive(self):
         """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
         term = Term(shopping_active=False)
