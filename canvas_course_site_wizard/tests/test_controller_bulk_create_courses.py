@@ -17,15 +17,6 @@ class SetupBulkJobsTest(TestCase):
         self.school_code = 'colgsas'
         self.sis_term_id = 4579
         self.courses = [123, 456, 789, 1011, 1012, 1013, 1014, 1015]
-        self.course_data_calls = []
-        self.create_course_calls = []
-        self.finalize_calls = []
-        self.template_copy_calls = []
-        for course in self.courses:
-            self.create_course_calls.append(call(course, self.user_id, bulk_job_id=self.bulk_job_id))
-            self.course_data_calls.append(call(course))
-            self.finalize_calls.append(call(ANY, course, 'sis_user_id:%s' % self.user_id, bulk_job_id=self.bulk_job_id))
-            self.template_copy_calls.append(call(ANY, ANY, self.user_id, bulk_job_id=self.bulk_job_id))
         self.job = BulkCanvasCourseCreationJob.objects.create(
                 school_id=self.school_code,
                 sis_term_id=self.sis_term_id,
