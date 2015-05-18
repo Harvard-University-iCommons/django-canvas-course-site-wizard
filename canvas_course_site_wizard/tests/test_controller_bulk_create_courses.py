@@ -6,7 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from canvas_course_site_wizard.controller import setup_bulk_jobs
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseAlreadyExistsError,
-                                                  ContentMigrationJobCreationError)
+                                                  CourseGenerationJobCreationError)
 
 
 @patch.multiple('canvas_course_site_wizard.controller', get_course_data=DEFAULT, create_canvas_course=DEFAULT, start_course_template_copy=DEFAULT, finalize_new_canvas_course=DEFAULT)
@@ -89,7 +89,7 @@ class BulkCreateCoursesTest(TestCase):
         """
         Test that logger is called when create course throws and exception
         """
-        create_canvas_course.side_effect = ContentMigrationJobCreationError(msg_details=self.school_code)
+        create_canvas_course.side_effect = CourseGenerationJobCreationError(msg_details=self.school_code)
         errors, messages = bulk_create_courses(self.courses, self.user_id, self.bulk_job_id)
         mock_logger.assert_called_with(ANY)
         mock_logger.assertEqual(mock_logger.call_count, len(self.courses)-1)

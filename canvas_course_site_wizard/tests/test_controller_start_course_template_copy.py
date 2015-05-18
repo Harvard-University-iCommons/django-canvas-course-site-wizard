@@ -1,5 +1,5 @@
 from canvas_course_site_wizard.controller import start_course_template_copy
-from canvas_course_site_wizard.models import SISCourseData, CanvasContentMigrationJob
+from canvas_course_site_wizard.models import SISCourseData, CanvasCourseGenerationJob
 from canvas_course_site_wizard.exceptions import NoTemplateExistsForSchool
 from unittest import TestCase
 from mock import patch, DEFAULT, Mock, MagicMock, ANY
@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 m_canvas_content_migration_job = Mock(
-    spec=CanvasContentMigrationJob,
+    spec=CanvasCourseGenerationJob,
     id=2,
     canvas_course_id=9999,
     sis_course_id=88323,
@@ -23,7 +23,7 @@ m_canvas_content_migration_job = Mock(
 # m_workflow_status
  
 @patch.multiple('canvas_course_site_wizard.controller', get_template_for_school=DEFAULT, content_migrations=DEFAULT,
-                CanvasContentMigrationJob=DEFAULT, SDK_CONTEXT=DEFAULT, get_content_migration_data_for_sis_course_id=DEFAULT)
+                CanvasCourseGenerationJob=DEFAULT, SDK_CONTEXT=DEFAULT, get_course_generation_data_for_sis_course_id=DEFAULT)
 class StartCourseTemplateCopyTest(TestCase):
     longMessage = True
 
@@ -97,20 +97,20 @@ class StartCourseTemplateCopyTest(TestCase):
         args, kwargs = content_migrations.create_content_migration_courses.call_args
         self.assertEqual(kwargs.get('settings_source_course_id'), self.template_id)
 
-    def test_content_migration_job_row_updated(self,content_migrations, get_content_migration_data_for_sis_course_id,
+    def test_content_migration_job_row_updated(self,content_migrations, get_course_generation_data_for_sis_course_id,
                                                 **kwargs):
         """
         Test that start_course_template_copy results in the content migration job row getting saved with the right params
         """
 
-        get_content_migration_data_for_sis_course_id.return_value = m_canvas_content_migration_job
+        get_course_generation_data_for_sis_course_id.return_value = m_canvas_content_migration_job
         ret = start_course_template_copy(self.sis_course_data, self.canvas_course_id, self.user_id)
         m_canvas_content_migration_job.save.assert_called_with(update_fields=['canvas_course_id', 'content_migration_id',
                                                                                 'status_url', 'workflow_state',
                                                                               'created_by_user_id'])
         # self.assertEqual(ret.workflow_state,  mock_queued)
 
-    @patch('canvas_course_site_wizard.controller.update_content_migration_workflow_state')
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
     def test_exception_results_in_worflow_state_getting_updated (self, update_mock,  get_template_for_school, **kwargs):
         """
         Test that if an ObjectDoesNotExist exception gets triggered when retrieving the school
@@ -119,4 +119,4 @@ class StartCourseTemplateCopyTest(TestCase):
         get_template_for_school.side_effect = ObjectDoesNotExist
         with self.assertRaises(NoTemplateExistsForSchool):
             start_course_template_copy(self.sis_course_data, self.canvas_course_id, self.user_id)
-            update_mock.assert_called_with(self.sis_course_data, CanvasContentMigrationJob.STATUS_SETUP_FAILED)
+            update_mock.assert_called_with(self.sis_course_data, CanvasCourseGenerationJob.STATUS_SETUP_FAILED)

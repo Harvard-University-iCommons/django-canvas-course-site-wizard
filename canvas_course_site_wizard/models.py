@@ -147,7 +147,7 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
         proxy = True
 
 
-class CanvasContentMigrationJob(models.Model):
+class CanvasCourseGenerationJob(models.Model):
     """
     This model was originally for tracking the status of Canvas migration jobs (i.e. template copy jobs, which
      Canvas runs asynchronously). It is now used to track the whole Canvas course creation process, from the
@@ -158,6 +158,11 @@ class CanvasContentMigrationJob(models.Model):
      records prior to content migration.
     """
     # Workflow status values
+
+    # TODO: consider modifying the values in the workflow_status column to prefix the  Canvas migration
+    # statuses with `migration_*' to differentiate them from other states of the course generation
+    # e.g. modify STATUS_FAILED = 'failed' to STATUS_MIGRATION_FAILED = 'migration_failed'
+
     STATUS_SETUP = 'setup'
     STATUS_SETUP_FAILED = 'setup_failed'
     STATUS_QUEUED = 'queued'
@@ -188,16 +193,16 @@ class CanvasContentMigrationJob(models.Model):
     bulk_job_id = models.IntegerField(null=True, blank=True)
 
     class Meta:
-        db_table = u'canvas_content_migration_job'
+        db_table = u'canvas_course_generation_job'
 
     def __unicode__(self):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
-        return "(CanvasContentMigrationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
+        return "(CanvasCourseGenerationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
                                                                               self.workflow_state)
 
-class CanvasContentMigrationJobProxy(CanvasContentMigrationJob):
+class CanvasCourseGenerationJobProxy(CanvasCourseGenerationJob):
     """
-    A proxy model for CanvasContentMigrationJob; exposes its fields and
+    A proxy model for CanvasCourseGenerationJob; exposes its fields and
     provides additional methods that encapsulate business logic
     """
     class Meta:
@@ -209,7 +214,7 @@ class CanvasContentMigrationJobProxy(CanvasContentMigrationJob):
         Get all bulk jobs for the given workflow state
         Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
         """
-        return list(CanvasContentMigrationJob.objects.filter(workflow_state=workflow_state, bulk_job_id__isnull=False))
+        return list(CanvasCourseGenerationJob.objects.filter(workflow_state=workflow_state, bulk_job_id__isnull=False))
 
     def update_workflow_state(self, workflow_state, raise_exception=False):
         """
@@ -244,7 +249,7 @@ class BulkCanvasCourseCreationJob(models.Model):
     """
     This model maps the DB table that stores data about the 'bulk canvas course creation job'. Each job
     may have multiple canvas courses as part of the bulk create process, which are present in
-    CanvasContentMigrationJob and referenced using that model's bulk_job_id
+    CanvasCourseGenerationJob and referenced using that model's bulk_job_id
     """
     # status values
     STATUS_SETUP = 'setup'
@@ -329,8 +334,8 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
 
     def get_completed_subjobs(self):
         """ Returns a list of subjobs in a known finalized state """
-        subjobs = CanvasContentMigrationJob.objects.filter(
-            workflow_state=CanvasContentMigrationJob.STATUS_FINALIZED,
+        subjobs = CanvasCourseGenerationJob.objects.filter(
+            workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZED,
             bulk_job_id=self.id
         )
         return list(subjobs)
@@ -340,10 +345,10 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
 
     def get_failed_subjobs(self):
         """ Returns a list of subjobs in a known failed state """
-        subjobs = CanvasContentMigrationJob.objects.filter(
-            Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP_FAILED)
-            | Q(workflow_state=CanvasContentMigrationJob.STATUS_FAILED)
-            | Q(workflow_state=CanvasContentMigrationJob.STATUS_FINALIZE_FAILED),
+        subjobs = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FAILED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED),
             bulk_job_id=self.id
         )
         return list(subjobs)
@@ -356,11 +361,11 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
         A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
         (i.e. all subjobs are in a terminal state)
         """
-        subjob_count = CanvasContentMigrationJob.objects.filter(
-            Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED)
-            | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING)
-            | Q(workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
-            | Q(workflow_state=CanvasContentMigrationJob.STATUS_COMPLETED),
+        subjob_count = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED),
             bulk_job_id=self.id
         ).count()
         return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0

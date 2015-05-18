@@ -5,7 +5,7 @@ from icommons_common.models import (Course, Term, School)
 from mock import patch
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
-    CanvasContentMigrationJob as SubJob,
+    CanvasCourseGenerationJob as SubJob,
     SISCourseData
 )
 
