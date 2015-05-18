@@ -38,8 +38,8 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
         sis_user_id = 'sis_user_id:%s' % request.user.username
         course = create_canvas_course(sis_course_id, request.user.username)
         try:
-            course_genaration_job = start_course_template_copy(self.object, course['id'], request.user.username)
-            return redirect('ccsw-status', course_genaration_job.pk)
+            course_generation_job = start_course_template_copy(self.object, course['id'], request.user.username)
+            return redirect('ccsw-status', course_generation_job.pk)
         except NoTemplateExistsForSchool:
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
