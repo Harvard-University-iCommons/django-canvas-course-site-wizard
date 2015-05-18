@@ -81,22 +81,15 @@ class CourseDataPermissionsMixin(CourseDataMixin):
         # List account admins for school associated with course. TLT-382 specified that only school-level admins
         # will have access to the course creation process for now, so using school_code in combination with school:
         # subaccount (instead of using sis_account_id, which would cover cases for dept: and coursegroup: as well).
-        # Note: There is a bug in canvas that prevents us from sending sis_user_id: in the user_id argument to
-        # list_account_admins, so we have to filter on the whole list returned from Canvas.
         user_account_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
-            account_id='sis_account_id:school:%s' % self.object.school_code
+            account_id='sis_account_id:school:%s' % self.object.school_code,
+            user_id='sis_user_id:%s' % self.request.user.username
         ).json()
         logger.debug("Admin list for in sis_account_id:school:%s is %s"
                      % (self.object.school_code, user_account_admin_list))
 
-        # Chained safe access to dictionary keys, see http://stackoverflow.com/a/14484580/3526824
-        matching_users = [a for a in user_account_admin_list
-                          if a.get('user', {}).get('sis_user_id', {}) == self.request.user.username]
-        logger.debug("Matches found for user=%s in admin list (matching against sis_user_id's in list): %s"
-                     % (self.request.user.username, matching_users))
-
-        return matching_users
+        return user_account_admin_list
 
 
 class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):
