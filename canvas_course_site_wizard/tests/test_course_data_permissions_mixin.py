@@ -100,8 +100,7 @@ class CourseDataPermissionsMixinTest(TestCase):
         If the admin list contains the current user, the method should return the user object from the list.
         """
         mock_user_to_find = {"user": {"id": 2, "sis_user_id": self.mixin.request.user.username}}
-        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
-        mock_user_list = [mock_user_to_find, mock_other_user]
+        mock_user_list = [mock_user_to_find]
         sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
         return_value = self.mixin.list_current_user_admin_roles_for_course()
         self.assertEqual(return_value[0], mock_user_to_find)
@@ -116,10 +115,9 @@ class CourseDataPermissionsMixinTest(TestCase):
         mock_user_to_find_first_instance = {
             "role": "SchoolLiaison", "user": {"id": 2, "sis_user_id": self.mixin.request.user.username}
         }
-        mock_user_to_find_second_instance = mock_user_to_find_first_instance
+        mock_user_to_find_second_instance = mock_user_to_find_first_instance.copy()
         mock_user_to_find_second_instance['role'] = "AccountAdmin"
-        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
-        mock_user_list = [mock_user_to_find_first_instance, mock_other_user, mock_user_to_find_second_instance]
+        mock_user_list = [mock_user_to_find_first_instance, mock_user_to_find_second_instance]
         sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
         return_value = self.mixin.list_current_user_admin_roles_for_course()
         self.assertEqual(return_value[0], mock_user_to_find_first_instance)
@@ -129,42 +127,9 @@ class CourseDataPermissionsMixinTest(TestCase):
     @patch("canvas_course_site_wizard.mixins.admins")
     def test_list_current_user_admin_roles_for_course_no_matching_users(self, sdk_admins_mock):
         """
-        If the admin list does not contain the current user, the method should return an empty list. list_account_admins
-        looks for users matching the username in the request, so it should not find that user in the mock_user_list.
+        If the admin list does not contain the current user, the method should return an empty list.
         """
-        mock_other_user = {"user": {"id": 1, "sis_user_id": "67890"}}
-        mock_user_list = [mock_other_user, mock_other_user]
+        mock_user_list = []
         sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
         return_value = self.mixin.list_current_user_admin_roles_for_course()
         self.assertEqual(return_value, [])
-
-    @patch("canvas_course_site_wizard.mixins.admins")
-    def test_list_current_user_admin_roles_for_course_safely_handle_blank_sis_user_id_no_match(self, sdk_admins_mock):
-        """
-        If the admin list contains users without sis_user_ids (blank or missing), the method should safely handle those.
-        list_account_admins looks for users matching the username in the request by sis_user_id, so it should not make
-        a match when there are blanks for a user in the mock_user_list.
-        """
-        mock_user = {"user": {"id": 1, "sis_user_id": ""}}
-        mock_other_user = {"user": {"id": 2, "sis_user_id": "67890"}}
-        mock_third_user = {"user": {"id": 3}}
-        mock_user_list = [mock_user, mock_other_user, mock_third_user]
-        sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
-        return_value = self.mixin.list_current_user_admin_roles_for_course()
-        self.assertEqual(return_value, [])
-
-    @patch("canvas_course_site_wizard.mixins.admins")
-    def test_list_current_user_admin_roles_for_course_safely_handle_blank_sis_user_id_match_found(self, sdk_admins_mock):
-        """
-        If the admin list contains users without sis_user_ids (blank or missing), the method should safely handle those.
-        list_account_admins looks for users matching the username in the request by sis_user_id, so it should not make
-        a match when there are blanks for a user in the mock_user_list, but it should continue to look for matches.
-        """
-        mock_user = {"user": {"id": 1}}
-        mock_other_user = {"user": {"id": 2, "sis_user_id": "67890"}}
-        mock_third_user = {"user": {"id": 3, "sis_user_id": self.mixin.request.user.username}}
-        mock_user_list = [mock_user, mock_other_user, mock_third_user]
-        sdk_admins_mock.list_account_admins.return_value.json.return_value = mock_user_list
-        return_value = self.mixin.list_current_user_admin_roles_for_course()
-        self.assertEqual(return_value[0], mock_third_user)
-        self.assertEqual(len(return_value), 1)
