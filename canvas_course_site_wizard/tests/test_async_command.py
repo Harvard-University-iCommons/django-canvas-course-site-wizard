@@ -1,6 +1,6 @@
 from django.test import TestCase
 from mock import patch, ANY, DEFAULT, Mock, MagicMock
-from canvas_course_site_wizard.models import CanvasContentMigrationJob
+from canvas_course_site_wizard.models import CanvasCourseGenerationJob
 from canvas_course_site_wizard.management.commands import process_async_jobs
 from canvas_course_site_wizard.exceptions import (CanvasCourseAlreadyExistsError, CopySISEnrollmentsError,
                                                   MarkOfficialError)
@@ -53,8 +53,8 @@ class CommandsTestCase(TestCase):
         self.migration = self.create_migration_job_from_setup()
 
     def create_migration_job_from_setup(self):
-        """ Create and return a new CanvasContentMigrationJob using values in setUp and return """
-        return CanvasContentMigrationJob.objects.create(
+        """ Create and return a new CanvasCourseGenerationJob using values in setUp and return """
+        return CanvasCourseGenerationJob.objects.create(
             canvas_course_id=self.canvas_course_id,
             sis_course_id=self.sis_course_id,
             content_migration_id=self.content_migration_id,
@@ -64,7 +64,7 @@ class CommandsTestCase(TestCase):
         )
 
     m_canvas_content_migration_job_with_bulk_id = Mock(
-        spec=CanvasContentMigrationJob,
+        spec=CanvasCourseGenerationJob,
         id=2,
         bulk_job_id=2,
         canvas_course_id=12345,
@@ -73,10 +73,10 @@ class CommandsTestCase(TestCase):
         created_by_user_id='123'
     )
 
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasCourseGenerationJob.objects.filter')
     def test_process_async_jobs_cm_filter_called_with(self, filter_mock, **kwargs):
         """
-        test process_async_jobs called CanvasContentMigrationJob.objects.filter with one argument
+        test process_async_jobs called CanvasCourseGenerationJob.objects.filter with one argument
         """
         start_job_with_noargs()
         filter_mock.assert_called_once_with(ANY)
@@ -107,7 +107,7 @@ class CommandsTestCase(TestCase):
         get_canvas_user_profile.assert_called_with(self.created_by_user_id)
         send_email_helper.assert_called_once_with(ANY, ANY, ANY)
 
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasCourseGenerationJob.objects.filter')
     def test_process_async_jobs_doesnt_send_email_for_bulk_created_course(self, filter_mock, client,
                                                                           send_email_helper, **kwargs):
         """
@@ -122,7 +122,7 @@ class CommandsTestCase(TestCase):
         start_job_with_noargs()
         self.assertFalse(send_email_helper.called)
 
-    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasContentMigrationJob.objects.filter')
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasCourseGenerationJob.objects.filter')
     def test_process_async_jobs_on_failure_for_bulk_course_calls_tech_logger(self, filter_mock, client,
                                                                              get_canvas_user_profile, send_email_helper,
                                                                              tech_logger, **kwargs):
@@ -241,65 +241,65 @@ class CommandsTestCase(TestCase):
     def test_job_workflow_state_saved_when_status_complete_and_finalize_throws_exception(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated to STATUS_FINALIZE_FAILED
+        Test that the  CanvasCourseGenerationJob's  workflow state is updated to STATUS_FINALIZE_FAILED
         when there is an exception in finalizing
         """
-        mock_client_json(client, CanvasContentMigrationJob.STATUS_COMPLETED)
+        mock_client_json(client, CanvasCourseGenerationJob.STATUS_COMPLETED)
         finalize_new_canvas_course.side_effect = Exception
 
         start_job_with_noargs()
-        cm = CanvasContentMigrationJob.objects.get(pk=self.migration.pk)
-        self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_FINALIZE_FAILED)
+        cm = CanvasCourseGenerationJob.objects.get(pk=self.migration.pk)
+        self.assertEqual(cm.workflow_state, CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED)
 
     def test_job_workflow_state_saved_when_status_failed_and_finalize_throws_exception(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated to failure
+        Test that the CanvasCourseGenerationJob's  workflow state is updated to failure
         regardless of whether finalizing throws an exception
         """
         mock_client_json(client, 'failed')
         finalize_new_canvas_course.side_effect = Exception
 
         start_job_with_noargs()
-        cm = CanvasContentMigrationJob.objects.get(pk=self.migration.pk)
-        self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_FAILED)
+        cm = CanvasCourseGenerationJob.objects.get(pk=self.migration.pk)
+        self.assertEqual(cm.workflow_state, CanvasCourseGenerationJob.STATUS_FAILED)
 
     def test_job_workflow_state_saved_after_finalize_success(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated from 'complete' to
-         CanvasContentMigrationJob.STATUS_FINALIZED after finalize is  successful
+        Test that the  CanvasCourseGenerationJob's  state is updated from 'complete' to
+         CanvasCourseGenerationJob.STATUS_FINALIZED after finalize is  successful
         """
-        mock_client_json(client, CanvasContentMigrationJob.STATUS_COMPLETED)
+        mock_client_json(client, CanvasCourseGenerationJob.STATUS_COMPLETED)
 
         start_job_with_noargs()
-        cm = CanvasContentMigrationJob.objects.get(pk=self.migration.pk)
-        self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_FINALIZED)
+        cm = CanvasCourseGenerationJob.objects.get(pk=self.migration.pk)
+        self.assertEqual(cm.workflow_state, CanvasCourseGenerationJob.STATUS_FINALIZED)
 
 
     def test_job_workflow_state_saved_when_finalize_fails_during_sync_to_canvas(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated from CanvasContentMigrationJob.STATUS_COMPLETED to
-         CanvasContentMigrationJob.STATUS_FINALIZE_FAILED when finalize fails due to
-         CopySISEnrollmentsError Exception(set_sync_to_canvas fails)
+        Test that the  CanvasCourseGenerationJob's workflow state is updated from
+        CanvasCourseGenerationJob.STATUS_COMPLETED to CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
+        when finalize fails due to CopySISEnrollmentsError Exception(set_sync_to_canvas fails)
         """
-        mock_client_json(client, CanvasContentMigrationJob.STATUS_COMPLETED)
+        mock_client_json(client, CanvasCourseGenerationJob.STATUS_COMPLETED)
         finalize_new_canvas_course.side_effect = CopySISEnrollmentsError
         start_job_with_noargs()
-        cm = CanvasContentMigrationJob.objects.get(pk=self.migration.pk)
-        self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_FINALIZE_FAILED)
+        cm = CanvasCourseGenerationJob.objects.get(pk=self.migration.pk)
+        self.assertEqual(cm.workflow_state, CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED)
 
     def test_job_workflow_state_saved_when_finalize_fails_due_to_mark_official(self, client,
             get_canvas_user_profile, send_email_helper, finalize_new_canvas_course, **kwargs):
         """
-        Test that the content migration workflow state is updated from CanvasContentMigrationJob.STATUS_COMPLETED to
-         CanvasContentMigrationJob.STATUS_FINALIZE_FAILED when finalize fails due to
+        Test that the  CanvasCourseGenerationJob's workflow state is updated from CanvasCourseGenerationJob.STATUS_COMPLETED to
+         CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED when finalize fails due to
          MarkOfficialError Exception (mark official failure)
         """
-        mock_client_json(client, CanvasContentMigrationJob.STATUS_COMPLETED)
+        mock_client_json(client, CanvasCourseGenerationJob.STATUS_COMPLETED)
         finalize_new_canvas_course.side_effect = MarkOfficialError
         start_job_with_noargs()
-        cm = CanvasContentMigrationJob.objects.get(pk=self.migration.pk)
-        self.assertEqual(cm.workflow_state, CanvasContentMigrationJob.STATUS_FINALIZE_FAILED)
+        cm = CanvasCourseGenerationJob.objects.get(pk=self.migration.pk)
+        self.assertEqual(cm.workflow_state, CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED)
 

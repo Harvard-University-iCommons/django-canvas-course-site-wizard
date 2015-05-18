@@ -15,7 +15,7 @@ from .controller import (create_canvas_course, start_course_template_copy,
 from .mixins import CourseSiteCreationAllowedMixin
 from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
-from .models import (CanvasContentMigrationJob,
+from .models import (CanvasCourseGenerationJob,
                      BulkCanvasCourseCreationJob)
 from icommons_common.models import Term
 from braces.views import LoginRequiredMixin
@@ -38,8 +38,8 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
         sis_user_id = 'sis_user_id:%s' % request.user.username
         course = create_canvas_course(sis_course_id, request.user.username)
         try:
-            migration_job = start_course_template_copy(self.object, course['id'], request.user.username)
-            return redirect('ccsw-status', migration_job.pk)
+            course_generation_job = start_course_template_copy(self.object, course['id'], request.user.username)
+            return redirect('ccsw-status', course_generation_job.pk)
         except NoTemplateExistsForSchool:
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
@@ -50,7 +50,7 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
 class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
     """ Displays status of async job for template copy """
     template_name = "canvas_course_site_wizard/status.html"
-    model = CanvasContentMigrationJob
+    model = CanvasCourseGenerationJob
     context_object_name = 'content_migration_job'
 
     def get_context_data(self, **kwargs):
@@ -60,7 +60,7 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         get_canvas_course_url.
         """
         context = super(CanvasCourseSiteStatusView, self).get_context_data(**kwargs)
-        logger.debug('Rendering status page for migration job %s' % self.object)
+        logger.debug('Rendering status page for course generation job %s' % self.object)
         context['canvas_course_url'] = get_canvas_course_url(canvas_course_id=self.object.canvas_course_id)
         return context
 

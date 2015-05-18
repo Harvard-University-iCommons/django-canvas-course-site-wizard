@@ -39,7 +39,7 @@ class CopySISEnrollmentsError(RenderableExceptionWithDetails):
 class MarkOfficialError(RenderableExceptionWithDetails):
     display_text = 'Official flag or external URL not set for CID {0}'
 
-class ContentMigrationJobCreationError(RenderableExceptionWithDetails):
+class CourseGenerationJobCreationError(RenderableExceptionWithDetails):
     display_text = 'Error: Unable to setup Canvas Course Creation for CID {0}'
 
 class CanvasCourseCreateError(RenderableExceptionWithDetails):

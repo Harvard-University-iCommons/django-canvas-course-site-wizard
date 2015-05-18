@@ -13,8 +13,8 @@ from canvas_course_site_wizard.controller import (get_canvas_user_profile,
                                                   start_course_template_copy,
                                                   finalize_new_canvas_course)
 from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJobProxy as BulkJob,
-                                              CanvasContentMigrationJobProxy)
-from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool, CanvasCourseAlreadyExistsError, ContentMigrationJobCreationError)
+                                              CanvasCourseGenerationJobProxy)
+from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool, CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
 
@@ -102,11 +102,11 @@ class Command(NoArgsCommand):
 
 def _init_courses_with_status_setup():
     """
-    get all records in the content migration table that have the status 'setup'.
-    These are courses that have not been created, they only have a CanvasContentMigrationJob with a 'setup' status.
+    get all records in the canvas course generation job table that have the status 'setup'.
+    These are courses that have not been created, they only have a CanvasCourseGenerationJob with a 'setup' status.
     This method will create the course and update the status to QUEUED
     """
-    create_jobs = CanvasContentMigrationJobProxy.get_jobs_by_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP)
+    create_jobs = CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP)
 
     # for each or the records above, create the course and update the status
     for create_job in create_jobs:
@@ -115,30 +115,30 @@ def _init_courses_with_status_setup():
         # needed by the calls to create the course below
         bulk_job_id = create_job.bulk_job_id
         if not bulk_job_id:
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
 
         sis_user_id = create_job.created_by_user_id
         if not sis_user_id:
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
 
         sis_course_id = create_job.sis_course_id
         if not sis_course_id:
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
 
         # try to create the canvas course - create_canvas_course has been modified so it will not
-        # try to create a new CanvasContentMigrationJob record if a bulk_job_id is present
+        # try to create a new CanvasCourseGenerationJob record if a bulk_job_id is present
         try:
             logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
             course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
         except CanvasCourseAlreadyExistsError:
             message = 'course already exists in canvas with id %s' % sis_course_id
             logger.exception(message)
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
             continue
-        except ContentMigrationJobCreationError:
+        except CourseGenerationJobCreationError:
             message = 'content migration error for course with id %s' % sis_course_id
             logger.exception(message)
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
             continue
 
         # get the course data - this is needed for the start_course_template_copy method
@@ -147,7 +147,7 @@ def _init_courses_with_status_setup():
         except ObjectDoesNotExist as ex:
             message = 'Course id %s does not exist, skipping....' % sis_course_id
             logger.exception(message)
-            create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
             continue
 
         # initiate the async job to copy the course template. If no template exists, that's ok,
@@ -157,7 +157,7 @@ def _init_courses_with_status_setup():
         except NoTemplateExistsForSchool:
             logger.exception('no template for course instance id %s' % sis_course_id)
 
-        create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_QUEUED)
+        create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_QUEUED)
 
 def _send_notification(job):
     """
