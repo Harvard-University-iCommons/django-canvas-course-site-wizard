@@ -1,11 +1,11 @@
 from django.test import TestCase
 from mock import patch, ANY, DEFAULT, Mock, MagicMock, call
 from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs import _init_courses_with_status_setup
-from canvas_course_site_wizard.models import CanvasContentMigrationJobProxy
+from canvas_course_site_wizard.models import CanvasCourseGenerationJobProxy
 from canvas_course_site_wizard.management.commands import finalize_bulk_create_jobs
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseAlreadyExistsError,
-                                                  ContentMigrationJobCreationError)
+                                                  CourseGenerationJobCreationError)
 def start_job_with_noargs():
     cmd = finalize_bulk_create_jobs.Command()
     cmd.handle_noargs()
@@ -52,15 +52,15 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
                 self.bulk_job_id,
                 self.user_id,
                 course,
-                CanvasContentMigrationJobProxy.STATUS_SETUP
+                CanvasCourseGenerationJobProxy.STATUS_SETUP
             )
             self.cm_jobs.append(migration_job)
             self.create_logger_calls.append(call('course already exists in canvas with id %s' % course))
             self.content_migration_error_calls.append(call('content migration error for course with id %s' % course))
             self.template_calls.append(call('no template for course instance id %s' % course))
 
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasContentMigrationJobProxy.get_jobs_by_workflow_state')
-    def test_1237(self, mock_getjobs, get_course_data, create_canvas_course, start_course_template_copy):
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    def test_that_create_course_is_call_with_all_bulk_job_courses(self, mock_getjobs, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that create_canvas_course is called with all the courses that have a status of 'setup'
         """
@@ -69,10 +69,10 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         create_canvas_course.assert_has_calls(self.create_course_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasContentMigrationJobProxy.get_jobs_by_workflow_state')
-    def test_1238(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    def test_that_logger_is_called_when_course_already_exists(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
-        test that create_canvas_course is called with all the courses that have a status of 'setup'
+        test that logger is called when the course already exists in canvas
         """
         mock_getjobs.return_value = self.cm_jobs
         create_canvas_course.side_effect = CanvasCourseAlreadyExistsError(msg_details=123)
@@ -80,21 +80,21 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         mock_logger.assert_has_calls(self.create_logger_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasContentMigrationJobProxy.get_jobs_by_workflow_state')
-    def test_1238(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    def test_that_logger_is_called_when_course_generation_fails(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
-        test that create_canvas_course is called with all the courses that have a status of 'setup'
+        test that logger is called when the course generation fails
         """
         mock_getjobs.return_value = self.cm_jobs
-        create_canvas_course.side_effect = ContentMigrationJobCreationError(msg_details=123)
+        create_canvas_course.side_effect = CourseGenerationJobCreationError(msg_details=123)
         _init_courses_with_status_setup()
         mock_logger.assert_has_calls(self.content_migration_error_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasContentMigrationJobProxy.get_jobs_by_workflow_state')
-    def test_1238(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    def test_that_logger_is_called_when_no_template_exists(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
-        test that create_canvas_course is called with all the courses that have a status of 'setup'
+        test that logger is called when there is no course template
         """
         mock_getjobs.return_value = self.cm_jobs
         start_course_template_copy.side_effect = NoTemplateExistsForSchool(self.school_code)

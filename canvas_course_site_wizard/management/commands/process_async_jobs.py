@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db.models import Q
 from canvas_course_site_wizard.controller import (get_canvas_user_profile, send_email_helper, send_failure_email,
                                                   finalize_new_canvas_course)
-from canvas_course_site_wizard.models import CanvasContentMigrationJob
+from canvas_course_site_wizard.models import CanvasCourseGenerationJob
 from canvas_sdk import client
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 from icommons_ui.exceptions import RenderableException
@@ -22,14 +22,14 @@ tech_logger = logging.getLogger('tech_mail')
 
 class Command(NoArgsCommand):
     """
-    Process the Content Migration jobs in the CanvasContentMigrationJob table.
-        To invoke this Command type "python manage.py process_async_jobs"
+    Process the Canvas course generation jobs in the CanvasCourseGenerationJob table.
+    To invoke this Command type "python manage.py process_async_jobs"
     """
-    help = "Process the Content Migration jobs in the CanvasContentMigrationJob table"
+    help = "Process the Canvas course generation jobs in the CanvasCourseGenerationJob table"
 
     def handle_noargs(self, **options):
         """
-        select all the active job in the CanvasContentMigrationJob table and check
+        select all the active job in the CanvasCourseGenerationJob table and check
         the status using the canvas_sdk.progress method
         """
 
@@ -43,7 +43,7 @@ class Command(NoArgsCommand):
             logger.error("another instance of the command is already running")
             return
 
-        jobs = CanvasContentMigrationJob.objects.filter(Q(workflow_state=CanvasContentMigrationJob.STATUS_QUEUED) | Q(workflow_state=CanvasContentMigrationJob.STATUS_RUNNING))
+        jobs = CanvasCourseGenerationJob.objects.filter(Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING))
 
         for job in jobs:
             try:
@@ -65,7 +65,7 @@ class Command(NoArgsCommand):
                     logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
                     # Update the Job table with the completed state immediately to indicate that the template
                     # migration was successful
-                    job.workflow_state = CanvasContentMigrationJob.STATUS_COMPLETED
+                    job.workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
                     job.save(update_fields=['workflow_state'])
 
                     logger.debug('Workflow state updated, starting finalization process...')
@@ -79,13 +79,13 @@ class Command(NoArgsCommand):
                         # and then re raise it so that generic tasks like tech logger, email generation will continue
                         # to be handled in the larger try block
 
-                        job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZE_FAILED
+                        job.workflow_state = CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
                         job.save(update_fields=['workflow_state'])
 
                         raise
 
                     # Update the Job table with the STATUS_FINALIZED state if finalize is successful
-                    job.workflow_state = CanvasContentMigrationJob.STATUS_FINALIZED
+                    job.workflow_state = CanvasCourseGenerationJob.STATUS_FINALIZED
                     job.save(update_fields=['workflow_state'])
 
                     # if this is not a bulk_job then proceed with email generation to user
@@ -107,7 +107,7 @@ class Command(NoArgsCommand):
                     tech_logger.error(error_text)
 
                     # Update the Job table with the new state
-                    job.workflow_state = CanvasContentMigrationJob.STATUS_FAILED
+                    job.workflow_state = CanvasCourseGenerationJob.STATUS_FAILED
                     job.save(update_fields=['workflow_state'])
 
                     if not job.bulk_job_id:
