@@ -468,7 +468,7 @@ def setup_bulk_jobs(courses, sis_user_id, bulk_job_id):
             job.status = BulkCanvasCourseCreationJob.STATUS_PENDING
             job.save(update_fields=['status'])
         except ObjectDoesNotExist:
-            message = 'bulk job with is %s run by user %s does not exits' % (bulk_job_id, sis_user_id)
+            message = 'bulk job with id %s run by user %s does not exits' % (bulk_job_id, sis_user_id)
             logger.exception(message)
             errors.append(message)
 

@@ -108,13 +108,12 @@ class CreateCanvasCourseTest(TestCase):
     def test_create_canvas_course_method_invokes_create_migration_record_for_bulk_job(self, canvas_content_mgrn_create, get_course_data,
                                                              create_course_section, create_new_course, **kwargs):
         """
-        Test that create_canvas_course method invokes a creation of CanvasContentMigrationJob record
+        Test that create_canvas_course method does not invoke a creation of CanvasContentMigrationJob record
         with  workflow_state to STATUS_SETUP , for courses created by bulk job as well
         """
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-        self.assertTrue(canvas_content_mgrn_create.called)
-        canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
-                                                      workflow_state=CanvasContentMigrationJob.STATUS_SETUP)
+        self.assertFalse(canvas_content_mgrn_create.called)
+
 
 
 

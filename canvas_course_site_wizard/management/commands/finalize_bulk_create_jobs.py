@@ -10,8 +10,7 @@ from canvas_course_site_wizard.controller import (get_canvas_user_profile,
                                                   send_email_helper,
                                                   create_canvas_course,
                                                   get_course_data,
-                                                  start_course_template_copy,
-                                                  finalize_new_canvas_course)
+                                                  start_course_template_copy)
 from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJobProxy as BulkJob,
                                               CanvasContentMigrationJobProxy)
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool, CanvasCourseAlreadyExistsError, ContentMigrationJobCreationError)
@@ -107,23 +106,25 @@ def _init_courses_with_status_setup():
     This method will create the course and update the status to QUEUED
     """
     create_jobs = CanvasContentMigrationJobProxy.get_jobs_by_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP)
-
     # for each or the records above, create the course and update the status
     for create_job in create_jobs:
-
         # for each job we need to get the bulk_job_id, user, and course id, these are
-        # needed by the calls to create the course below
+        # needed by the calls to create the course below. I f any of these break, mark the course as failed
+        # and continue to the next course.
         bulk_job_id = create_job.bulk_job_id
         if not bulk_job_id:
             create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            continue
 
         sis_user_id = create_job.created_by_user_id
         if not sis_user_id:
             create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            continue
 
         sis_course_id = create_job.sis_course_id
         if not sis_course_id:
             create_job.update_workflow_state(CanvasContentMigrationJobProxy.STATUS_SETUP_FAILED)
+            continue
 
         # try to create the canvas course - create_canvas_course has been modified so it will not
         # try to create a new CanvasContentMigrationJob record if a bulk_job_id is present
