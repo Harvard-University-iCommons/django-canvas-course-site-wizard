@@ -214,7 +214,8 @@ class CanvasCourseGenerationJobProxy(CanvasCourseGenerationJob):
         Get all bulk jobs for the given workflow state
         Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
         """
-        return list(CanvasCourseGenerationJob.objects.filter(workflow_state=workflow_state, bulk_job_id__isnull=False))
+        return list(CanvasCourseGenerationJob.objects.filter(workflow_state=workflow_state).exclude(bulk_job_id__isnull=True))
+
 
     def update_workflow_state(self, workflow_state, raise_exception=False):
         """
