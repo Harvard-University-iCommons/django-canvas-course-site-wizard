@@ -70,7 +70,7 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         mock_getjobs.return_value = self.cm_jobs
         create_logger_calls = []
         for course in self.courses:
-            create_logger_calls.append(call('course already exists in canvas with id %s' % course))
+            create_logger_calls.append(call('content migration error for course with id %s' % course))
 
         create_canvas_course.side_effect = CanvasCourseAlreadyExistsError(msg_details=123)
         _init_courses_with_status_setup()
