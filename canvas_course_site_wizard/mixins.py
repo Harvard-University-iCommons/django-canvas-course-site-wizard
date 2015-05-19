@@ -15,31 +15,6 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
 logger = logging.getLogger(__name__)
 
-
-class TermDataMixin(SingleObjectMixin):
-    """
-    Retrieve an sis course data object and store in context
-    """
-    context_object_name = 'course_data'
-
-    def get_object(self, queryset=None):
-        """ Retrieve course data object by primary key """
-        # Try looking up by primary key.
-        pk = self.kwargs.get(self.pk_url_kwarg, None)
-        if pk is None:
-            raise AttributeError("Course data detail view %s must be called with an object pk."
-                                 % self.__class__.__name__)
-
-        try:
-            logger.debug("inside get_object of %s about to retrieve term object!" % self.__class__.__name__)
-            #course_data = get_course_data(pk)
-            term_data = get_term_data(pk)
-        except ObjectDoesNotExist:
-            raise Http404(_("No %s found for the given key %s" % ('term_data', pk)))
-
-        return course_data
-
-
 class CourseDataMixin(SingleObjectMixin):
     """
     Retrieve an sis course data object and store in context
@@ -61,7 +36,6 @@ class CourseDataMixin(SingleObjectMixin):
             raise Http404(_("No %s found for the given key %s" % ('course_data', pk)))
 
         return course_data
-
 
 class CourseDataPermissionsMixin(CourseDataMixin):
     """
