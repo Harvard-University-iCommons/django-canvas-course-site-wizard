@@ -103,20 +103,15 @@ class CreateCanvasCourseTest(TestCase):
         canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
                                                       workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
 
-    @skip('Will be fixed in TLT-1487')
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
-    def test_create_canvas_course_method_invokes_create_migration_record_for_bulk_job(self, canvas_content_mgrn_create, get_course_data,
+    def test_create_canvas_course_method_does_not_invoke_create_migration_record_for_bulk_job(self, canvas_content_mgrn_create, get_course_data,
                                                              create_course_section, create_new_course, **kwargs):
         """
-        Test that create_canvas_course method invokes a creation of CanvasCourseGenerationJob record
-        with  workflow_state to STATUS_SETUP , for courses created by bulk job as well
+        Test that create_canvas_course method does not try to create CanvasCourseGenerationJob record
+        for courses created by bulk job as well
         """
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-        self.assertTrue(canvas_content_mgrn_create.called)
-        canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
-                                                      workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
-
-
+        self.assertFalse(canvas_content_mgrn_create.called)
 
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob')
     def test_create_canvas_course_method_creates_migration_record(self, canvas_content_mgrn_db_mock, get_course_data,
@@ -131,7 +126,6 @@ class CreateCanvasCourseTest(TestCase):
         canvas_content_mgrn_db_mock.objects.create.assert_called_with(sis_course_id=self.sis_course_id,
                                                                       created_by_user_id=self.sis_user_id,
                                                                       workflow_state=ANY)
-
 
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
@@ -154,7 +148,6 @@ class CreateCanvasCourseTest(TestCase):
         canvas_content_mgrn_db_mock.side_effect= Exception
         with self.assertRaises(CourseGenerationJobCreationError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-
 
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
     def test_404_exception_n_create_new_course_method_invokes_update_workflow_state(self, update_mock, get_course_data,
