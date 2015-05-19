@@ -15,7 +15,6 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
 logger = logging.getLogger(__name__)
 
-
 class CourseDataMixin(SingleObjectMixin):
     """
     Retrieve an sis course data object and store in context
@@ -37,7 +36,6 @@ class CourseDataMixin(SingleObjectMixin):
             raise Http404(_("No %s found for the given key %s" % ('course_data', pk)))
 
         return course_data
-
 
 class CourseDataPermissionsMixin(CourseDataMixin):
     """
@@ -91,7 +89,6 @@ class CourseDataPermissionsMixin(CourseDataMixin):
 
         return user_account_admin_list
 
-
 class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):
 
     """
@@ -107,3 +104,49 @@ class CourseSiteCreationAllowedMixin(CourseDataPermissionsMixin):
                 "You must be a member of the course staff or an account admin to perform this action!"
             )
         return super(CourseSiteCreationAllowedMixin, self).dispatch(request, *args, **kwargs)
+
+class BulkCourseSiteCreationAllowedMixin(SingleObjectMixin):
+
+    """
+    Processes permission checks required for initiating bulk course creation.  Being a mixin allows for a
+    view to implement multiple mixins that override dispatch.
+    """
+
+    def list_current_user_admin_roles_for_course(self):
+        """
+        Make an API call to Canvas that returns the list of account admins associated with the course's
+        school.  Limit result set to the currently logged in user.  The list can be used for truth testing
+        conditions.
+
+        :return: Canvas account admin information (response of admin request), limited to current user
+        :rtype: list of account admin Python objects (converted from return value of SDK call)
+        :raises: Exception from SDK
+        """
+        if not self.object:  # Make sure we have the term data
+            logger.debug('getting object in list_current_user_admin_roles_for_course')
+            self.object = self.get_object()
+
+        # List account admins for school associated with term. TLT-1132 specified that only school-level admins
+        # will have access to the bulk course creation process for now,
+
+        # todo remove this after verification
+        print '%s' % self.object.school_id
+        user_account_admin_list = admins.list_account_admins(
+            request_ctx=SDK_CONTEXT,
+            account_id='sis_account_id:school:%s' % self.object.school_id,
+            user_id='sis_user_id:%s' % self.request.user.username
+        ).json()
+        logger.debug("Admin list for in sis_account_id:school:%s is %s"
+                     % (self.object.school_id, user_account_admin_list))
+
+        return user_account_admin_list
+
+    def dispatch(self, request, *args, **kwargs):
+        # Retrieve the term data object and determine if user can go ahead with creation
+        self.object = self.get_object()
+
+        if not self.list_current_user_admin_roles_for_course():
+            raise PermissionDenied(
+                "You must be an account admin to perform this action!"
+            )
+        return super(BulkCourseSiteCreationAllowedMixin, self).dispatch(request, *args, **kwargs)
