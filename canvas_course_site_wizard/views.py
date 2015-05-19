@@ -12,7 +12,8 @@ from .controller import (create_canvas_course, start_course_template_copy,
                          get_bulk_jobs_for_term, get_term_course_counts,
                          is_bulk_job_in_progress, get_courses_for_bulk_create,
                          setup_bulk_jobs)
-from .mixins import CourseSiteCreationAllowedMixin
+from .mixins import (CourseSiteCreationAllowedMixin,
+                     BulkCourseSiteCreationAllowedMixin)
 from icommons_ui.mixins import CustomErrorPageMixin
 from .exceptions import NoTemplateExistsForSchool
 from .models import (CanvasCourseGenerationJob,
@@ -20,9 +21,7 @@ from .models import (CanvasCourseGenerationJob,
 from icommons_common.models import Term
 from braces.views import LoginRequiredMixin
 
-
 logger = logging.getLogger(__name__)
-
 
 class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMixin, CustomErrorPageMixin, TemplateView):
     """
@@ -65,7 +64,7 @@ class CanvasCourseSiteStatusView(LoginRequiredMixin, DetailView):
         return context
 
 
-class CanvasBulkCreateStatusView(LoginRequiredMixin, DetailView):
+class CanvasBulkCreateStatusView(LoginRequiredMixin, BulkCourseSiteCreationAllowedMixin, DetailView):
     """
     Displays term info and the bulk create button, also gives the user
     a link back the the term tool term edit page
