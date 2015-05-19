@@ -13,7 +13,11 @@ from canvas_course_site_wizard.controller import (get_canvas_user_profile,
                                                   start_course_template_copy)
 from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJobProxy as BulkJob,
                                               CanvasCourseGenerationJobProxy)
-from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool, CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError)
+from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
+                                                  CanvasCourseAlreadyExistsError,
+                                                  CourseGenerationJobCreationError,
+                                                  CanvasCourseCreateError,
+                                                  CanvasSectionCreateError)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
 
@@ -133,12 +137,8 @@ def _init_courses_with_status_setup():
         try:
             logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
             course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
-        except CanvasCourseAlreadyExistsError:
-            message = 'course already exists in canvas with id %s' % sis_course_id
-            logger.exception(message)
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
-            continue
-        except CourseGenerationJobCreationError:
+        except (CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError, CanvasCourseCreateError,
+                CanvasSectionCreateError):
             message = 'content migration error for course with id %s' % sis_course_id
             logger.exception(message)
             create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
@@ -176,7 +176,7 @@ def _send_notification(job):
 
     try:
         canvas_user_profile = get_canvas_user_profile(job.created_by_user_id)
-        notification_to_address_list = list(canvas_user_profile['primary_email'])
+        notification_to_address_list = [canvas_user_profile['primary_email']]
     except Exception as e:
         # todo: do we need all these multilayered logs?
         error_text = (
