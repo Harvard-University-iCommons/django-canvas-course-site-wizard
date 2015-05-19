@@ -1,7 +1,7 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase, skip
-from icommons_common.models import (Course, Term, School)
+from icommons_common.models import (Course, Term, School, TermCode)
 from mock import patch
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
@@ -29,7 +29,6 @@ def _create_subjob(content_migration_id, canvas_course_id=1, sis_course_id='1',
 
 
 class BulkCanvasCourseCreationJobProxyIntegrationTests(TestCase):
-
     @classmethod
     def setUpClass(cls):
         """
@@ -114,7 +113,6 @@ class BulkCanvasCourseCreationJobProxyIntegrationTests(TestCase):
 
 
 class BulkCanvasCourseCreationJobProxyTests(TestCase):
-
     @patch('canvas_course_site_wizard.models.BulkCanvasCourseCreationJobProxy.save')
     def test_update_status_success(self, m_save):
         """ If no exception is raised in the save() call then the function should return True (indicating success) """
@@ -148,33 +146,67 @@ class BulkCanvasCourseCreationJobProxyTests(TestCase):
 
 
 class SISCourseDataIntegrationTests(TestCase):
+    school = None
+    term_code_active = None
+    term_code_inactive = None
+    term_shopping_active = None
+    term_shopping_inactive = None
 
-    @skip('Technical Debt: TLT-1467')
+    @classmethod
+    def setUpClass(cls):
+        cls.school = School.objects.create(school_id='siscdi_int')
+        cls.term_code_active = TermCode.objects.create(term_code=1)
+        cls.term_code_inactive = TermCode.objects.create(term_code=2)
+        term_shopping_active_specs = {
+            'term_code': cls.term_code_active,
+            'shopping_active': True
+        }
+        term_shopping_inactive_specs = {
+            'term_code': cls.term_code_inactive,
+            'shopping_active': False
+        }
+        term_specs_common = {
+            'academic_year': 2015,
+            'calendar_year': 2015,
+            'school': cls.school,
+            'active': True,
+            'xreg_available': True,
+            'include_in_catalog': True,
+            'include_in_preview': True,
+        }
+        term_shopping_active_specs.update(term_specs_common)
+        term_shopping_inactive_specs.update(term_specs_common)
+        cls.term_shopping_active = Term.objects.create(**term_shopping_active_specs)
+        cls.term_shopping_inactive = Term.objects.create(**term_shopping_inactive_specs)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.school.delete()
+        cls.term_code_active.delete()
+        cls.term_code_inactive.delete()
+        cls.term_shopping_active.delete()
+        cls.term_shopping_inactive.delete()
+
     def test_shopping_active(self):
         """ shopping is active for the course if course's term is shoppable and the course is not excluded """
-        term = Term(shopping_active=True)
         sis_course_data = SISCourseData(
-            term=term,
+            term=self.term_shopping_active,
             exclude_from_shopping=False
         )
         self.assertTrue(sis_course_data.shopping_active)
 
-    @skip('Technical Debt: TLT-1467')
     def test_shopping_inactive_when_excluded(self):
         """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
-        term = Term(shopping_active=True)
         sis_course_data = SISCourseData(
-            term=term,
+            term=self.term_shopping_active,
             exclude_from_shopping=True
         )
         self.assertFalse(sis_course_data.shopping_active)
 
-    @skip('Technical Debt: TLT-1467')
     def test_shopping_inactive_when_term_inactive(self):
         """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
-        term = Term(shopping_active=False)
         sis_course_data = SISCourseData(
-            term=term,
+            term=self.term_shopping_inactive,
             exclude_from_shopping=False
         )
         self.assertFalse(sis_course_data.shopping_active)
