@@ -122,12 +122,14 @@ class BulkCourseSiteCreationAllowedMixin(SingleObjectMixin):
         :rtype: list of account admin Python objects (converted from return value of SDK call)
         :raises: Exception from SDK
         """
-        if not self.object:  # Make sure we have the course data
+        if not self.object:  # Make sure we have the term data
             logger.debug('getting object in list_current_user_admin_roles_for_course')
             self.object = self.get_object()
 
-        # List account admins for school associated with course. TLT-1132 specified that only school-level admins
+        # List account admins for school associated with term. TLT-1132 specified that only school-level admins
         # will have access to the bulk course creation process for now,
+
+        # todo remove this after verification
         print '%s' % self.object.school_id
         user_account_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
