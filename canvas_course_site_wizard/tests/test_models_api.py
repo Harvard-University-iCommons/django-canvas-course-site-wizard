@@ -1,9 +1,16 @@
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.test import TestCase
-from canvas_course_site_wizard.models_api import (get_template_for_school, get_courses_for_term, get_bulk_job_records_for_term, select_courses_for_bulk_create)
-from canvas_course_site_wizard.models import CanvasSchoolTemplate
-from setup_bulk_jobs import create_bulk_jobs
+
 from mock import patch, call
+
+from canvas_course_site_wizard.models_api import (
+    get_template_for_school,
+    get_courses_for_term,
+    get_bulk_job_records_for_term,
+    select_courses_for_bulk_create
+)
+from canvas_course_site_wizard.models import CanvasSchoolTemplate
+from setup_bulk_jobs import create_jobs
 
 
 class ModelsApiTest(TestCase):
@@ -13,7 +20,7 @@ class ModelsApiTest(TestCase):
         self.school_id = 'fas'
         self.template_id = 123456
         self.term_id = 4545
-        create_bulk_jobs(self.term_id)
+        create_jobs(self.school_id, self.term_id)
 
     def test_single_template_exists_for_school(self):
         """ Data api method should return the template_id for a given school that has a matching row """
@@ -75,8 +82,8 @@ class ModelsApiTest(TestCase):
         """
         test_data_set = [
             '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=4: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4545)>',
+            '<BulkCanvasCourseCreationJob: (BulkJob ID=3: sis_term_id=4545)>',
         ]
 
         records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
