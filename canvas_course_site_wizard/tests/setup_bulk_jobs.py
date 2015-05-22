@@ -1,19 +1,26 @@
-from canvas_course_site_wizard.models import BulkCanvasCourseCreationJob
 import datetime
 
-STATUSES = [BulkCanvasCourseCreationJob.STATUS_FINALIZING, BulkCanvasCourseCreationJob.STATUS_NOTIFICATION_FAILED,
-            BulkCanvasCourseCreationJob.STATUS_NOTIFICATION_SUCCESSFUL, BulkCanvasCourseCreationJob.STATUS_PENDING,
-            BulkCanvasCourseCreationJob.STATUS_SETUP]
+from canvas_course_site_wizard.models import BulkCanvasCourseCreationJob, CanvasCourseGenerationJob
 
 
-def create_bulk_jobs(term_id):
-    created_at = datetime.datetime.now()
-    updated_at = datetime.datetime.now()
-    for status in STATUSES:
-        BulkCanvasCourseCreationJob.objects.create(
-            sis_term_id=term_id,
+def create_jobs(school_id, sis_term_id, sis_department_id=None, sis_course_group_id=None):
+    """
+    Create one BulkCanvasCourseCreationJob for each status
+    Create one CanvasCourseGenerationJob for each status for each BulkCanvasCourseCreationJob created
+    """
+    for (status, _) in BulkCanvasCourseCreationJob.STATUS_CHOICES:
+        bulk_job = BulkCanvasCourseCreationJob.objects.create(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            sis_course_group_id=sis_course_group_id,
             status=status,
-            created_at=created_at,
-            updated_at=updated_at)
-
-
+            created_by_user_id="10564158"
+        )
+        for (workflow_state, _) in CanvasCourseGenerationJob.WORKFLOW_STATUS_CHOICES:
+            CanvasCourseGenerationJob.objects.create(
+                sis_course_id=1111,
+                workflow_state=workflow_state,
+                created_by_user_id="10564158",
+                bulk_job_id=bulk_job.id
+            )

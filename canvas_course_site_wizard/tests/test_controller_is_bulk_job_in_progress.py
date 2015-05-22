@@ -1,6 +1,6 @@
 from unittest import TestCase
 from canvas_course_site_wizard.controller import is_bulk_job_in_progress
-from setup_bulk_jobs import create_bulk_jobs
+from setup_bulk_jobs import create_jobs
 
 
 class TestControllerIsBulkJobInProgress(TestCase):
@@ -10,8 +10,9 @@ class TestControllerIsBulkJobInProgress(TestCase):
 
     def setUp(self):
         self.template_id = 123456
+        self.school_id = 'colgsas'
         self.term_id = 4848
-        create_bulk_jobs(self.term_id)
+        create_jobs(self.school_id, self.term_id)
 
     def test_is_bulk_job_in_progress_when_true(self):
         """

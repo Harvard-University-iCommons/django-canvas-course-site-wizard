@@ -1,13 +1,14 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase, skip
-from icommons_common.models import (Course, Term, School, TermCode)
-from mock import patch
+from mock import patch, Mock
+from icommons_common.models import Course, CourseInstance, Term, School, TermCode
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
     CanvasCourseGenerationJob as SubJob,
     SISCourseData
 )
+from setup_bulk_jobs import create_jobs
 
 
 def _create_bulk_job(sis_term_id=1, status=BulkJob.STATUS_SETUP):
@@ -144,8 +145,8 @@ class BulkCanvasCourseCreationJobProxyTests(TestCase):
         self.assertTrue(m_save.called)
         self.assertFalse(result)
 
-
 class SISCourseDataIntegrationTests(TestCase):
+
     school = None
     term_code_active = None
     term_code_inactive = None
@@ -154,9 +155,12 @@ class SISCourseDataIntegrationTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.school = School.objects.create(school_id='siscdi_int')
-        cls.term_code_active = TermCode.objects.create(term_code=1)
-        cls.term_code_inactive = TermCode.objects.create(term_code=2)
+        cls.school = Mock(spec=School)
+        cls.school.school_id='siscdi_int'
+        cls.term_code_active = Mock(spec=TermCode)
+        cls.term_code_active.term_code = 1
+        cls.term_code_inactive = Mock(spec=TermCode)
+        cls.term_code_inactive.term_code = 2
         term_shopping_active_specs = {
             'term_code': cls.term_code_active,
             'shopping_active': True
@@ -166,6 +170,7 @@ class SISCourseDataIntegrationTests(TestCase):
             'shopping_active': False
         }
         term_specs_common = {
+            'term_id': 1,
             'academic_year': 2015,
             'calendar_year': 2015,
             'school': cls.school,
@@ -176,8 +181,10 @@ class SISCourseDataIntegrationTests(TestCase):
         }
         term_shopping_active_specs.update(term_specs_common)
         term_shopping_inactive_specs.update(term_specs_common)
-        cls.term_shopping_active = Term.objects.create(**term_shopping_active_specs)
-        cls.term_shopping_inactive = Term.objects.create(**term_shopping_inactive_specs)
+        cls.term_shopping_active = Mock(spec=Term)
+        cls.term_shopping_active.configure_mock(**term_shopping_active_specs)
+        cls.term_shopping_inactive = Mock(spec=Term)
+        cls.term_shopping_inactive.configure_mock(**term_shopping_inactive_specs)
 
     @classmethod
     def tearDownClass(cls):
@@ -210,3 +217,151 @@ class SISCourseDataIntegrationTests(TestCase):
             exclude_from_shopping=False
         )
         self.assertFalse(sis_course_data.shopping_active)
+
+
+class CanvasCourseGenerationJobTests(TestCase):
+
+    def setUp(self):
+        self.school_id = 'colgsas'
+        self.term_id = 4848
+        create_jobs(self.school_id, self.term_id)
+
+    def test_status_display_name_setup(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_SETUP)][0]
+        self.assertEqual(job.status_display_name, 'Queued')
+
+    def test_status_display_name_setup_failed(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_SETUP_FAILED)][0]
+        self.assertEqual(job.status_display_name, 'Failed')
+
+    def test_status_display_name_queued(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_QUEUED)][0]
+        self.assertEqual(job.status_display_name, 'Queued')
+
+    def test_status_display_name_running(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_RUNNING)][0]
+        self.assertEqual(job.status_display_name, 'Running')
+
+    def test_status_display_name_completed(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_COMPLETED)][0]
+        self.assertEqual(job.status_display_name, 'Running')
+
+    def test_status_display_name_failed(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_FAILED)][0]
+        self.assertEqual(job.status_display_name, 'Failed')
+
+    def test_status_display_name_finalized(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_FINALIZED)][0]
+        self.assertEqual(job.status_display_name, 'Complete')
+
+    def test_status_display_name_finalize_failed(self):
+        job = [j for j in SubJob.objects.filter(workflow_state=SubJob.STATUS_FINALIZE_FAILED)][0]
+        self.assertEqual(job.status_display_name, 'Failed')
+
+    def test_filter_complete(self):
+        bulk_job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)][0]
+        self.assertEqual(SubJob.objects.filter_complete(bulk_job_id=bulk_job.id).count(), 4)
+
+    def test_filter_successful(self):
+        bulk_job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)][0]
+        self.assertEqual(SubJob.objects.filter_successful(bulk_job_id=bulk_job.id).count(), 1)
+
+    def test_filter_successful(self):
+        bulk_job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)][0]
+        self.assertEqual(SubJob.objects.filter_failed(bulk_job_id=bulk_job.id).count(), 3)
+
+
+class BulkCanvasCourseCreationJobTests(TestCase):
+
+    def setUp(self):
+        self.school_id = 'colgsas'
+        self.term_id = 4848
+        create_jobs(self.school_id, self.term_id)
+
+    def test_status_display_name_setup(self):
+        job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_SETUP)][0]
+        self.assertEqual(job.status_display_name, 'Queued')
+
+    def test_status_display_name_pending(self):
+        job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_PENDING)][0]
+        self.assertEqual(job.status_display_name, 'Running')
+
+    def test_status_display_name_finalizing(self):
+        job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_FINALIZING)][0]
+        self.assertEqual(job.status_display_name, 'Running')
+
+    def test_status_display_name_notification_failed(self):
+        job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_FAILED)][0]
+        self.assertEqual(job.status_display_name, 'Complete')
+
+    def test_status_display_name_notification_successful(self):
+        job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)][0]
+        self.assertEqual(job.status_display_name, 'Complete')
+
+    @patch('icommons_common.models.CourseInstance.objects.filter')
+    def test_create_bulk_job_for_filter(self, ci_filter_mock):
+        school_id = 'colgsas'
+        sis_term_id = 1111
+        sis_department_id = 1111
+        created_by_user_id = '10564158'
+        course_instance_ids = [1, 2, 3]
+        ci_filter_mock.return_value = [
+            CourseInstance(course_instance_id=1),
+            CourseInstance(course_instance_id=2),
+            CourseInstance(course_instance_id=3)
+        ]
+
+        bulk_job = BulkJob.objects.create_bulk_job(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            created_by_user_id=created_by_user_id
+        )
+        ci_filter_mock.assert_called_with(
+            term_id=sis_term_id,
+            course__school=school_id,
+            course__departments=sis_department_id
+        )
+        self.assertEqual(bulk_job.status, BulkJob.STATUS_PENDING)
+        self.assertEqual(bulk_job.school_id, school_id)
+        self.assertEqual(bulk_job.sis_term_id, sis_term_id)
+        self.assertEqual(bulk_job.sis_department_id, sis_department_id)
+        self.assertIsNone(bulk_job.sis_course_group_id)
+        self.assertEqual(bulk_job.created_by_user_id, created_by_user_id)
+
+        query_set_course_job = SubJob.objects.filter(bulk_job_id=bulk_job.id)
+        self.assertEqual(query_set_course_job.count(), 3)
+        for course_job in query_set_course_job:
+            self.assertIn(int(course_job.sis_course_id), course_instance_ids)
+            self.assertEqual(course_job.bulk_job_id, bulk_job.id)
+            self.assertEqual(course_job.created_by_user_id, created_by_user_id)
+            self.assertEqual(course_job.workflow_state, SubJob.STATUS_SETUP)
+
+    def test_create_bulk_job_for_course_instance_ids(self):
+        school_id = 'colgsas'
+        sis_term_id = 1111
+        sis_department_id = 1111
+        created_by_user_id = '10564158'
+        course_instance_ids = [1, 2, 3]
+
+        bulk_job = BulkJob.objects.create_bulk_job(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            created_by_user_id=created_by_user_id,
+            course_instance_ids=course_instance_ids
+        )
+        self.assertEqual(bulk_job.status, BulkJob.STATUS_PENDING)
+        self.assertEqual(bulk_job.school_id, school_id)
+        self.assertEqual(bulk_job.sis_term_id, sis_term_id)
+        self.assertEqual(bulk_job.sis_department_id, sis_department_id)
+        self.assertIsNone(bulk_job.sis_course_group_id)
+        self.assertEqual(bulk_job.created_by_user_id, created_by_user_id)
+
+        query_set_course_job = SubJob.objects.filter(bulk_job_id=bulk_job.id)
+        self.assertEqual(query_set_course_job.count(), 3)
+        for course_job in query_set_course_job:
+            self.assertIn(int(course_job.sis_course_id), course_instance_ids)
+            self.assertEqual(course_job.bulk_job_id, bulk_job.id)
+            self.assertEqual(course_job.created_by_user_id, created_by_user_id)
+            self.assertEqual(course_job.workflow_state, SubJob.STATUS_SETUP)

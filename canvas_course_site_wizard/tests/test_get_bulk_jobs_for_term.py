@@ -1,6 +1,6 @@
 from django.test import TestCase
 from canvas_course_site_wizard.controller import get_bulk_jobs_for_term
-from setup_bulk_jobs import create_bulk_jobs
+from setup_bulk_jobs import create_jobs
 
 
 class TestControllerGetBulkJobsForTerm(TestCase):
@@ -10,8 +10,9 @@ class TestControllerGetBulkJobsForTerm(TestCase):
 
     def setUp(self):
         self.template_id = 123456
+        self.school_id = 'colgsas'
         self.term_id = 4700
-        create_bulk_jobs(self.term_id)
+        create_jobs(self.school_id, self.term_id)
 
     def test_get_bulk_jobs_for_term_when_term_has_data(self):
         """
