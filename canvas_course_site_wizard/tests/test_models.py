@@ -1,8 +1,8 @@
 from datetime import datetime
 from itertools import count
 from unittest import TestCase, skip
-from icommons_common.models import (Course, Term, School, TermCode)
 from mock import patch, Mock
+from icommons_common.models import Course, CourseInstance, Term, School, TermCode
 from canvas_course_site_wizard.models import (
     BulkCanvasCourseCreationJobProxy as BulkJob,
     CanvasCourseGenerationJob as SubJob,
@@ -297,3 +297,71 @@ class BulkCanvasCourseCreationJobTests(TestCase):
     def test_status_display_name_notification_successful(self):
         job = [j for j in BulkJob.objects.filter(status=BulkJob.STATUS_NOTIFICATION_SUCCESSFUL)][0]
         self.assertEqual(job.status_display_name, 'Complete')
+
+    @patch('icommons_common.models.CourseInstance.objects.filter')
+    def test_create_bulk_job_for_filter(self, ci_filter_mock):
+        school_id = 'colgsas'
+        sis_term_id = 1111
+        sis_department_id = 1111
+        created_by_user_id = '10564158'
+        course_instance_ids = [1, 2, 3]
+        ci_filter_mock.return_value = [
+            CourseInstance(course_instance_id=1),
+            CourseInstance(course_instance_id=2),
+            CourseInstance(course_instance_id=3)
+        ]
+
+        bulk_job = BulkJob.objects.create_bulk_job(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            created_by_user_id=created_by_user_id
+        )
+        ci_filter_mock.assert_called_with(
+            term_id=sis_term_id,
+            course__school=school_id,
+            course__departments=sis_department_id
+        )
+        self.assertEqual(bulk_job.status, BulkJob.STATUS_PENDING)
+        self.assertEqual(bulk_job.school_id, school_id)
+        self.assertEqual(bulk_job.sis_term_id, sis_term_id)
+        self.assertEqual(bulk_job.sis_department_id, sis_department_id)
+        self.assertIsNone(bulk_job.sis_course_group_id)
+        self.assertEqual(bulk_job.created_by_user_id, created_by_user_id)
+
+        query_set_course_job = SubJob.objects.filter(bulk_job_id=bulk_job.id)
+        self.assertEqual(query_set_course_job.count(), 3)
+        for course_job in query_set_course_job:
+            self.assertIn(int(course_job.sis_course_id), course_instance_ids)
+            self.assertEqual(course_job.bulk_job_id, bulk_job.id)
+            self.assertEqual(course_job.created_by_user_id, created_by_user_id)
+            self.assertEqual(course_job.workflow_state, SubJob.STATUS_SETUP)
+
+    def test_create_bulk_job_for_course_instance_ids(self):
+        school_id = 'colgsas'
+        sis_term_id = 1111
+        sis_department_id = 1111
+        created_by_user_id = '10564158'
+        course_instance_ids = [1, 2, 3]
+
+        bulk_job = BulkJob.objects.create_bulk_job(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            created_by_user_id=created_by_user_id,
+            course_instance_ids=course_instance_ids
+        )
+        self.assertEqual(bulk_job.status, BulkJob.STATUS_PENDING)
+        self.assertEqual(bulk_job.school_id, school_id)
+        self.assertEqual(bulk_job.sis_term_id, sis_term_id)
+        self.assertEqual(bulk_job.sis_department_id, sis_department_id)
+        self.assertIsNone(bulk_job.sis_course_group_id)
+        self.assertEqual(bulk_job.created_by_user_id, created_by_user_id)
+
+        query_set_course_job = SubJob.objects.filter(bulk_job_id=bulk_job.id)
+        self.assertEqual(query_set_course_job.count(), 3)
+        for course_job in query_set_course_job:
+            self.assertIn(int(course_job.sis_course_id), course_instance_ids)
+            self.assertEqual(course_job.bulk_job_id, bulk_job.id)
+            self.assertEqual(course_job.created_by_user_id, created_by_user_id)
+            self.assertEqual(course_job.workflow_state, SubJob.STATUS_SETUP)
