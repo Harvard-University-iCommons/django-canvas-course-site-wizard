@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from canvas_course_site_wizard.controller import setup_bulk_jobs
 
-from canvas_course_site_wizard.models import (CanvasCourseGenerationJobProxy,
+from canvas_course_site_wizard.models import (CanvasCourseGenerationJob,
                                               BulkCanvasCourseCreationJob)
 
 class SetupBulkJobsTest(TestCase):
@@ -27,7 +27,7 @@ class SetupBulkJobsTest(TestCase):
     def test_setup_bulk_jobs_create_jobs(self):
         """ Test that setup_bulk_jobs creates the content migration job records """
         setup_bulk_jobs(self.courses, self.user_id, self.job.pk)
-        courses = CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP)
+        courses = CanvasCourseGenerationJob.objects.filter_setup()
         course_ids = [int(course.sis_course_id) for course in courses if course.bulk_job_id == self.job.pk]
         job = BulkCanvasCourseCreationJob.objects.get(pk=self.job.pk)
         self.assertEqual(job.status, BulkCanvasCourseCreationJob.STATUS_PENDING)

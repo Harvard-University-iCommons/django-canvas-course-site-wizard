@@ -11,8 +11,8 @@ from canvas_course_site_wizard.controller import (get_canvas_user_profile,
                                                   create_canvas_course,
                                                   get_course_data,
                                                   start_course_template_copy)
-from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJobProxy as BulkJob,
-                                              CanvasCourseGenerationJobProxy)
+from canvas_course_site_wizard.models import (BulkCanvasCourseCreationJob as BulkJob,
+                                              CanvasCourseGenerationJob)
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseAlreadyExistsError,
                                                   CourseGenerationJobCreationError,
@@ -58,7 +58,7 @@ class Command(NoArgsCommand):
         # Process to finalize the bulk job
         ###
 
-        jobs = BulkJob.get_jobs_by_status(BulkJob.STATUS_PENDING)
+        jobs = BulkJob.objects.get_jobs_by_status(BulkJob.STATUS_PENDING)
 
         jobs_count = len(jobs)
         if not jobs_count:
@@ -110,7 +110,7 @@ def _init_courses_with_status_setup():
     This method will create the course and update the status to QUEUED
     """
 
-    create_jobs = CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP)
+    create_jobs = CanvasCourseGenerationJob.objects.filter_setup()
 
     # for each or the records above, create the course and update the status
     for create_job in create_jobs:
@@ -119,17 +119,17 @@ def _init_courses_with_status_setup():
         # and continue to the next course.
         bulk_job_id = create_job.bulk_job_id
         if not bulk_job_id:
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
         sis_user_id = create_job.created_by_user_id
         if not sis_user_id:
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
         sis_course_id = create_job.sis_course_id
         if not sis_course_id:
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
         # try to create the canvas course - create_canvas_course has been modified so it will not
@@ -141,7 +141,7 @@ def _init_courses_with_status_setup():
                 CanvasSectionCreateError):
             message = 'content migration error for course with id %s' % sis_course_id
             logger.exception(message)
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
         # get the course data - this is needed for the start_course_template_copy method
@@ -150,7 +150,7 @@ def _init_courses_with_status_setup():
         except ObjectDoesNotExist as ex:
             message = 'Course id %s does not exist, skipping....' % sis_course_id
             logger.exception(message)
-            create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_SETUP_FAILED)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
         # initiate the async job to copy the course template. If no template exists, that's ok,
@@ -160,7 +160,7 @@ def _init_courses_with_status_setup():
         except NoTemplateExistsForSchool:
             logger.exception('no template for course instance id %s' % sis_course_id)
 
-        create_job.update_workflow_state(CanvasCourseGenerationJobProxy.STATUS_QUEUED)
+        create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_QUEUED)
 
 def _send_notification(job):
     """
@@ -253,6 +253,6 @@ def _log_bulk_job_statistics():
     """ helper method to log metrics and statistics at the end of the bulk job process """
     if settings.BULK_COURSE_CREATION['log_long_running_jobs']:
         job_age = settings.BULK_COURSE_CREATION['long_running_age_in_minutes']
-        job_count = BulkJob.get_long_running_jobs(older_than_minutes=job_age)
+        job_count = BulkJob.objects.get_long_running_jobs(older_than_minutes=job_age)
         if job_count:
             logger.warn("Found %s long-running bulk create jobs (older than %s minutes).", job_count, job_age)
