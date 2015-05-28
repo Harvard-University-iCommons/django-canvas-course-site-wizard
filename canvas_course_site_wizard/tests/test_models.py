@@ -87,8 +87,6 @@ class BulkCanvasCourseCreationJobIntegrationTests(TestCase):
     def test_get_failed_subjobs_integration(self):
         """ get_failed_subjobs() should only show unsuccessfully terminated subjobs for the specified bulk job """
         job = BulkJob.objects.get(status=BulkJob.STATUS_FINALIZING)
-        print("here1")
-        print(job)
         self.assertEqual(len(job.get_failed_subjobs()), 3)
         self.assertEqual(job.get_failed_subjobs_count(), 3)
 
@@ -196,29 +194,29 @@ class SISCourseDataIntegrationTests(TestCase):
         cls.term_shopping_active.delete()
         cls.term_shopping_inactive.delete()
 
-    # def test_shopping_active(self):
-    #     """ shopping is active for the course if course's term is shoppable and the course is not excluded """
-    #     sis_course_data = SISCourseData(
-    #         term=self.term_shopping_active,
-    #         exclude_from_shopping=False
-    #     )
-    #     self.assertTrue(sis_course_data.shopping_active)
-    #
-    # def test_shopping_inactive_when_excluded(self):
-    #     """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
-    #     sis_course_data = SISCourseData(
-    #         term=self.term_shopping_active,
-    #         exclude_from_shopping=True
-    #     )
-    #     self.assertFalse(sis_course_data.shopping_active)
-    #
-    # def test_shopping_inactive_when_term_inactive(self):
-    #     """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
-    #     sis_course_data = SISCourseData(
-    #         term=self.term_shopping_inactive,
-    #         # exclude_from_shopping=False
-    #     )
-    #     self.assertFalse(sis_course_data.shopping_active)
+    def test_shopping_active(self):
+        """ shopping is active for the course if course's term is shoppable and the course is not excluded """
+        sis_course_data = SISCourseData(
+            term=self.term_shopping_active,
+            exclude_from_shopping=False
+        )
+        self.assertTrue(sis_course_data.shopping_active)
+
+    def test_shopping_inactive_when_excluded(self):
+        """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
+        sis_course_data = SISCourseData(
+            term=self.term_shopping_active,
+            exclude_from_shopping=True
+        )
+        self.assertFalse(sis_course_data.shopping_active)
+
+    def test_shopping_inactive_when_term_inactive(self):
+        """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
+        sis_course_data = SISCourseData(
+            term=self.term_shopping_inactive,
+            exclude_from_shopping=False
+        )
+        self.assertFalse(sis_course_data.shopping_active)
 
 
 class CanvasCourseGenerationJobTests(TestCase):
