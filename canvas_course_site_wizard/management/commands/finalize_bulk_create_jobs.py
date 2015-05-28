@@ -110,7 +110,7 @@ def _init_courses_with_status_setup():
     This method will create the course and update the status to QUEUED
     """
 
-    create_jobs = CanvasCourseGenerationJob.objects.filter_setup()
+    create_jobs = CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs()
 
     # for each or the records above, create the course and update the status
     for create_job in create_jobs:

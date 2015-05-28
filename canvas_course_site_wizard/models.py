@@ -176,12 +176,14 @@ class CanvasCourseGenerationJobManager(models.Manager):
         })
         return self.filter(**kwargs)
 
-    def filter_setup(self, **kwargs):
+    def filter_setup_for_bulkjobs(self, **kwargs):
         """
         filters CanvasCourseGenerationJobs with a workflow state of STATUS_SETUP
+        Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
         """
         kwargs.update({
-            'workflow_state': CanvasCourseGenerationJob.STATUS_SETUP
+            'workflow_state': CanvasCourseGenerationJob.STATUS_SETUP,
+            'bulk_job_id__isnull': False
         })
         return self.filter(**kwargs)
 
