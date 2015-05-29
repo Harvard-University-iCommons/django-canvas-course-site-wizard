@@ -144,6 +144,7 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
     Database-backed SIS course information that implements mixin.
     """
     class Meta:
+        app_label = 'icommons_common'
         proxy = True
 
 
