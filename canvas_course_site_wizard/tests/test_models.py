@@ -194,6 +194,7 @@ class SISCourseDataIntegrationTests(TestCase):
         cls.term_shopping_active.delete()
         cls.term_shopping_inactive.delete()
 
+    @skip('Technical Debt: TLT-1552')
     def test_shopping_active(self):
         """ shopping is active for the course if course's term is shoppable and the course is not excluded """
         sis_course_data = SISCourseData(
@@ -202,6 +203,7 @@ class SISCourseDataIntegrationTests(TestCase):
         )
         self.assertTrue(sis_course_data.shopping_active)
 
+    @skip('Technical Debt: TLT-1552')
     def test_shopping_inactive_when_excluded(self):
         """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
         sis_course_data = SISCourseData(
@@ -210,6 +212,7 @@ class SISCourseDataIntegrationTests(TestCase):
         )
         self.assertFalse(sis_course_data.shopping_active)
 
+    @skip('Technical Debt: TLT-1552')
     def test_shopping_inactive_when_term_inactive(self):
         """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
         sis_course_data = SISCourseData(

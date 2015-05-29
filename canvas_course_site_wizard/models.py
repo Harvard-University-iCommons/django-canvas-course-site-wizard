@@ -440,23 +440,31 @@ class BulkCanvasCourseCreationJob(models.Model):
         A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
         (i.e. all subjobs are in a terminal state)
         """
+
+        subjob_terminal_states = [
+            CanvasCourseGenerationJob.STATUS_QUEUED,
+            CanvasCourseGenerationJob.STATUS_RUNNING,
+            CanvasCourseGenerationJob.STATUS_SETUP,
+            CanvasCourseGenerationJob.STATUS_SETUP
+        ]
         subjob_count = CanvasCourseGenerationJob.objects.filter(
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED),
-            bulk_job_id=self.id
-        ).count()
+            workflow_state__in=subjob_terminal_states,
+            bulk_job_id=self.id).count()
+
         return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
 
     def get_failed_subjobs(self):
         """ Returns a list of subjobs in a known failed state """
+
+        subjob_failed_states = [
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            CanvasCourseGenerationJob.STATUS_FAILED,
+            CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
+        ]
         subjobs = CanvasCourseGenerationJob.objects.filter(
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FAILED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED),
-            bulk_job_id=self.id
-        )
+            workflow_state__in=subjob_failed_states,
+            bulk_job_id=self.id)
+
         return list(subjobs)
 
     def get_failed_subjobs_count(self):
