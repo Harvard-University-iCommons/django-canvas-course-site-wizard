@@ -5,7 +5,7 @@ from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs imp
     _format_notification_email_body,
     _format_notification_email_subject
 )
-from canvas_course_site_wizard.models import BulkCanvasCourseCreationJobProxy as BulkJob
+from canvas_course_site_wizard.models import BulkCanvasCourseCreationJob as BulkJob
 from canvas_course_site_wizard.management.commands import finalize_bulk_create_jobs
 from django.test.utils import override_settings
 
@@ -42,7 +42,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
     """
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.objects.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_no_pending_jobs(self, m_queryset, m_logger, **kwargs):
         """ exit gracefully if there are no jobs in the table that require checking pending subjobs """
         m_queryset.return_value = BulkJob.objects.none()
@@ -52,7 +52,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         self.assertEqual(m_logger.exception.call_count, 0)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.objects.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_pending_jobs_leave_pending(self, m_queryset, m_logger, **kwargs):
         """ exit gracefully if the pending jobs still have pending subjobs (so bulk jobs should not be finalized) """
         m_bulk_job = get_mock_bulk_job()
@@ -63,7 +63,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         self.assertEqual(m_logger.exception.call_count, 0)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._send_notification')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.objects.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_finalize_pending_jobs(self, m_queryset, m_send, **kwargs):
         """ if the pending jobs have no pending subjobs (ie they are all in terminal state) then finalize bulk jobs """
         m_bulk_job = get_mock_bulk_job()
@@ -76,7 +76,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._send_notification')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.objects.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_save_fails_before_notification(self, m_queryset, m_send, m_logger, **kwargs):
         """ if we fail updating the job status before the send step, failure is logged and no notification is sent """
         m_bulk_job = get_mock_bulk_job()
@@ -90,7 +90,7 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._send_notification')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.get_jobs_by_status')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.BulkJob.objects.get_jobs_by_status')
     def test_finalize_bulk_create_jobs_save_fails_after_notification(self, m_queryset, m_send, m_logger, **kwargs):
         """ if we fail updating the job status after the notification is sent failure is still logged """
         m_bulk_job = get_mock_bulk_job()

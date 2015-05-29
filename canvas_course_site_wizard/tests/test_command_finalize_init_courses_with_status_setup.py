@@ -1,7 +1,7 @@
 from django.test import TestCase
 from mock import patch, ANY, DEFAULT, Mock, MagicMock, call
 from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs import _init_courses_with_status_setup
-from canvas_course_site_wizard.models import CanvasCourseGenerationJobProxy
+from canvas_course_site_wizard.models import CanvasCourseGenerationJob
 from canvas_course_site_wizard.management.commands import finalize_bulk_create_jobs
 from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseAlreadyExistsError,
@@ -40,11 +40,12 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
                 self.bulk_job_id,
                 self.user_id,
                 course,
-                CanvasCourseGenerationJobProxy.STATUS_SETUP
+                CanvasCourseGenerationJob.STATUS_SETUP
             )
             self.cm_jobs.append(migration_job)
 
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
+           'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
     def test_that_create_course_is_call_with_all_bulk_job_courses(self, mock_getjobs, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that create_canvas_course is called with all the courses that have a status of 'setup'
@@ -62,7 +63,8 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         start_course_template_copy.assert_has_calls(template_copy_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
+           'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
     def test_that_logger_is_called_when_course_already_exists(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that logger is called when the course already exists in canvas
@@ -77,7 +79,8 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         mock_logger.assert_has_calls(create_logger_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
+           'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
     def test_that_logger_is_called_when_course_generation_fails(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that logger is called when the course generation fails
@@ -92,7 +95,8 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         mock_logger.assert_has_calls(content_migration_error_calls)
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
-    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.CanvasCourseGenerationJobProxy.get_jobs_by_workflow_state')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
+           'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
     def test_that_logger_is_called_when_no_template_exists(self, mock_getjobs, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that logger is called when there is no course template

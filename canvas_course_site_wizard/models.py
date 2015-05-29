@@ -176,6 +176,17 @@ class CanvasCourseGenerationJobManager(models.Manager):
         })
         return self.filter(**kwargs)
 
+    def filter_setup_for_bulkjobs(self, **kwargs):
+        """
+        filters CanvasCourseGenerationJobs with a workflow state of STATUS_SETUP
+        Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
+        """
+        kwargs.update({
+            'workflow_state': CanvasCourseGenerationJob.STATUS_SETUP,
+            'bulk_job_id__isnull': False
+        })
+        return self.filter(**kwargs)
+
 
 class CanvasCourseGenerationJob(models.Model):
     """
@@ -249,24 +260,6 @@ class CanvasCourseGenerationJob(models.Model):
     @property
     def status_display_name(self):
         return CanvasCourseGenerationJob.STATUS_DISPLAY_NAMES[self.workflow_state]
-
-
-class CanvasCourseGenerationJobProxy(CanvasCourseGenerationJob):
-    """
-    A proxy model for CanvasCourseGenerationJob; exposes its fields and
-    provides additional methods that encapsulate business logic
-    """
-    class Meta:
-        proxy = True
-
-    @classmethod
-    def get_jobs_by_workflow_state(cls, workflow_state):
-        """
-        Get all bulk jobs for the given workflow state
-        Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
-        """
-        return list(CanvasCourseGenerationJobProxy.objects.filter(workflow_state=workflow_state).exclude(bulk_job_id__isnull=True))
-
 
     def update_workflow_state(self, workflow_state, raise_exception=False):
         """
@@ -342,6 +335,38 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
 
         return bulk_job
 
+    def get_long_running_jobs(self, older_than_date=None, older_than_minutes=None, **kwargs):
+        """
+        Returns a list of bulk create job objects in a non-terminal state older than
+         the time provided by either the older_than_date argument (expects a datetime) or
+         the older_than_minutes argument (expects an integer number of minutes representing job age)
+        """
+
+        if older_than_date is not None and older_than_minutes is not None:
+            raise ValueError("requires just one of older_than_date or older_than_minutes, not both")
+
+        if older_than_minutes is not None:
+            older_than_date = datetime.now() - timedelta(minutes=older_than_minutes)
+        elif older_than_date is None:
+            raise ValueError("requires either older_than_date or older_than_minutes")
+
+        kwargs.update({
+            'status__in': [
+                BulkCanvasCourseCreationJob.STATUS_SETUP,
+                BulkCanvasCourseCreationJob.STATUS_PENDING,
+                BulkCanvasCourseCreationJob.STATUS_FINALIZING
+            ],
+            'updated_at__lte': older_than_date
+        })
+        return self.filter(**kwargs)
+
+    def get_jobs_by_status(self, status, **kwargs):
+        kwargs.update({
+            'status': status
+        })
+        return self.filter(**kwargs)
+
+
 
 class BulkCanvasCourseCreationJob(models.Model):
     """
@@ -395,44 +420,6 @@ class BulkCanvasCourseCreationJob(models.Model):
     def status_display_name(self):
         return BulkCanvasCourseCreationJob.STATUS_DISPLAY_NAMES[self.status]
 
-
-class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
-    """
-    A proxy model for BulkCanvasCourseCreationJob; exposes its fields and
-    provides additional methods that encapsulate business logic
-    """
-    class Meta:
-        proxy = True
-
-    @classmethod
-    def get_long_running_jobs(cls, older_than_date=None, older_than_minutes=None):
-        """
-        Returns a list of bulk create job objects in a non-terminal state older than
-         the time provided by either the older_than_date argument (expects a datetime) or
-         the older_than_minutes argument (expects an integer number of minutes representing job age)
-        """
-
-        if older_than_date is not None and older_than_minutes is not None:
-            raise ValueError("requires just one of older_than_date or older_than_minutes, not both")
-
-        if older_than_minutes is not None:
-            older_than_date = datetime.now() - timedelta(minutes=older_than_minutes)
-        elif older_than_date is None:
-            raise ValueError("requires either older_than_date or older_than_minutes")
-
-        intermediate_states = [
-            BulkCanvasCourseCreationJobProxy.STATUS_SETUP,
-            BulkCanvasCourseCreationJobProxy.STATUS_PENDING,
-            BulkCanvasCourseCreationJobProxy.STATUS_FINALIZING
-        ]
-
-        return list(BulkCanvasCourseCreationJobProxy.objects.filter(
-            updated_at__lte=older_than_date, status__in=intermediate_states))
-
-    @classmethod
-    def get_jobs_by_status(cls, status):
-        return list(BulkCanvasCourseCreationJobProxy.objects.filter(status=status))
-
     def update_status(self, status, raise_exception=False):
         """
         Updates job status. Return True if update succeeded. If raise_exception param is not True, or not provided,
@@ -448,6 +435,41 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
                 return False
         return True
 
+    def ready_to_finalize(self):
+        """
+        A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
+        (i.e. all subjobs are in a terminal state)
+        """
+
+        subjob_terminal_states = [
+            CanvasCourseGenerationJob.STATUS_QUEUED,
+            CanvasCourseGenerationJob.STATUS_RUNNING,
+            CanvasCourseGenerationJob.STATUS_SETUP,
+            CanvasCourseGenerationJob.STATUS_SETUP
+        ]
+        subjob_count = CanvasCourseGenerationJob.objects.filter(
+            workflow_state__in=subjob_terminal_states,
+            bulk_job_id=self.id).count()
+
+        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
+
+    def get_failed_subjobs(self):
+        """ Returns a list of subjobs in a known failed state """
+
+        subjob_failed_states = [
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            CanvasCourseGenerationJob.STATUS_FAILED,
+            CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
+        ]
+        subjobs = CanvasCourseGenerationJob.objects.filter(
+            workflow_state__in=subjob_failed_states,
+            bulk_job_id=self.id)
+
+        return list(subjobs)
+
+    def get_failed_subjobs_count(self):
+        return len(self.get_failed_subjobs())
+
     def get_completed_subjobs(self):
         """ Returns a list of subjobs in a known finalized state """
         subjobs = CanvasCourseGenerationJob.objects.filter(
@@ -459,29 +481,3 @@ class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
     def get_completed_subjobs_count(self):
         return len(self.get_completed_subjobs())
 
-    def get_failed_subjobs(self):
-        """ Returns a list of subjobs in a known failed state """
-        subjobs = CanvasCourseGenerationJob.objects.filter(
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FAILED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED),
-            bulk_job_id=self.id
-        )
-        return list(subjobs)
-
-    def get_failed_subjobs_count(self):
-        return len(self.get_failed_subjobs())
-
-    def ready_to_finalize(self):
-        """
-        A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
-        (i.e. all subjobs are in a terminal state)
-        """
-        subjob_count = CanvasCourseGenerationJob.objects.filter(
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
-            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED),
-            bulk_job_id=self.id
-        ).count()
-        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
