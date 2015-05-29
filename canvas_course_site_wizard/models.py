@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+from django.db.models import Q
 from icommons_common.models import CourseInstance, CourseSite, SiteMap, SiteMapType
 from django.conf import settings
 from django.db import models
@@ -78,6 +80,15 @@ class SISCourseDataMixin(object):
         """
         return self.course.school_id
 
+    @property
+    def shopping_active(self):
+        """
+        Shopping status of the course; ie the course is shoppable (returns True) if it is in a term for which shopping
+         is turned on and the course is not explicitly excluded from shopping.
+        :returns: boolean
+        """
+        return self.term.shopping_active and not self.exclude_from_shopping
+
     def get_official_course_site_url(self):
         """
         Return the url for the official course website associated with this course.  If more than
@@ -136,39 +147,145 @@ class SISCourseData(CourseInstance, SISCourseDataMixin):
         proxy = True
 
 
-class CanvasContentMigrationJob(models.Model):
+class CanvasCourseGenerationJobManager(models.Manager):
+    """
+    Custom manager for CanvasCourseGenerationJob
+    """
+    def filter_complete(self, **kwargs):
+        kwargs.update({
+            'workflow_state__in': [
+                CanvasCourseGenerationJob.STATUS_FINALIZED,
+                CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED,
+                CanvasCourseGenerationJob.STATUS_FAILED,
+                CanvasCourseGenerationJob.STATUS_SETUP_FAILED
+            ]
+        })
+        return self.filter(**kwargs)
+
+    def filter_successful(self, **kwargs):
+        kwargs.update({'workflow_state': CanvasCourseGenerationJob.STATUS_FINALIZED})
+        return self.filter(**kwargs)
+
+    def filter_failed(self, **kwargs):
+        kwargs.update({
+            'workflow_state__in': [
+                CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED,
+                CanvasCourseGenerationJob.STATUS_FAILED,
+                CanvasCourseGenerationJob.STATUS_SETUP_FAILED
+            ]
+        })
+        return self.filter(**kwargs)
+
+
+class CanvasCourseGenerationJob(models.Model):
+    """
+    This model was originally for tracking the status of Canvas migration jobs (i.e. template copy jobs, which
+     Canvas runs asynchronously). It is now used to track the whole Canvas course creation process, from the
+     initial setup of a new Canvas course, to the migration (if required), to the finalization steps
+     (e.g. syncing registrar feeds to Canvas, marking courses as official, etc.).
+     New states: 'finalize' and 'finalize_failed' record the state of the 'finalize_new_canvas_course'
+     process that occurs after content migration. 'setup' and 'setup_failed' track the status of course
+     records prior to content migration.
+    """
     # Workflow status values
+
+    # TODO: consider modifying the values in the workflow_status column to prefix the  Canvas migration
+    # statuses with `migration_*' to differentiate them from other states of the course generation
+    # e.g. modify STATUS_FAILED = 'failed' to STATUS_MIGRATION_FAILED = 'migration_failed'
+
+    STATUS_SETUP = 'setup'
+    STATUS_SETUP_FAILED = 'setup_failed'
     STATUS_QUEUED = 'queued'
     STATUS_RUNNING = 'running'
     STATUS_COMPLETED = 'completed'
     STATUS_FAILED = 'failed'
+    STATUS_FINALIZED = 'finalized'
+    STATUS_FINALIZE_FAILED = 'finalize_failed'
+
     # Workflow status choices
     WORKFLOW_STATUS_CHOICES = (
+        (STATUS_SETUP, STATUS_SETUP),
+        (STATUS_SETUP_FAILED, STATUS_SETUP_FAILED),
         (STATUS_QUEUED, STATUS_QUEUED),
         (STATUS_RUNNING, STATUS_RUNNING),
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
+        (STATUS_FINALIZED, STATUS_FINALIZED),
+        (STATUS_FINALIZE_FAILED, STATUS_FINALIZE_FAILED),
     )
-    canvas_course_id = models.IntegerField(max_length=10, db_index=True)
+
+    # User friendly identifiers for states
+    STATUS_DISPLAY_NAMES = {
+        STATUS_SETUP: 'Queued',
+        STATUS_SETUP_FAILED: 'Failed',
+        STATUS_QUEUED: 'Queued',
+        STATUS_RUNNING: 'Running',
+        STATUS_COMPLETED: 'Running',
+        STATUS_FAILED: 'Failed',
+        STATUS_FINALIZED: 'Complete',
+        STATUS_FINALIZE_FAILED: 'Failed'
+    }
+
+    canvas_course_id = models.IntegerField(null=True, blank=True, db_index=True)
     sis_course_id = models.CharField(max_length=20, db_index=True)
-    content_migration_id = models.IntegerField(max_length=10)
+    content_migration_id = models.IntegerField(null=True, blank=True,)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
-    status_url = models.CharField(max_length=200)
-    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_QUEUED)
+    status_url = models.CharField(null=True, blank=True, max_length=200)
+    workflow_state = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=STATUS_SETUP)
     created_by_user_id = models.CharField(max_length=20)
-    
+    bulk_job_id = models.IntegerField(null=True, blank=True)
+
+    objects = CanvasCourseGenerationJobManager()
+
     class Meta:
-        db_table = u'canvas_content_migration_job'
+        db_table = u'canvas_course_generation_job'
 
     def __unicode__(self):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
-        return "(CanvasContentMigrationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
+        return "(CanvasCourseGenerationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
                                                                               self.workflow_state)
+
+    @property
+    def status_display_name(self):
+        return CanvasCourseGenerationJob.STATUS_DISPLAY_NAMES[self.workflow_state]
+
+
+class CanvasCourseGenerationJobProxy(CanvasCourseGenerationJob):
+    """
+    A proxy model for CanvasCourseGenerationJob; exposes its fields and
+    provides additional methods that encapsulate business logic
+    """
+    class Meta:
+        proxy = True
+
+    @classmethod
+    def get_jobs_by_workflow_state(cls, workflow_state):
+        """
+        Get all bulk jobs for the given workflow state
+        Also checks to make sure bulk_job_id is not null, we don't want to get jobs started through the single create course.
+        """
+        return list(CanvasCourseGenerationJobProxy.objects.filter(workflow_state=workflow_state).exclude(bulk_job_id__isnull=True))
+
+
+    def update_workflow_state(self, workflow_state, raise_exception=False):
+        """
+        Updates job workflow_state. Return True if update succeeded. If raise_exception param is not True, or not provided,
+         it will return False if update fails. If raise_exception is True, it will re-raise failures/exceptions.
+        """
+        self.workflow_state = workflow_state
+        try:
+            self.save(update_fields=['workflow_state'])
+        except Exception as e:
+            if raise_exception:
+                raise e
+            else:
+                return False
+        return True
 
 
 class CanvasSchoolTemplate(models.Model):
-    template_id = models.IntegerField(max_length=10)
+    template_id = models.IntegerField()
     school_id = models.CharField(max_length=10, db_index=True)
 
     class Meta:
@@ -178,3 +295,193 @@ class CanvasSchoolTemplate(models.Model):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
         return "(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
                                                                                self.template_id)
+
+
+class BulkCanvasCourseCreationJobManager(models.Manager):
+    """
+    Custom manager for BulkCanvasCourseCreationJob
+    """
+    def create_bulk_job(self, **kwargs):
+        school_id = kwargs.get('school_id')
+        sis_term_id = kwargs.get('sis_term_id')
+        sis_department_id = kwargs.get('sis_department_id')
+        sis_course_group_id = kwargs.get('sis_course_group_id')
+        created_by_user_id = kwargs.get('created_by_user_id')
+        course_instance_ids = kwargs.get('course_instance_ids')
+
+        bulk_job = BulkCanvasCourseCreationJob(
+            school_id=school_id,
+            sis_term_id=sis_term_id,
+            sis_department_id=sis_department_id,
+            sis_course_group_id=sis_course_group_id,
+            created_by_user_id=created_by_user_id
+        )
+        bulk_job.save()
+
+        if not course_instance_ids:
+            filters = {'term_id': sis_term_id, 'course__school': school_id}
+            if sis_department_id:
+                filters['course__departments'] = sis_department_id
+            elif sis_course_group_id:
+                filters['course__course_groups'] = sis_course_group_id
+            course_instance_ids = [ci.course_instance_id for ci in CourseInstance.objects.filter(**filters)]
+
+        course_jobs = []
+        for ci_id in course_instance_ids:
+            course_job = CanvasCourseGenerationJob(
+                sis_course_id=ci_id,
+                bulk_job_id=bulk_job.id,
+                created_by_user_id=created_by_user_id
+            )
+            course_jobs.append(course_job)
+
+        CanvasCourseGenerationJob.objects.bulk_create(course_jobs)
+
+        bulk_job.status = BulkCanvasCourseCreationJob.STATUS_PENDING
+        bulk_job.save(update_fields=['status'])
+
+        return bulk_job
+
+
+class BulkCanvasCourseCreationJob(models.Model):
+    """
+    This model maps the DB table that stores data about the 'bulk canvas course creation job'. Each job
+    may have multiple canvas courses as part of the bulk create process, which are present in
+    CanvasCourseGenerationJob and referenced using that model's bulk_job_id
+    """
+    # status values
+    STATUS_SETUP = 'setup'
+    STATUS_PENDING = 'pending'
+    STATUS_FINALIZING = 'finalizing'
+    STATUS_NOTIFICATION_SUCCESSFUL = 'notification_successful'
+    STATUS_NOTIFICATION_FAILED = 'notification_failed'
+
+    # status choices
+    STATUS_CHOICES = (
+        (STATUS_SETUP, STATUS_SETUP),
+        (STATUS_PENDING, STATUS_PENDING),
+        (STATUS_FINALIZING, STATUS_FINALIZING),
+        (STATUS_NOTIFICATION_SUCCESSFUL, STATUS_NOTIFICATION_SUCCESSFUL),
+        (STATUS_NOTIFICATION_FAILED, STATUS_NOTIFICATION_FAILED),
+    )
+
+    # User friendly identifiers for states
+    STATUS_DISPLAY_NAMES = {
+        STATUS_SETUP: 'Queued',
+        STATUS_PENDING: 'Running',
+        STATUS_FINALIZING: 'Running',
+        STATUS_NOTIFICATION_FAILED: 'Complete',
+        STATUS_NOTIFICATION_SUCCESSFUL: 'Complete'
+    }
+
+    school_id = models.CharField(max_length=10)
+    sis_term_id = models.IntegerField()
+    sis_department_id = models.IntegerField(null=True, blank=True)
+    sis_course_group_id = models.IntegerField(null=True, blank=True)
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_SETUP)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by_user_id = models.CharField(max_length=20)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    objects = BulkCanvasCourseCreationJobManager()
+
+    class Meta:
+        db_table = u'bulk_canvas_course_crtn_job'
+
+    def __unicode__(self):
+        return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
+
+    @property
+    def status_display_name(self):
+        return BulkCanvasCourseCreationJob.STATUS_DISPLAY_NAMES[self.status]
+
+
+class BulkCanvasCourseCreationJobProxy(BulkCanvasCourseCreationJob):
+    """
+    A proxy model for BulkCanvasCourseCreationJob; exposes its fields and
+    provides additional methods that encapsulate business logic
+    """
+    class Meta:
+        proxy = True
+
+    @classmethod
+    def get_long_running_jobs(cls, older_than_date=None, older_than_minutes=None):
+        """
+        Returns a list of bulk create job objects in a non-terminal state older than
+         the time provided by either the older_than_date argument (expects a datetime) or
+         the older_than_minutes argument (expects an integer number of minutes representing job age)
+        """
+
+        if older_than_date is not None and older_than_minutes is not None:
+            raise ValueError("requires just one of older_than_date or older_than_minutes, not both")
+
+        if older_than_minutes is not None:
+            older_than_date = datetime.now() - timedelta(minutes=older_than_minutes)
+        elif older_than_date is None:
+            raise ValueError("requires either older_than_date or older_than_minutes")
+
+        intermediate_states = [
+            BulkCanvasCourseCreationJobProxy.STATUS_SETUP,
+            BulkCanvasCourseCreationJobProxy.STATUS_PENDING,
+            BulkCanvasCourseCreationJobProxy.STATUS_FINALIZING
+        ]
+
+        return list(BulkCanvasCourseCreationJobProxy.objects.filter(
+            updated_at__lte=older_than_date, status__in=intermediate_states))
+
+    @classmethod
+    def get_jobs_by_status(cls, status):
+        return list(BulkCanvasCourseCreationJobProxy.objects.filter(status=status))
+
+    def update_status(self, status, raise_exception=False):
+        """
+        Updates job status. Return True if update succeeded. If raise_exception param is not True, or not provided,
+         it will return False if update fails. If raise_exception is True, it will re-raise failures/exceptions.
+        """
+        self.status = status
+        try:
+            self.save(update_fields=['status'])
+        except Exception as e:
+            if raise_exception:
+                raise e
+            else:
+                return False
+        return True
+
+    def get_completed_subjobs(self):
+        """ Returns a list of subjobs in a known finalized state """
+        subjobs = CanvasCourseGenerationJob.objects.filter(
+            workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZED,
+            bulk_job_id=self.id
+        )
+        return list(subjobs)
+
+    def get_completed_subjobs_count(self):
+        return len(self.get_completed_subjobs())
+
+    def get_failed_subjobs(self):
+        """ Returns a list of subjobs in a known failed state """
+        subjobs = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FAILED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED),
+            bulk_job_id=self.id
+        )
+        return list(subjobs)
+
+    def get_failed_subjobs_count(self):
+        return len(self.get_failed_subjobs())
+
+    def ready_to_finalize(self):
+        """
+        A bulk job is ready to finalize if it is PENDING and none of its subjobs are in an intermediate state
+        (i.e. all subjobs are in a terminal state)
+        """
+        subjob_count = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
+            | Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED),
+            bulk_job_id=self.id
+        ).count()
+        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
