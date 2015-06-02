@@ -158,9 +158,12 @@ def _init_courses_with_status_setup():
         try:
             start_course_template_copy(sis_course_data, course['id'], sis_user_id, bulk_job_id=bulk_job_id)
         except NoTemplateExistsForSchool:
-            logger.exception('no template for course instance id %s' % sis_course_id)
+            logger.info('no template for course instance id %s' % sis_course_id)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_QUEUED)
+        except:
+            logger.exception('template migration failed for course instance id %s' % sis_course_id)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
 
-        create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_QUEUED)
 
 def _send_notification(job):
     """

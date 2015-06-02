@@ -152,9 +152,6 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
         template_id = get_template_for_school(school_code)
     except ObjectDoesNotExist:
         logger.debug('Did not find a template for course %s.' % sis_course.pk)
-        # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course.pk, CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
-
         raise NoTemplateExistsForSchool(school_code)
 
     # Initiate course copy for template_id
