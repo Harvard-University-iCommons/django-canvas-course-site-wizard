@@ -96,11 +96,11 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
 
 
     @patch('canvas_course_site_wizard.models.'
-           'CanvasCourseGenerationJob')
+           'CanvasCourseGenerationJob.update_workflow_state')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.logger.exception')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
            'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
-    def test_that_logger_is_called_when_no_template_exists(self, mock_getjobs, mock_job_update, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
+    def test_that_workflow_state_is_properly_updated_when_no_template_exists(self, mock_getjobs, mock_job_update, mock_logger, get_course_data, create_canvas_course, start_course_template_copy):
         """
         test that logger is called when there is no course template
         """

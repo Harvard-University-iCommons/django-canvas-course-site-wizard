@@ -60,16 +60,16 @@ class Command(NoArgsCommand):
                 logger.info(job_start_message)
                 user_profile = None
 
-                # Check if the job is flagged for migration or is running the migration i.e
-                # if it's not in STATUS_PENDING_FINALIZE
+                # Check if the job is flagged for migration or is running the migration
                 workflow_state = job.workflow_state
 
-                if workflow_state != CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE:
+                if workflow_state in (CanvasCourseGenerationJob.STATUS_QUEUED,
+                                      CanvasCourseGenerationJob.STATUS_RUNNING):
                     response = client.get(SDK_CONTEXT, job.status_url)
                     progress_response = response.json()
                     workflow_state = progress_response['workflow_state']
 
-                    if workflow_state == 'completed':
+                    if workflow_state == CanvasCourseGenerationJob.STATUS_COMPLETED:
                         logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
                         # Update the Job table with the completed state immediately to indicate that the template
                         # migration was successful
@@ -77,7 +77,7 @@ class Command(NoArgsCommand):
                         job.save(update_fields=['workflow_state'])
 
                 if workflow_state in (CanvasCourseGenerationJob.STATUS_COMPLETED,
-                                          CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE):
+                                      CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE):
 
                     logger.debug('Workflow state updated, starting finalization process...')
                     try:
@@ -111,7 +111,7 @@ class Command(NoArgsCommand):
                         complete_msg = success_msg.format(canvas_course_url)
                         send_email_helper(settings.CANVAS_EMAIL_NOTIFICATION['course_migration_success_subject'], complete_msg, to_address)
 
-                elif workflow_state == 'failed':
+                elif workflow_state == CanvasCourseGenerationJob.STATUS_FAILED:
                     error_text = 'Content migration failed for course with sis_course_id %s (HUID:%s)' \
                                  % (job.sis_course_id, job.created_by_user_id)
                     logger.info(error_text)
