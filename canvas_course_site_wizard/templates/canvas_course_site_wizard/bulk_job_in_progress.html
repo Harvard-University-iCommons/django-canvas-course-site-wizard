@@ -5,8 +5,11 @@
 {% block content %}
 
         <h1>Course creation already in progress</h1>
-        <p>The Canvas course site for course <b>{{sis_course_id}}</b> is already being created as part of another process. <br>
-            Please contact your local academic support staff for more information:</p>
+        <p>
+            The Canvas course site for course <b>{{sis_course_id}}</b> is
+            already being created as part of another process. <br>Please
+            contact your local academic support staff for more information:
+        </p>
 
         {% include 'canvas_course_site_wizard/school_list.html' %}
 {% endblock content %}

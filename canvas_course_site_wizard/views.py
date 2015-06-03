@@ -39,7 +39,9 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
         # check to see if a bulk job is already in progress for the course being created.
         # if so display a message indication that to the user
         if is_bulk_job_in_progress_for_course_id(sis_course_id):
-            return render(request, 'canvas_course_site_wizard/bulk_job_in_progress.html', { 'sis_course_id' : sis_course_id })
+            return render(request,
+                          'canvas_course_site_wizard/bulk_job_in_progress.html',
+                          {'sis_course_id' : sis_course_id})
 
         course = create_canvas_course(sis_course_id, request.user.username)
         try:
