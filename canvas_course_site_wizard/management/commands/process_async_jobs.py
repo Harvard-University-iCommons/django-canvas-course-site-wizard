@@ -43,7 +43,10 @@ class Command(NoArgsCommand):
             logger.error("another instance of the command is already running")
             return
 
-        jobs = CanvasCourseGenerationJob.objects.filter(Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING))
+        jobs = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) |
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
+        )
 
         for job in jobs:
             try:
@@ -57,9 +60,14 @@ class Command(NoArgsCommand):
                 job_start_message = '\nProcessing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
                 user_profile = None
-                response = client.get(SDK_CONTEXT, job.status_url)
-                progress_response = response.json()
-                workflow_state = progress_response['workflow_state']
+
+                if job.status_url:
+                    response = client.get(SDK_CONTEXT, job.status_url)
+                    progress_response = response.json()
+                    workflow_state = progress_response['workflow_state']
+                else:
+                    # No status_url was set, there must have been no school template, so we are complete
+                    workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
 
                 if workflow_state == 'completed':
                     logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
