@@ -211,6 +211,7 @@ class CanvasCourseGenerationJob(models.Model):
     STATUS_RUNNING = 'running'
     STATUS_COMPLETED = 'completed'
     STATUS_FAILED = 'failed'
+    STATUS_PENDING_FINALIZE = 'pending_finalize'
     STATUS_FINALIZED = 'finalized'
     STATUS_FINALIZE_FAILED = 'finalize_failed'
 
@@ -222,6 +223,7 @@ class CanvasCourseGenerationJob(models.Model):
         (STATUS_RUNNING, STATUS_RUNNING),
         (STATUS_COMPLETED, STATUS_COMPLETED),
         (STATUS_FAILED, STATUS_FAILED),
+        (STATUS_PENDING_FINALIZE, STATUS_PENDING_FINALIZE),
         (STATUS_FINALIZED, STATUS_FINALIZED),
         (STATUS_FINALIZE_FAILED, STATUS_FINALIZE_FAILED),
     )
@@ -233,6 +235,7 @@ class CanvasCourseGenerationJob(models.Model):
         STATUS_QUEUED: 'Queued',
         STATUS_RUNNING: 'Running',
         STATUS_COMPLETED: 'Running',
+        STATUS_PENDING_FINALIZE: 'Running',
         STATUS_FAILED: 'Failed',
         STATUS_FINALIZED: 'Complete',
         STATUS_FINALIZE_FAILED: 'Failed'
@@ -442,17 +445,18 @@ class BulkCanvasCourseCreationJob(models.Model):
         (i.e. all subjobs are in a terminal state)
         """
 
-        subjob_terminal_states = [
+        subjob_intermediate_states = [
             CanvasCourseGenerationJob.STATUS_QUEUED,
             CanvasCourseGenerationJob.STATUS_RUNNING,
             CanvasCourseGenerationJob.STATUS_SETUP,
-            CanvasCourseGenerationJob.STATUS_SETUP
+            CanvasCourseGenerationJob.STATUS_COMPLETED,
+            CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE
         ]
-        subjob_count = CanvasCourseGenerationJob.objects.filter(
-            workflow_state__in=subjob_terminal_states,
+        intermediate_subjob_count = CanvasCourseGenerationJob.objects.filter(
+            workflow_state__in= subjob_intermediate_states,
             bulk_job_id=self.id).count()
 
-        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and subjob_count == 0
+        return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and intermediate_subjob_count == 0
 
     def get_failed_subjobs(self):
         """ Returns a list of subjobs in a known failed state """
