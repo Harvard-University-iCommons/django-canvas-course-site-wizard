@@ -17,17 +17,9 @@
     {% elif job_failed %}
         <h1>Oops!</h1>
         <p>Sadly, there was a problem. Please notify your local academic support staff:</p>
-        <ul>
-          <li>DCE/Summer: AcademicTechnology@dce.harvard.edu</li>
-          <li>FAS: atg@fas.harvard.edu</li>
-          <li>GSD: klau@gsd.harvard.edu</li>
-          <li>GSE: it_onestop@gse.harvard.edu</li>
-          <li>HDS: coursesites@hds.harvard.edu</li>
-          <li>HKS: helpdesk@hks.harvard.edu</li>
-          <li>HLS: ask@edtech.libanswers.com</li>
-          <li>HMS: mycourses_support@hms.harvard.edu</li>
-          <li>HSPH: icf@hsph.harvard.edu</li>
-        </ul>
+
+        {% include 'canvas_course_site_wizard/school_list.html' %}
+
     {% else %}
         <h1>Almost there!</h1>
         <p>Your course site is being created.

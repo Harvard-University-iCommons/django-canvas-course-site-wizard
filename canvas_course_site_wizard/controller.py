@@ -26,6 +26,15 @@ from icommons_common.canvas_utils import SessionInactivityExpirationRC
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
+def is_bulk_job_in_progress_for_course_id(sis_course_id):
+    """
+    Check to see if a bulk job is already handling the creation of a course
+    :param sis_course_id:
+    :return: boolean
+    """
+    return CanvasCourseGenerationJob.objects\
+               .filter(sis_course_id=sis_course_id,
+                       bulk_job_id__isnull=False).count() > 0
 
 def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     """
@@ -37,8 +46,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     new_course = None
     section = None
 
-        # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
-        # keeping track of the status of the various courses in the bulk job context as well as general reporting
+    # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
+    # keeping track of the status of the various courses in the bulk job context as well as general reporting
 
     # if there a bulk job id, the CanvasCourseGenerationJob record has already been created so skip it.
     if not bulk_job_id:

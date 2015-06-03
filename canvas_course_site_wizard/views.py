@@ -4,14 +4,14 @@ import json
 from django.http import HttpResponse
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.conf import settings
 
 from .controller import (create_canvas_course, start_course_template_copy,
                          finalize_new_canvas_course, get_canvas_course_url,
                          get_bulk_jobs_for_term, get_term_course_counts,
                          is_bulk_job_in_progress, get_courses_for_bulk_create,
-                         setup_bulk_jobs)
+                         setup_bulk_jobs, is_bulk_job_in_progress_for_course_id)
 from .mixins import (CourseSiteCreationAllowedMixin,
                      BulkCourseSiteCreationAllowedMixin)
 from icommons_ui.mixins import CustomErrorPageMixin
@@ -35,6 +35,14 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
     def post(self, request, *args, **kwargs):
         sis_course_id = self.object.pk
         sis_user_id = 'sis_user_id:%s' % request.user.username
+
+        # check to see if a bulk job is already in progress for the course being created.
+        # if so display a message indication that to the user
+        if is_bulk_job_in_progress_for_course_id(sis_course_id):
+            return render(request,
+                          'canvas_course_site_wizard/bulk_job_in_progress.html',
+                          {'sis_course_id' : sis_course_id})
+
         course = create_canvas_course(sis_course_id, request.user.username)
         try:
             course_generation_job = start_course_template_copy(self.object, course['id'], request.user.username)
