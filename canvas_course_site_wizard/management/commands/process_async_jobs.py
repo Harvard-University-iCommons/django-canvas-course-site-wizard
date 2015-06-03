@@ -43,7 +43,11 @@ class Command(NoArgsCommand):
             logger.error("another instance of the command is already running")
             return
 
-        jobs = CanvasCourseGenerationJob.objects.filter(Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) | Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING))
+        jobs = CanvasCourseGenerationJob.objects.filter(
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) |
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING) |
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED)
+        )
 
         for job in jobs:
             try:
@@ -57,17 +61,20 @@ class Command(NoArgsCommand):
                 job_start_message = '\nProcessing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
                 user_profile = None
-                response = client.get(SDK_CONTEXT, job.status_url)
-                progress_response = response.json()
-                workflow_state = progress_response['workflow_state']
+
+                workflow_state = job.workflow_state
+                if job.status_url:
+                    response = client.get(SDK_CONTEXT, job.status_url)
+                    progress_response = response.json()
+                    workflow_state = progress_response['workflow_state']
+                    if workflow_state == 'completed':
+                        logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
+                        # Update the Job table with the completed state immediately to indicate that the template
+                        # migration was successful
+                        job.workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
+                        job.save(update_fields=['workflow_state'])
 
                 if workflow_state == 'completed':
-                    logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
-                    # Update the Job table with the completed state immediately to indicate that the template
-                    # migration was successful
-                    job.workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
-                    job.save(update_fields=['workflow_state'])
-
                     logger.debug('Workflow state updated, starting finalization process...')
                     try:
                         canvas_course_url = finalize_new_canvas_course(job.canvas_course_id,
