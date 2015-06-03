@@ -32,7 +32,9 @@ def is_bulk_job_in_progress_for_course_id(sis_course_id):
     :param sis_course_id:
     :return: boolean
     """
-    return CanvasCourseGenerationJob.objects.filter(sis_course_id=sis_course_id, bulk_job_id__isnull=False).count() > 0
+    return CanvasCourseGenerationJob.objects\
+               .filter(sis_course_id=sis_course_id,
+                       bulk_job_id__isnull=False).count() > 0
 
 def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     """
