@@ -45,8 +45,7 @@ class Command(NoArgsCommand):
 
         jobs = CanvasCourseGenerationJob.objects.filter(
             Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) |
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING) |
-            Q(workflow_state=CanvasCourseGenerationJob.STATUS_COMPLETED)
+            Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING)
         )
 
         for job in jobs:
@@ -62,19 +61,21 @@ class Command(NoArgsCommand):
                 logger.info(job_start_message)
                 user_profile = None
 
-                workflow_state = job.workflow_state
                 if job.status_url:
                     response = client.get(SDK_CONTEXT, job.status_url)
                     progress_response = response.json()
                     workflow_state = progress_response['workflow_state']
-                    if workflow_state == 'completed':
-                        logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
-                        # Update the Job table with the completed state immediately to indicate that the template
-                        # migration was successful
-                        job.workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
-                        job.save(update_fields=['workflow_state'])
+                else:
+                    # No status_url was set, there must have been no school template, so we are complete
+                    workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
 
                 if workflow_state == 'completed':
+                    logger.info('content migration complete for course with sis_course_id %s' % job.sis_course_id)
+                    # Update the Job table with the completed state immediately to indicate that the template
+                    # migration was successful
+                    job.workflow_state = CanvasCourseGenerationJob.STATUS_COMPLETED
+                    job.save(update_fields=['workflow_state'])
+
                     logger.debug('Workflow state updated, starting finalization process...')
                     try:
                         canvas_course_url = finalize_new_canvas_course(job.canvas_course_id,
