@@ -41,8 +41,19 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
     # keeping track of the status of the various courses in the bulk job context as well as general reporting
 
-    # if there a bulk job id, the CanvasCourseGenerationJob record has already been created so skip it.
-    if not bulk_job_id:
+    # if there's no bulk id, we need to create the CanvasCourseGenerationJob
+    if bulk_job_id:
+        try:
+            course_generation_job = CanvasCourseGenerationJob.objects.filter(
+                sis_course_id=sis_course_id,
+                bulk_job_id=bulk_job_id).one()
+        except Exception as e:
+            msg = 'Bulk job {} is missing subjob for sis_course_id {}'.format(
+                      bulk_job_id, sis_course_id)
+            logger.exception(msg)
+            ex = CavnasCourseCreateError(msg_details=msg)
+            raise ex
+    else:
         try:
             logger.debug('Create content migration job tracking row...')
             course_generation_job = CanvasCourseGenerationJob.objects.create(
@@ -112,7 +123,20 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
 
     logger.info("created course object, ret=%s" % new_course)
 
-    # 4. Create course section after course creation
+    # 4. Save the canvas course id to the generation job
+    course_generation_job.canvas_course_id = new_course['id']
+    try:
+        course_generation_job.save(update_fields=['canvas_course_id'])
+    except Exception as e:
+        msg = 'Unable to save canvas course id {} to course generation job {}'\
+                  .format(new_course['id'], course_generation_job.pk)
+        ex = CanvasCourseCreateError(msg_details=msg)
+        if not bulk_job_id:
+            send_failure_msg_to_support(sis_course_id, sis_user_id,
+                                        ex.display_text)
+        raise ex
+
+    # 5. Create course section after course creation
     try:
         request_parameters = dict(request_ctx=SDK_CONTEXT,
                                   course_id=new_course['id'],
