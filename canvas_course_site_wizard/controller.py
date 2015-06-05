@@ -36,9 +36,10 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     # instantiate any variables required for method return or logger calls
     new_course = None
     section = None
+    job_id = None
 
-        # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
-        # keeping track of the status of the various courses in the bulk job context as well as general reporting
+    # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
+    # keeping track of the status of the various courses in the bulk job context as well as general reporting
 
     # if there a bulk job id, the CanvasCourseGenerationJob record has already been created so skip it.
     if not bulk_job_id:
@@ -49,6 +50,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
                 created_by_user_id=sis_user_id,
                 workflow_state=CanvasCourseGenerationJob.STATUS_SETUP,
             )
+            job_id = course_generation_job.pk
             logger.debug('Job row created: %s' % course_generation_job)
 
         except Exception as e:
@@ -70,7 +72,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, job_id=job_id, bulk_job_id=bulk_job_id)
 
         ex = SISCourseDoesNotExistError(sis_course_id)
         # If the course is part of bulk job, do not send individual email. .
@@ -97,7 +99,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.exception('Error building request_parameters or executing create_new_course() SDK call '
                          'for new Canvas course with request=%s:', request_parameters)
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, job_id=job_id, bulk_job_id=bulk_job_id)
 
         # a 400 errors here means that the SIS id already exists in Canvas
         if api_error.status_code == 400:
@@ -122,8 +124,9 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.exception('Error building request_parameters or executing create_course_section() SDK call '
                          'for new Canvas course id=%s with request=%s'
                          % (new_course.get('id', '<no ID>'), request_parameters))
+
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, job_id=job_id, bulk_job_id=bulk_job_id)
 
         # send email in addition to showing error page to user
         ex = CanvasSectionCreateError(msg_details=sis_course_id)
@@ -131,10 +134,15 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
             send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
         raise ex
 
+    # if this creation is part of a single course creation process return
+    # the course along with the new job_id
+    if job_id:
+        return new_course, job_id
+
     return new_course
 
 
-def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_id=None):
+def start_course_template_copy(sis_course, canvas_course_id, user_id, job_id=None, bulk_job_id=None):
     """
     This method will retrieve the template site associated with an SISCourseData object and start the
     Canvas process of copying the template content into the canvas course site.  A CanvasCourseGenerationJob
@@ -167,7 +175,7 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, bulk_job_i
     #  Update the status of   course generation job  with metadata (canvas id, workflow_state, progress url, etc)
     logger.debug('Update course generation job tracking row...')
 
-    course_generation_job = get_course_generation_data_for_sis_course_id(sis_course.pk)
+    course_generation_job = get_course_generation_data_for_sis_course_id(sis_course.pk, job_id=job_id, bulk_job_id=bulk_job_id)
     course_generation_job.canvas_course_id = canvas_course_id
     course_generation_job.content_migration_id = content_migration['id']
     course_generation_job.workflow_state = CanvasCourseGenerationJob.STATUS_QUEUED
@@ -471,13 +479,13 @@ def setup_bulk_jobs(courses, sis_user_id, bulk_job_id):
 
     return errors
 
-def update_course_generation_workflow_state(sis_course_id, workflow_state):
+def update_course_generation_workflow_state(sis_course_id, workflow_state, job_id=None, bulk_job_id=None):
     """
     Update the CanvasCourseGenerationJob record of the sis_course_id with the workflow_state passed in
     :param term_id: The term_id of the term
     :param workflow_state: One of the states from the CanvasCourseGenerationJob's  WORKFLOW_STATUS_CHOICES
     """
-    course_job = get_course_generation_data_for_sis_course_id(sis_course_id)
+    course_job = get_course_generation_data_for_sis_course_id(sis_course_id, job_id=job_id, bulk_job_id=bulk_job_id)
     if course_job:
         course_job.workflow_state = workflow_state
         course_job.save(update_fields=['workflow_state'])
