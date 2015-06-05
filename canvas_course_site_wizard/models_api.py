@@ -34,7 +34,7 @@ def get_course_generation_data_for_sis_course_id(sis_course_id, job_id=None, bul
     job associated.
     """
     kwargs = {'sis_course_id': sis_course_id,}
-    # if there is a job id, there's no need more any other params
+    # if there is a job id, there's no need for any other params
     if job_id:
         kwargs['pk'] = job_id
     else:
