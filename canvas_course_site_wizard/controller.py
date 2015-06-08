@@ -135,7 +135,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         raise ex
 
     # if this creation is part of a single course creation process return
-    # the course along with the new job_id
+    # the course along with the new job_id. The start_course_template_copy method will updated
+    # the worng record if job id is no supplied.
     if job_id:
         return new_course, job_id
 
