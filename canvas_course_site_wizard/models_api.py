@@ -53,7 +53,7 @@ def get_course_generation_data_for_sis_course_id(sis_course_id,
             kwargs['bulk_job_id__isnull'] = True
 
     try:
-        return CanvasCourseGenerationJob.objects.filter(**kwargs).get()
+        return CanvasCourseGenerationJob.objects.get(**kwargs)
     except (CanvasCourseGenerationJob.DoesNotExist,
             CanvasCourseGenerationJob.MultipleObjectsReturned) as e:
         logger.exception(
