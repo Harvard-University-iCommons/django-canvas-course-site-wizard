@@ -5,11 +5,16 @@ from django.core.exceptions import ObjectDoesNotExist
 from canvas_sdk.exceptions import CanvasAPIError
 from canvas_course_site_wizard import controller
 from canvas_course_site_wizard.models import CanvasCourseGenerationJob
-from canvas_course_site_wizard.exceptions import (CanvasCourseCreateError, CanvasCourseAlreadyExistsError,
-                                                  SISCourseDoesNotExistError, CanvasSectionCreateError,
-                                                  CourseGenerationJobCreationError)
+from canvas_course_site_wizard.exceptions import (
+    CanvasCourseAlreadyExistsError,
+    CanvasCourseCreateError,
+    CanvasSectionCreateError,
+    CourseGenerationJobCreationError,
+    CourseGenerationJobNotFoundError,
+    SISCourseDoesNotExistError,
+)
 
-m_canvas_content_migration_job = Mock(
+m_canvas_content_generation_job = Mock(
     spec=CanvasCourseGenerationJob,
     id=2,
     canvas_course_id=9999,
@@ -57,34 +62,40 @@ class CreateCanvasCourseTest(TestCase):
     # Tests for create_canvas_course.get_course_data()
     # ------------------------------------------------------
 
-    def test_get_course_data_method_called_with_right_params(self, get_course_data,
-                                                             create_course_section, create_new_course):
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    def test_get_course_data_method_called_with_right_params(self,
+            course_generation_job__objects__filter, 
+            course_generation_job__objects__create, 
+            update_course_generation_workflow_state,
+            get_course_data, create_course_section, create_new_course):
         """
         Test that controller method makes a call to get_course_data api with expected args
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         get_course_data.assert_called_with(self.sis_course_id)
 
-    def test_object_not_found_exception_in_get_course_data(self, get_course_data,
-                                                           create_course_section, create_new_course):
-        """
-        Test  when get_course_data throws an ObjectDoesNotExist
-        Note: Http404 exception is one of the exceptions not visible to the test client.
-        So just checking for ObjectDoesNotExist
-        """
-        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-        get_course_data.side_effect = ObjectDoesNotExist
-        self.assertRaises(ObjectDoesNotExist, get_course_data, self.sis_course_id)
-
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_object_not_found_exception_in_get_course_data_logs_error(self, send_failure_msg_to_support, log_replacement, get_course_data,
-                                                                      create_course_section, create_new_course):
+    def test_object_not_found_exception_in_get_course_data_logs_error(
+            self, send_failure_msg_to_support, log_replacement,
+            course_generation_job__objects__create, 
+            get_course_data, create_course_section, create_new_course):
         """
-        Test that the logger.error logs error when when get_course_data throws an ObjectDoesNotExist
+        Test that the logger.error logs error when when get_course_data throws
+        an ObjectDoesNotExist exception.
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
         get_course_data.side_effect = ObjectDoesNotExist
-        with self.assertRaises(RenderableException):
+        with self.assertRaises(SISCourseDoesNotExistError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         self.assertTrue(log_replacement.error.called)
 
@@ -93,29 +104,37 @@ class CreateCanvasCourseTest(TestCase):
     """
 
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
-    def test_create_canvas_course_method_invokes_create_migration_record(self, canvas_content_mgrn_create, get_course_data,
+    def test_create_canvas_course_method_invokes_create_generation_record(self, canvas_content_gen_create, get_course_data,
                                                              create_course_section, create_new_course, **kwargs):
         """
         Test that create_canvas_course method invokes a creation of CanvasCourseGenerationJob record
         with  workflow_state to STATUS_SETUP
         """
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-        self.assertTrue(canvas_content_mgrn_create.called)
-        canvas_content_mgrn_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
+        self.assertTrue(canvas_content_gen_create.called)
+        canvas_content_gen_create.assert_called_with(sis_course_id=self.sis_course_id, created_by_user_id=self.sis_user_id,
                                                       workflow_state=CanvasCourseGenerationJob.STATUS_SETUP)
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
-    def test_create_canvas_course_method_does_not_invoke_create_migration_record_for_bulk_job(self, canvas_content_mgrn_create, get_course_data,
-                                                             create_course_section, create_new_course, **kwargs):
+    def test_create_canvas_course_method_does_not_invoke_create_generation_record_for_bulk_job(
+            self, canvas_content_gen_create,
+            course_generation_job__objects__filter, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course, **kwargs):
         """
-        Test that create_canvas_course method does not try to create CanvasCourseGenerationJob record
-        for courses created by bulk job as well
+        Test that create_canvas_course method does not try to create 
+        CanvasCourseGenerationJob record for courses created by bulk job as well
         """
-        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-        self.assertFalse(canvas_content_mgrn_create.called)
+        query_set = Mock(one=Mock(return_value=Mock(spec=CanvasCourseGenerationJob)))
+        course_generation_job__objects__filter.return_value = query_set
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                        self.bulk_job_id)
+        self.assertFalse(canvas_content_gen_create.called)
 
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob')
-    def test_create_canvas_course_method_creates_migration_record(self, canvas_content_mgrn_db_mock, get_course_data,
+    def test_create_canvas_course_method_creates_generation_record(self, canvas_content_gen_db_mock, get_course_data,
                                                              create_course_section, create_new_course, **kwargs):
         """
         Test that create_canvas_course method creates a CanvasCourseGenerationJob record with right parameters
@@ -123,30 +142,30 @@ class CreateCanvasCourseTest(TestCase):
         workflow_mock = MagicMock(workflow_status=CanvasCourseGenerationJob.STATUS_SETUP)
 
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-        args, kwargs = canvas_content_mgrn_db_mock.objects.create.call_args
-        canvas_content_mgrn_db_mock.objects.create.assert_called_with(sis_course_id=self.sis_course_id,
+        args, kwargs = canvas_content_gen_db_mock.objects.create.call_args
+        canvas_content_gen_db_mock.objects.create.assert_called_with(sis_course_id=self.sis_course_id,
                                                                       created_by_user_id=self.sis_user_id,
                                                                       workflow_state=ANY)
 
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
-    def test_create_canvas_course_method_logs_on_job_creation_exception(self, canvas_content_mgrn_db_mock, logger, get_course_data,
+    def test_create_canvas_course_method_logs_on_job_creation_exception(self, canvas_content_gen_db_mock, logger, get_course_data,
                                                              create_course_section, create_new_course, **kwargs):
         """
         Test that create_canvas_course method logs an error when CanvasCourseGenerationJob creation has an exception
         """
-        canvas_content_mgrn_db_mock.side_effect= Exception
+        canvas_content_gen_db_mock.side_effect= Exception
         with self.assertRaises(Exception):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         self.assertTrue(logger.exception.called)
 
     @patch('canvas_course_site_wizard.models.CanvasCourseGenerationJob.objects.create')
-    def test_custome_error_raised_when_job_creation_has_exception(self, canvas_content_mgrn_db_mock, get_course_data,
+    def test_custome_error_raised_when_job_creation_has_exception(self, canvas_content_gen_db_mock, get_course_data,
                                                              create_course_section, create_new_course):
         """
         Test to assert that a CourseGenerationJobCreationError is raised when CanvasCourseGenerationJob creation has an exception
         """
-        canvas_content_mgrn_db_mock.side_effect= Exception
+        canvas_content_gen_db_mock.side_effect= Exception
         with self.assertRaises(CourseGenerationJobCreationError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
@@ -155,7 +174,7 @@ class CreateCanvasCourseTest(TestCase):
                                                             create_course_section, create_new_course):
         """
         Test to assert that a RenderableException is raised when the create_new_course SDK call
-        throws an CanvasAPIError, update_content_migration_workflow_state is invoked to update the status
+        throws an CanvasAPIError, update_content_generation_workflow_state is invoked to update the status
         to STATUS_SETUP_FAILED
         """
         create_new_course.side_effect = CanvasAPIError(status_code=404)
@@ -179,14 +198,25 @@ class CreateCanvasCourseTest(TestCase):
     # ------------------------------------------------------
     # Tests for create_canvas_course.create_course_section()
     # ------------------------------------------------------
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
-    def test_create_new_course_method_is_called_with_proper_arguments(self, SDK_CONTEXT, logger, get_course_data,
-                                                                      create_course_section, create_new_course):
+    def test_create_new_course_method_is_called_with_proper_arguments(self,
+            SDK_CONTEXT, logger, course_generation_job__objects__filter,
+            course_generation_job__objects__create,
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
         """
-        Test to assert that create_new_course method is called by create_canvas_course controller method
-        with appropriate arguments (collapses a bunch of individual parameter tests)
+        Test to assert that create_new_course method is called by 
+        create_canvas_course controller method with appropriate arguments
+        (collapses a bunch of individual parameter tests)
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
         course_model_mock = self.get_mock_of_get_course_data()
         get_course_data.return_value = course_model_mock
         sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
@@ -248,13 +278,17 @@ class CreateCanvasCourseTest(TestCase):
                                                  course_section_name=mock_primary_section_name,
                                                  course_section_sis_section_id=self.sis_course_id)
 
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_when_create_course_section_method_raises_api_error(self, send_failure_msg_to_support,get_course_data,
-                                                                create_course_section, create_new_course):
+    def test_when_create_course_section_method_raises_api_error(self,
+            course_generation_job__objects__create, send_failure_msg_to_support,
+            get_course_data, create_course_section, create_new_course):
         """
         Test to assert that a RenderableException is raised when the create_course_section SDK call
         throws an CanvasAPIError
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
         create_course_section.side_effect = CanvasAPIError(status_code=400)
         with self.assertRaises(RenderableException):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id, None)
@@ -275,19 +309,24 @@ class CreateCanvasCourseTest(TestCase):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
 
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_object_not_found_exception_in_get_course_data_doesnt_sends_support_email_for_bulk_created_course(
-            self, send_failure_msg_to_support, get_course_data, create_course_section, create_new_course):
+    def test_object_not_found_exception_in_get_course_data_doesnt_send_support_email_for_bulk_created_course(
+            self, course_generation_job__objects__create, 
+            send_failure_msg_to_support,
+            get_course_data, create_course_section, create_new_course):
         """
-        Test to assert that for a course that is created as part of a bulk job, the support email is
-        not sent  when get_course_data raises an ObjectDoesNotExist
+        Test to assert that for a course that is created as part of a bulk job,
+        the support email is not sent when get_course_data raises an
+        ObjectDoesNotExist
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
         get_course_data.side_effect = ObjectDoesNotExist
-        exception_data = SISCourseDoesNotExistError(self.sis_course_id)
 
-        with self.assertRaises(SISCourseDoesNotExistError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-
+        with self.assertRaises(CourseGenerationJobNotFoundError):
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                            self.bulk_job_id)
         self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
@@ -305,47 +344,75 @@ class CreateCanvasCourseTest(TestCase):
         send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
         self.assertTrue('Error: SIS ID not applied for CID' in exception_data.display_text)
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_canvas_course_create_error_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support, get_course_data,
-                                                           create_course_section, create_new_course):
+    def test_canvas_course_create_error_doesnt_send_support_email_for_bulk_created_course(
+            self, send_failure_msg_to_support,
+            course_generation_job__objects__filter, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
         """
-        Test to assert that a for a course that is created as part of a bulk job, the support email is not sent
-        when  there is an CanvasAPIError resulting in CanvasCourseCreateError
+        Test to assert that a for a course that is created as part of a bulk 
+        job, the support email is not sent when there is an CanvasAPIError
+        resulting in CanvasCourseCreateError.
         """
+        query_set = Mock(one=Mock(return_value=Mock(spec=CanvasCourseGenerationJob)))
+        course_generation_job__objects__filter.return_value = query_set
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
-
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                            self.bulk_job_id)
         self.assertFalse(send_failure_msg_to_support.called)
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_canvas_section_error_sends_support_email(self, send_failure_msg_to_support, get_course_data,
-                                                           create_course_section, create_new_course):
+    def test_canvas_section_error_sends_support_email(self,
+            send_failure_msg_to_support,
+            course_generation_job__objects__filter, 
+            course_generation_job__objects__create, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
         """
-        Test to assert that a support email is sent  when  there is an CanvasAPIError resulting in
-        CanvasSectionCreateError
-        
+        Test to assert that a support email is sent when there is a
+        CanvasAPIError resulting in CanvasSectionCreateError.
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
         create_course_section.side_effect = CanvasAPIError(status_code=400)
 
         exception_data = CanvasSectionCreateError(self.sis_course_id)
         with self.assertRaises(CanvasSectionCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-        send_failure_msg_to_support.assert_called_with(self.sis_course_id, self.sis_user_id, exception_data.display_text)
+        send_failure_msg_to_support.assert_called_with(self.sis_course_id,
+                                                       self.sis_user_id,
+                                                       exception_data.display_text)
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_canvas_section_error_doesnt_sends_support_email_for_bulk_created_course(self, send_failure_msg_to_support,
-                                                        get_course_data, create_course_section, create_new_course):
+    def test_canvas_section_error_doesnt_send_support_email_for_bulk_created_course(
+            self, send_failure_msg_to_support,
+            course_generation_job__objects__filter, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
         """
         Test to assert that a support email is NOT sent for bulk created courses, when  there is an CanvasAPIError
          resulting in CanvasSectionCreateError
 
         """
+        query_set = Mock(one=Mock(return_value=Mock(spec=CanvasCourseGenerationJob)))
+        course_generation_job__objects__filter.return_value = query_set
         create_course_section.side_effect = CanvasAPIError(status_code=400)
 
         with self.assertRaises(CanvasSectionCreateError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id, self.bulk_job_id)
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                            self.bulk_job_id)
 
         self.assertFalse(send_failure_msg_to_support.called)
 
@@ -364,12 +431,23 @@ class CreateCanvasCourseTest(TestCase):
         self.assertFalse(send_failure_msg_to_support.called)
 
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
-    def test_canvas_section_error_sets_support_notified(self, send_failure_msg_to_support, get_course_data,
-                                                           create_course_section, create_new_course):
+    def test_canvas_section_error_sets_support_notified(self,
+            send_failure_msg_to_support,
+            course_generation_job__objects__filter, 
+            course_generation_job__objects__create, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
         """
         Test to assert that support_notified is set on CanvasSectionCreateError
         """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
         create_course_section.side_effect = CanvasAPIError(status_code=400)
         exception_data = CanvasSectionCreateError(self.sis_course_id)
         with self.assertRaises(CanvasSectionCreateError):
