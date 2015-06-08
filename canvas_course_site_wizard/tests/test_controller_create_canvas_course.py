@@ -1,10 +1,17 @@
-from unittest import TestCase, skip
+import contextlib
+import uuid
+from unittest import TestCase
+
 from mock import patch, DEFAULT, MagicMock, Mock, ANY
+
 from icommons_ui.exceptions import RenderableException
 from django.core.exceptions import ObjectDoesNotExist
 from canvas_sdk.exceptions import CanvasAPIError
 from canvas_course_site_wizard import controller
-from canvas_course_site_wizard.models import CanvasCourseGenerationJob
+from canvas_course_site_wizard.models import (
+    CanvasCourseGenerationJob,
+    SISCourseData,
+)
 from canvas_course_site_wizard.exceptions import (
     CanvasCourseAlreadyExistsError,
     CanvasCourseCreateError,
@@ -13,6 +20,7 @@ from canvas_course_site_wizard.exceptions import (
     CourseGenerationJobNotFoundError,
     SISCourseDoesNotExistError,
 )
+
 
 m_canvas_content_generation_job = Mock(
     spec=CanvasCourseGenerationJob,
@@ -24,15 +32,17 @@ m_canvas_content_generation_job = Mock(
     created_by_user_id='123'
 )
 @patch.multiple('canvas_course_site_wizard.controller',
-                get_course_data=DEFAULT, create_course_section=DEFAULT, create_new_course=DEFAULT)
+                get_course_data=DEFAULT, create_course_section=DEFAULT,
+                create_new_course=DEFAULT)
 class CreateCanvasCourseTest(TestCase):
     longMessage = True
 
     def setUp(self):
+        self.bulk_job_id = 10
+        self.canvas_course_id = uuid.uuid4().hex
+        self.job_id = 1475
         self.sis_course_id = "305841"
         self.sis_user_id = "123456"
-        self.bulk_job_id = 10
-        self.job_id = 1475
 
     def get_mock_of_get_course_data(self):
         # mock the properties
@@ -480,3 +490,94 @@ class CreateCanvasCourseTest(TestCase):
 
         self.assertTrue('support_notified' not in cm.exception)
 
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    def test_canvas_course_id_saved_to_canvas_course_generation_job_single(self,
+            course_generation_job__objects__create, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
+        """
+        Ensures that the canvas course id is saved to the
+        CanvasCourseGenerationJob
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+
+        # don't edit the class-wide create_new_course mock
+        with patch('canvas_course_site_wizard.controller.create_new_course') as create_new_course:
+            create_new_course().json.return_value = {'id': self.canvas_course_id}
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+            self.assertEqual(job.canvas_course_id, self.canvas_course_id)
+            job.save.assert_called_with(update_fields=['canvas_course_id'])
+
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    def test_canvas_course_id_saved_to_canvas_course_generation_job_bulk(self,
+            course_generation_job__objects__filter, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
+        """
+        Ensures that the canvas course id is saved to the
+        CanvasCourseGenerationJob
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+
+        # don't edit the class-wide create_new_course mock
+        with patch('canvas_course_site_wizard.controller.create_new_course') as create_new_course:
+            create_new_course().json.return_value = {'id': self.canvas_course_id}
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                            self.bulk_job_id)
+            self.assertEqual(job.canvas_course_id, self.canvas_course_id)
+            job.save.assert_called_with(update_fields=['canvas_course_id'])
+
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    def test_canvas_course_id_saved_to_course_instance_single(self,
+            course_generation_job__objects__create, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
+        """
+        Ensures that the canvas course id is saved to the CourseInstance
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+
+        # don't edit the class-wide create_new_course mocks
+        with contextlib.nested(
+                patch('canvas_course_site_wizard.controller.get_course_data'),
+                patch('canvas_course_site_wizard.controller.create_new_course')
+                ) as (get_course_data, create_new_course):
+            course_data = MagicMock(spec=SISCourseData())
+            get_course_data.return_value = course_data
+            create_new_course().json.return_value = {'id': self.canvas_course_id}
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+            self.assertEqual(course_data.canvas_course_id, self.canvas_course_id)
+            course_data.save.assert_called_with(update_fields=['canvas_course_id'])
+
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    def test_canvas_course_id_saved_to_course_instance_bulk(self,
+            course_generation_job__objects__filter, 
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course):
+        """
+        Ensures that the canvas course id is saved to the CourseInstance
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        query_set = Mock(one=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+
+        # don't edit the class-wide create_new_course mocks
+        with contextlib.nested(
+                patch('canvas_course_site_wizard.controller.get_course_data'),
+                patch('canvas_course_site_wizard.controller.create_new_course')
+                ) as (get_course_data, create_new_course):
+            course_data = MagicMock(spec=SISCourseData())
+            get_course_data.return_value = course_data
+            create_new_course().json.return_value = {'id': self.canvas_course_id}
+            controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
+                                            self.bulk_job_id)
+            self.assertEqual(course_data.canvas_course_id, self.canvas_course_id)
+            course_data.save.assert_called_with(update_fields=['canvas_course_id'])
