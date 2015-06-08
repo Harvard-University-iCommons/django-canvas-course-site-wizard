@@ -7,7 +7,8 @@ from canvas_course_site_wizard.models_api import (
     get_template_for_school,
     get_courses_for_term,
     get_bulk_job_records_for_term,
-    select_courses_for_bulk_create
+    select_courses_for_bulk_create,
+    get_course_generation_data_for_sis_course_id
 )
 from canvas_course_site_wizard.models import CanvasSchoolTemplate
 from setup_bulk_jobs import create_jobs
@@ -20,6 +21,9 @@ class ModelsApiTest(TestCase):
         self.school_id = 'fas'
         self.template_id = 123456
         self.term_id = 4545
+        self.sis_course_id = 12345678
+        self.bulk_job_id = 215
+        self.job_id = 1475
         create_jobs(self.school_id, self.term_id)
 
     def test_single_template_exists_for_school(self):
@@ -104,7 +108,27 @@ class ModelsApiTest(TestCase):
 
         mock_ci.assert_has_calls(calls, any_order=True)
 
+    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.filter')
+    def test_get_course_generation_data_for_sis_course_id_without_bulk_job_id(self, mock_ci):
+        """
+        Test that get_course_generation_data_for_sis_course_id has the proper query when no
+        bulk job id is present
+        :param mock_ci:
+        :return:
+        """
+        get_course_generation_data_for_sis_course_id(self.sis_course_id)
+        mock_ci.assert_called_once_with(sis_course_id=self.sis_course_id, bulk_job_id__isnull=True)
 
+    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.filter')
+    def test_get_course_generation_data_for_sis_course_id(self, mock_ci):
+        """
+        Test that get_course_generation_data_for_sis_course_id has the proper query when the
+        bulk job id is present
+        :param mock_ci:
+        :return:
+        """
+        get_course_generation_data_for_sis_course_id(self.sis_course_id, bulk_job_id=self.bulk_job_id)
+        mock_ci.assert_called_once_with(bulk_job_id=self.bulk_job_id, sis_course_id=self.sis_course_id)
 
 
     #TODO: once we figure out how to deal with legacy data, we can add integration tests for retrieving course data

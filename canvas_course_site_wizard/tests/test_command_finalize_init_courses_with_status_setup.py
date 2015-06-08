@@ -46,17 +46,18 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
 
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.'
            'CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs')
-    def test_that_create_course_is_call_with_all_bulk_job_courses(self, mock_getjobs, get_course_data, create_canvas_course, start_course_template_copy):
+    def test_that_create_course_is_call_with_all_bulk_job_courses(self, mock_getjobs, get_course_data,
+                                                                  create_canvas_course, start_course_template_copy):
         """
         test that create_canvas_course is called with all the courses that have a status of 'setup'
         """
         mock_getjobs.return_value = self.cm_jobs
         create_course_calls = []
         template_copy_calls = []
-        for course in self.courses:
+        for index, course in enumerate(self.courses):
             create_course_calls.append(call(course, self.user_id, bulk_job_id=self.bulk_job_id))
             create_course_calls.append(ANY)
-            template_copy_calls.append(call(ANY, ANY, self.user_id, bulk_job_id=self.bulk_job_id))
+            template_copy_calls.append(call(ANY, ANY, self.user_id, job_id=index, bulk_job_id=self.bulk_job_id))
 
         _init_courses_with_status_setup()
         create_canvas_course.assert_has_calls(create_course_calls)

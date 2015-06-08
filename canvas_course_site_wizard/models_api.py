@@ -26,13 +26,29 @@ def get_course_generation_data_for_canvas_course_id(canvas_course_id):
 		return None
 
 
-def get_course_generation_data_for_sis_course_id(sis_course_id):
+def get_course_generation_data_for_sis_course_id(sis_course_id, course_job_id=None, bulk_job_id=None, ):
     """
-    Retrieve the Canvas course generation job data given the sis_course_id.
-    Returns the first matching record if it exists or None if it  does not have a job associated.
+    Retrieve the Canvas course generation job data given the sis_course_id and an
+    optional bulk_job_id.
+    Returns the first matching record if it exists or None if it  does not have a
+    job associated.
     """
-    result = CanvasCourseGenerationJob.objects.filter(sis_course_id=sis_course_id)
-    if len(result) > 0: 
+    kwargs = {'sis_course_id': sis_course_id,}
+    # if there is a job id, there's no need for any other params
+    if course_job_id:
+        kwargs['pk'] = course_job_id
+    else:
+        # if there was no job_id, see if there's a bulk_job_id
+        # if not, query for bulk_job_id is null
+        if bulk_job_id:
+            kwargs['bulk_job_id'] = bulk_job_id
+        else:
+            kwargs['bulk_job_id__isnull'] = True
+
+    result = CanvasCourseGenerationJob.objects.filter(**kwargs)
+    if len(result) > 0:
+        # we should not need this anymore, we should be able to return
+        # one result.
     	return result[0]
     else:
 		return None
