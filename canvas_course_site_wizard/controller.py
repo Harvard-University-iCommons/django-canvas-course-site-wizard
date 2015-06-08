@@ -15,10 +15,21 @@ from .models_api import (get_course_data, get_template_for_school,
                          select_courses_for_bulk_create, get_course_generation_data_for_sis_course_id)
 from .models import (CanvasCourseGenerationJob,
                      SISCourseData, BulkCanvasCourseCreationJob)
-from .exceptions import (NoTemplateExistsForSchool, NoCanvasUserToEnroll, CanvasCourseCreateError,
-                         SISCourseDoesNotExistError, CanvasSectionCreateError,
-                         CanvasCourseAlreadyExistsError, CanvasEnrollmentError, MarkOfficialError,
-                         CopySISEnrollmentsError, CourseGenerationJobCreationError)
+from .exceptions import (
+    CanvasCourseAlreadyExistsError,
+    CanvasCourseCreateError,
+    CanvasEnrollmentError,
+    CanvasSectionCreateError,
+    CopySISEnrollmentsError,
+    CourseGenerationJobCreationError,
+    CourseGenerationJobNotFoundError,
+    MarkOfficialError,
+    NoCanvasUserToEnroll,
+    NoTemplateExistsForSchool,
+    SISCourseDoesNotExistError,
+    SaveCanvasCourseIdToCourseGenerationJobError,
+    SaveCanvasCourseIdToCourseInstanceError,
+)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
 
 
@@ -45,13 +56,12 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     if bulk_job_id:
         try:
             course_generation_job = CanvasCourseGenerationJob.objects.filter(
-                sis_course_id=sis_course_id,
-                bulk_job_id=bulk_job_id).one()
+                                        sis_course_id=sis_course_id,
+                                        bulk_job_id=bulk_job_id).one()
         except Exception as e:
-            msg = 'Bulk job {} is missing subjob for sis_course_id {}'.format(
-                      bulk_job_id, sis_course_id)
-            logger.exception(msg)
-            ex = CavnasCourseCreateError(msg_details=msg)
+            ex = CourseGenerationJobNotFoundError(msg_details=(bulk_job_id,
+                                                               sis_course_id))
+            logger.exception(ex.display_text)
             raise ex
     else:
         try:
@@ -63,7 +73,6 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
             )
             course_job_id = course_generation_job.pk
             logger.debug('Job row created: %s' % course_generation_job)
-
         except Exception as e:
             logger.exception('Error  in inserting CanvasCourseGenerationJob record for '
                              'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
@@ -128,15 +137,28 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     try:
         course_generation_job.save(update_fields=['canvas_course_id'])
     except Exception as e:
-        msg = 'Unable to save canvas course id {} to course generation job {}'\
-                  .format(new_course['id'], course_generation_job.pk)
-        ex = CanvasCourseCreateError(msg_details=msg)
+        ex = SaveCanvasCourseIdToCourseGenerationJobError(
+                msg_details=(new_course['id'], course_generation_job.pk))
+        logging.exception(ex.display_text)
         if not bulk_job_id:
             send_failure_msg_to_support(sis_course_id, sis_user_id,
                                         ex.display_text)
         raise ex
 
-    # 5. Create course section after course creation
+    # 5. Save the canvas course id to the course instance
+    course_data.canvas_course_id = new_course['id']
+    try:
+        course_data.save(update_fields=['canvas_course_id'])
+    except Exception as e:
+        ex = SaveCanvasCourseIdToCourseInstanceError(
+                msg_details=(new_course['id'], course_data.pk))
+        logging.exception(ex.display_text)
+        if not bulk_job_id:
+            send_failure_msg_to_support(sis_course_id, sis_user_id,
+                                        ex.display_text)
+        raise ex
+
+    # 6. Create course section after course creation
     try:
         request_parameters = dict(request_ctx=SDK_CONTEXT,
                                   course_id=new_course['id'],

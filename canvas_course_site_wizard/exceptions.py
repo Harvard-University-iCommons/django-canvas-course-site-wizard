@@ -1,5 +1,8 @@
-from icommons_ui.exceptions import RenderableException
+import collections
+
 from django.conf import settings
+
+from icommons_ui.exceptions import RenderableException
 
 
 class NoTemplateExistsForSchool(Exception):
@@ -18,7 +21,11 @@ class RenderableExceptionWithDetails(RenderableException):
     # display text)
     def __init__(self, msg_details, *args, **kw_args):
         super(RenderableExceptionWithDetails, self).__init__(self, *args, **kw_args)
-        self.display_text = self.display_text.format(msg_details)
+        if (isinstance(msg_details, collections.Iterable)
+                and not isinstance(msg_details, basestring)):
+            self.display_text = self.display_text.format(*msg_details)
+        else:
+            self.display_text = self.display_text.format(msg_details)
 
 
 class NoCanvasUserToEnroll(RenderableExceptionWithDetails):
@@ -69,3 +76,13 @@ class CanvasSectionAlreadyExists(RenderableExceptionWithDetails):
 class SISCourseDoesNotExistError(RenderableExceptionWithDetails):
     display_text = 'Error: CID {0} not found'
     status_code = 404  # Course Instance not found
+
+class CourseGenerationJobNotFoundError(RenderableExceptionWithDetails):
+    display_text = 'Bulk job {0} does not have a subjob for SIS Course ID {1}'
+
+class SaveCanvasCourseIdToCourseGenerationJobError(RenderableExceptionWithDetails):
+    display_text = ('Unable to save Canvas course id {0} to course generation '
+                    'job {1}')
+
+class SaveCanvasCourseIdToCourseInstanceError(RenderableExceptionWithDetails):
+    display_text = 'Unable to save Canvas course id {0} to course instance {1}'
