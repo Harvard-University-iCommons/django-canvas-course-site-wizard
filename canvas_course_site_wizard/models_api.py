@@ -26,7 +26,7 @@ def get_course_generation_data_for_canvas_course_id(canvas_course_id):
 		return None
 
 
-def get_course_generation_data_for_sis_course_id(sis_course_id, job_id=None, bulk_job_id=None, ):
+def get_course_generation_data_for_sis_course_id(sis_course_id, course_job_id=None, bulk_job_id=None, ):
     """
     Retrieve the Canvas course generation job data given the sis_course_id and an
     optional bulk_job_id.
@@ -35,8 +35,8 @@ def get_course_generation_data_for_sis_course_id(sis_course_id, job_id=None, bul
     """
     kwargs = {'sis_course_id': sis_course_id,}
     # if there is a job id, there's no need for any other params
-    if job_id:
-        kwargs['pk'] = job_id
+    if course_job_id:
+        kwargs['pk'] = course_job_id
     else:
         # if there was no job_id, see if there's a bulk_job_id
         # if not, query for bulk_job_id is null

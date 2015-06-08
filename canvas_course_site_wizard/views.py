@@ -40,10 +40,10 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
         # the single course creation. This is so we can keep track of the job_id
         # for the newly created job record. There's a probably a better way to handle this
         # but for now, this works
-        course, job_id = create_canvas_course(sis_course_id, request.user.username)
+        course, course_job_id = create_canvas_course(sis_course_id, request.user.username)
         try:
             course_generation_job = start_course_template_copy(self.object, course['id'],
-                                                               request.user.username, job_id=job_id)
+                                                               request.user.username, course_job_id=course_job_id)
             return redirect('ccsw-status', course_generation_job.pk)
         except NoTemplateExistsForSchool:
             # If there is no template to copy, immediately finalize the new course
