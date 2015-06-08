@@ -161,7 +161,7 @@ class CreateCanvasCourseTest(TestCase):
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
-        update_mock.assert_called_with(self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, bulk_job_id=None, job_id=9)
+        update_mock.assert_called_with(self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, bulk_job_id=None, course_job_id=9)
 
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
     def test_404_exception_n_create_new_course_method_invokes_update_workflow_state_with_bulk_job_id(self, update_mock, get_course_data,
@@ -174,7 +174,7 @@ class CreateCanvasCourseTest(TestCase):
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id, bulk_job_id=self.bulk_job_id)
-        update_mock.assert_called_with(self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, job_id=None, bulk_job_id=self.bulk_job_id)
+        update_mock.assert_called_with(self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=None, bulk_job_id=self.bulk_job_id)
 
     # ------------------------------------------------------
     # Tests for create_canvas_course.create_course_section()

@@ -23,7 +23,7 @@ class ModelsApiTest(TestCase):
         self.term_id = 4545
         self.sis_course_id = 12345678
         self.bulk_job_id = 215
-        self.job_id = 1475
+        self.course_job_id = 1475
         create_jobs(self.school_id, self.term_id)
 
     def test_single_template_exists_for_school(self):

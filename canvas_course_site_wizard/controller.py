@@ -36,7 +36,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     # instantiate any variables required for method return or logger calls
     new_course = None
     section = None
-    job_id = None
+    course_job_id = None
 
     # 1. Insert a CanvasCourseGenerationJob record on initiation with STATUS_SETUP status. This would  help in
     # keeping track of the status of the various courses in the bulk job context as well as general reporting
@@ -72,7 +72,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, job_id=course_job_id, bulk_job_id=bulk_job_id)
+        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
 
         ex = SISCourseDoesNotExistError(sis_course_id)
         # If the course is part of bulk job, do not send individual email. .
@@ -99,7 +99,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.exception('Error building request_parameters or executing create_new_course() SDK call '
                          'for new Canvas course with request=%s:', request_parameters)
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=job_id, bulk_job_id=bulk_job_id)
+        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
 
         # a 400 errors here means that the SIS id already exists in Canvas
         if api_error.status_code == 400:

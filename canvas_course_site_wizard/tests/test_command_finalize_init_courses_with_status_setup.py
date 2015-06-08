@@ -57,7 +57,7 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         for index, course in enumerate(self.courses):
             create_course_calls.append(call(course, self.user_id, bulk_job_id=self.bulk_job_id))
             create_course_calls.append(ANY)
-            template_copy_calls.append(call(ANY, ANY, self.user_id, job_id=index, bulk_job_id=self.bulk_job_id))
+            template_copy_calls.append(call(ANY, ANY, self.user_id, course_job_id=index, bulk_job_id=self.bulk_job_id))
 
         _init_courses_with_status_setup()
         create_canvas_course.assert_has_calls(create_course_calls)
