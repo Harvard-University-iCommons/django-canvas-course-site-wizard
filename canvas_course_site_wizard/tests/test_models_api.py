@@ -67,7 +67,7 @@ class ModelsApiTest(TestCase):
         mock_ci.assert_called_once_with(term__term_id=self.term_id, sync_to_canvas=True)
 
     def test_get_bulk_job_records_for_term(self):
-        """ test that the call to the bulk_job model reutrns the correct results when only the term_id is provided """
+        """ test that the call to the bulk_job model returns the correct results when only the term_id is provided """
         test_data_set = [
             '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4545)>',
             '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4545)>',
@@ -108,7 +108,7 @@ class ModelsApiTest(TestCase):
 
         mock_ci.assert_has_calls(calls, any_order=True)
 
-    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.get')
     def test_get_course_generation_data_for_sis_course_id_without_bulk_job_id(self, mock_ci):
         """
         Test that get_course_generation_data_for_sis_course_id has the proper query when no
@@ -119,7 +119,7 @@ class ModelsApiTest(TestCase):
         get_course_generation_data_for_sis_course_id(self.sis_course_id)
         mock_ci.assert_called_once_with(sis_course_id=self.sis_course_id, bulk_job_id__isnull=True)
 
-    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.get')
     def test_get_course_generation_data_for_sis_course_id(self, mock_ci):
         """
         Test that get_course_generation_data_for_sis_course_id has the proper query when the
