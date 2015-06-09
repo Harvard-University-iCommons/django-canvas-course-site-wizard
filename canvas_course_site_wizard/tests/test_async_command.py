@@ -122,8 +122,9 @@ class CommandsTestCase(TestCase):
         start_job_with_noargs()
         self.assertFalse(send_email_helper.called)
 
+    @patch('canvas_course_site_wizard.management.commands.process_async_jobs.logger.info')
     @patch('canvas_course_site_wizard.management.commands.process_async_jobs.CanvasCourseGenerationJob.objects.filter')
-    def test_process_async_jobs_on_failure_for_bulk_course_calls_tech_logger(self, filter_mock, client,
+    def test_process_async_jobs_on_failure_for_bulk_course_calls_tech_logger(self, mock_logger, filter_mock, client,
                                                                              get_canvas_user_profile, send_email_helper,
                                                                              tech_logger, **kwargs):
         """
@@ -135,7 +136,7 @@ class CommandsTestCase(TestCase):
         iterable_ccmjob_mock.__iter__ = Mock(return_value=iter([self.m_canvas_content_migration_job_with_bulk_id]))
 
         start_job_with_noargs()
-        self.assertTrue(tech_logger.error.called)
+        self.assertTrue(mock_logger.called)
 
     def test_process_async_jobs_on_failed_status(self, client, get_canvas_user_profile, send_email_helper, tech_logger,
             **kwargs):

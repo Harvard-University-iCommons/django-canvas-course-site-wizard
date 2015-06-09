@@ -1,8 +1,13 @@
+import logging
+
 from .models import (SISCourseData,
                      CanvasCourseGenerationJob,
                      CanvasSchoolTemplate,
                      BulkCanvasCourseCreationJob)
 from icommons_common.models import CourseInstance
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_course_data(course_sis_id):
@@ -26,16 +31,36 @@ def get_course_generation_data_for_canvas_course_id(canvas_course_id):
 		return None
 
 
-def get_course_generation_data_for_sis_course_id(sis_course_id):
+def get_course_generation_data_for_sis_course_id(sis_course_id,
+                                                 course_job_id=None,
+                                                 bulk_job_id=None):
     """
-    Retrieve the Canvas course generation job data given the sis_course_id.
-    Returns the first matching record if it exists or None if it  does not have a job associated.
+    Retrieve the Canvas course generation job data given the sis_course_id and an
+    optional bulk_job_id.
+    Returns the first matching record if it exists or None if it  does not have a
+    job associated.
     """
-    result = CanvasCourseGenerationJob.objects.filter(sis_course_id=sis_course_id)
-    if len(result) > 0: 
-    	return result[0]
+    kwargs = {'sis_course_id': sis_course_id,}
+    # if there is a job id, there's no need for any other params
+    if course_job_id:
+        kwargs['pk'] = course_job_id
     else:
-		return None
+        # if there was no job_id, see if there's a bulk_job_id
+        # if not, query for bulk_job_id is null
+        if bulk_job_id:
+            kwargs['bulk_job_id'] = bulk_job_id
+        else:
+            kwargs['bulk_job_id__isnull'] = True
+
+    try:
+        return CanvasCourseGenerationJob.objects.get(**kwargs)
+    except (CanvasCourseGenerationJob.DoesNotExist,
+            CanvasCourseGenerationJob.MultipleObjectsReturned) as e:
+        logger.exception(
+            'Unable to find single CanvasCourseGenerationJob for sis_course_id '
+            '{}, course_job_id {}, bulk_job_id {}'.format(
+                sis_course_id, course_job_id, bulk_job_id))
+        return None
 
 
 def get_template_for_school(school_code):

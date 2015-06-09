@@ -156,11 +156,15 @@ def _init_courses_with_status_setup():
         # initiate the async job to copy the course template. If no template exists, that's ok,
         # just log the exception and set the workflow_state to queued
         try:
-            start_course_template_copy(sis_course_data, course['id'], sis_user_id, bulk_job_id=bulk_job_id)
+            start_course_template_copy(sis_course_data, course['id'], sis_user_id, course_job_id=create_job.pk, bulk_job_id=bulk_job_id)
         except NoTemplateExistsForSchool:
-            logger.exception('no template for course instance id %s' % sis_course_id)
+            logger.info('no template for course instance id %s' % sis_course_id)
+            # When there's no template, it doesn't need any migration and  the job is ready to be finalized
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE)
+        except:
+            logger.exception('template migration failed for course instance id %s' % sis_course_id)
+            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
 
-        create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_QUEUED)
 
 def _send_notification(job):
     """

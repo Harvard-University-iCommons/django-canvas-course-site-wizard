@@ -84,8 +84,9 @@ class CourseDataPermissionsMixin(CourseDataMixin):
             account_id='sis_account_id:school:%s' % self.object.school_code,
             user_id='sis_user_id:%s' % self.request.user.username
         ).json()
-        logger.debug("Admin list for in sis_account_id:school:%s is %s"
-                     % (self.object.school_code, user_account_admin_list))
+        logger.debug("Admin list for %s in sis_account_id:school:%s is %s"
+                     % (self.request.user.username, self.object.school_code,
+                        user_account_admin_list))
 
         return user_account_admin_list
 
@@ -136,8 +137,9 @@ class BulkCourseSiteCreationAllowedMixin(SingleObjectMixin):
             account_id='sis_account_id:school:%s' % self.object.school_id,
             user_id='sis_user_id:%s' % self.request.user.username
         ).json()
-        logger.debug("Admin list for in sis_account_id:school:%s is %s"
-                     % (self.object.school_id, user_account_admin_list))
+        logger.debug("Admin list for %s in sis_account_id:school:%s is %s"
+                     % (self.request.user.username, self.object.school_id,
+                        user_account_admin_list))
 
         return user_account_admin_list
 

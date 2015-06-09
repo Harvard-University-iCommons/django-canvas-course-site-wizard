@@ -66,13 +66,37 @@ class ModelsApiTestJobMigration(TestCase):
         self.assertEqual(ret, None)
 
     def test_multiple_migration_jobs__for_sis_course_id(self):
-        """ Test that the method will  return first matching record if there are multiple records """
+        """ Test that the method will raise a MultipleObjectsReturned exception if multiple course jobs are returned """
         CanvasCourseGenerationJob.objects.create(canvas_course_id=self.canvas_course_id,
-             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
-             status_url=self.status_url, created_by_user_id="user1")        
+                                                 sis_course_id=self.sis_course_id,
+                                                 content_migration_id = self.content_migration_id,
+                                                 status_url=self.status_url,
+                                                 created_by_user_id="user1")
+
         CanvasCourseGenerationJob.objects.create(canvas_course_id=self.canvas_course_id,
-             sis_course_id=self.sis_course_id, content_migration_id = self.content_migration_id, 
-             status_url=self.status_url, created_by_user_id="user2")
-        ret = get_course_generation_data_for_sis_course_id(self.sis_course_id)
-        self.assertEqual(ret.created_by_user_id,"user1")
+                                                 sis_course_id=self.sis_course_id,
+                                                 content_migration_id = self.content_migration_id,
+                                                 status_url=self.status_url,
+                                                 created_by_user_id="user2")
+
+
+        self.assertRaises(CanvasCourseGenerationJob.MultipleObjectsReturned,
+                          get_course_generation_data_for_sis_course_id(self.sis_course_id))
+
+    def test_multiple_migration_jobs__for_sis_course_id_with_one_value(self):
+        """ Test that the method will return the correct course if there exists only one matching course """
+        CanvasCourseGenerationJob.objects.create(canvas_course_id=self.canvas_course_id,
+                                                 sis_course_id=self.sis_course_id,
+                                                 content_migration_id = self.content_migration_id,
+                                                 status_url=self.status_url,
+                                                 created_by_user_id="user1")
+
+        CanvasCourseGenerationJob.objects.create(canvas_course_id=self.canvas_course_id,
+                                                 sis_course_id=123456,
+                                                 content_migration_id = self.content_migration_id,
+                                                 status_url=self.status_url,
+                                                 created_by_user_id="user2")
+
+        ret = get_course_generation_data_for_sis_course_id(123456)
+        self.assertEqual(ret.created_by_user_id, "user2")
 
