@@ -49,6 +49,8 @@ class CanvasCourseSiteCreateView(LoginRequiredMixin, CourseSiteCreationAllowedMi
             # If there is no template to copy, immediately finalize the new course
             # (i.e. run through remaining post-async job steps)
             course_url = finalize_new_canvas_course(course['id'], sis_course_id, sis_user_id)
+            job = CanvasCourseGenerationJob.objects.get(pk=course_job_id)
+            job.update_workflow_state(CanvasCourseGenerationJob.STATUS_FINALIZED)
             return redirect(course_url)
 
 
