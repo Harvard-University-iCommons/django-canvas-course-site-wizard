@@ -155,22 +155,20 @@ class SISCourseDataIntegrationTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.school = Mock(spec=School)
-        cls.school.school_id='siscdi_int'
-        cls.term_code_active = Mock(spec=TermCode)
-        cls.term_code_active.term_code = 1
-        cls.term_code_inactive = Mock(spec=TermCode)
-        cls.term_code_inactive.term_code = 2
+        cls.school = School.objects.create(school_id='siscdi_int')
+        cls.term_code_active = TermCode.objects.create(term_code=1)
+        cls.term_code_inactive = TermCode.objects.create(term_code=2)
         term_shopping_active_specs = {
+            'term_id': 1,
             'term_code': cls.term_code_active,
             'shopping_active': True
         }
         term_shopping_inactive_specs = {
+            'term_id': 2,
             'term_code': cls.term_code_inactive,
             'shopping_active': False
         }
         term_specs_common = {
-            'term_id': 1,
             'academic_year': 2015,
             'calendar_year': 2015,
             'school': cls.school,
@@ -181,10 +179,8 @@ class SISCourseDataIntegrationTests(TestCase):
         }
         term_shopping_active_specs.update(term_specs_common)
         term_shopping_inactive_specs.update(term_specs_common)
-        cls.term_shopping_active = Mock(spec=Term)
-        cls.term_shopping_active.configure_mock(**term_shopping_active_specs)
-        cls.term_shopping_inactive = Mock(spec=Term)
-        cls.term_shopping_inactive.configure_mock(**term_shopping_inactive_specs)
+        cls.term_shopping_active = Term.objects.create(**term_shopping_active_specs)
+        cls.term_shopping_inactive = Term.objects.create(**term_shopping_inactive_specs)
 
     @classmethod
     def tearDownClass(cls):
@@ -194,16 +190,17 @@ class SISCourseDataIntegrationTests(TestCase):
         cls.term_shopping_active.delete()
         cls.term_shopping_inactive.delete()
 
-    @skip('Technical Debt: TLT-1552')
     def test_shopping_active(self):
-        """ shopping is active for the course if course's term is shoppable and the course is not excluded """
+        """
+        Shopping is active for the course if course's term is shoppable
+        and the course is not excluded
+        """
         sis_course_data = SISCourseData(
             term=self.term_shopping_active,
             exclude_from_shopping=False
         )
         self.assertTrue(sis_course_data.shopping_active)
 
-    @skip('Technical Debt: TLT-1552')
     def test_shopping_inactive_when_excluded(self):
         """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
         sis_course_data = SISCourseData(
@@ -212,7 +209,6 @@ class SISCourseDataIntegrationTests(TestCase):
         )
         self.assertFalse(sis_course_data.shopping_active)
 
-    @skip('Technical Debt: TLT-1552')
     def test_shopping_inactive_when_term_inactive(self):
         """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
         sis_course_data = SISCourseData(
