@@ -42,6 +42,7 @@ class SetupBulkJobsTest(TestCase):
         setup_bulk_jobs(courses, self.user_id, self.job.pk)
         mock_logger.assert_called_with('Error in inserting CanvasCourseGenerationJobrecord for with sis_course_id=123: exception=Error')
 
+    @skip('tech debt TLT-1598')
     @patch('canvas_course_site_wizard.controller.logger.exception')
     @patch('canvas_course_site_wizard.controller.BulkCanvasCourseCreationJob.objects.get')
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.bulk_create')
