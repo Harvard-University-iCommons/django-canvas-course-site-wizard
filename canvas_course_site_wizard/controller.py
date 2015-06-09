@@ -57,7 +57,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         try:
             course_generation_job = CanvasCourseGenerationJob.objects.filter(
                                         sis_course_id=sis_course_id,
-                                        bulk_job_id=bulk_job_id).one()
+                                        bulk_job_id=bulk_job_id).get()
         except Exception as e:
             ex = CourseGenerationJobNotFoundError(msg_details=(bulk_job_id,
                                                                sis_course_id))
@@ -92,7 +92,9 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         logger.error('ObjectDoesNotExist exception when fetching SIS data for course '
                      'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
+        update_course_generation_workflow_state(
+            sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=course_job_id, bulk_job_id=bulk_job_id)
 
         ex = SISCourseDoesNotExistError(sis_course_id)
         # If the course is part of bulk job, do not send individual email. .
@@ -103,7 +105,6 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         raise ex
 
     # 3. Attempt to create a canvas course
-
     request_parameters = dict(
         request_ctx=SDK_CONTEXT,
         account_id='sis_account_id:%s' % course_data.sis_account_id,
@@ -116,10 +117,14 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     try:
         new_course = create_new_course(**request_parameters).json()
     except CanvasAPIError as api_error:
-        logger.exception('Error building request_parameters or executing create_new_course() SDK call '
-                         'for new Canvas course with request=%s:', request_parameters)
+        logger.exception(
+            'Error building request_parameters or executing create_new_course() '
+            'SDK call for new Canvas course with request=%s:',
+            request_parameters)
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
+        update_course_generation_workflow_state(sis_course_id,
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=course_job_id, bulk_job_id=bulk_job_id)
 
         # a 400 errors here means that the SIS id already exists in Canvas
         if api_error.status_code == 400:
@@ -137,6 +142,10 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     try:
         course_generation_job.save(update_fields=['canvas_course_id'])
     except Exception as e:
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_course_generation_workflow_state(sis_course_id,
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=course_job_id, bulk_job_id=bulk_job_id)
         ex = SaveCanvasCourseIdToCourseGenerationJobError(
                 msg_details=(new_course['id'], course_generation_job.pk))
         logging.exception(ex.display_text)
@@ -150,6 +159,10 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     try:
         course_data.save(update_fields=['canvas_course_id'])
     except Exception as e:
+        # Update the status to STATUS_SETUP_FAILED on any failures
+        update_course_generation_workflow_state(sis_course_id,
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=course_job_id, bulk_job_id=bulk_job_id)
         ex = SaveCanvasCourseIdToCourseInstanceError(
                 msg_details=(new_course['id'], course_data.pk))
         logging.exception(ex.display_text)
@@ -167,12 +180,16 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         section = create_course_section(**request_parameters).json()
         logger.info("created section= %s" % section)
     except CanvasAPIError as e:
-        logger.exception('Error building request_parameters or executing create_course_section() SDK call '
-                         'for new Canvas course id=%s with request=%s'
-                         % (new_course.get('id', '<no ID>'), request_parameters))
+        logger.exception(
+            'Error building request_parameters or executing '
+            'create_course_section() SDK call for new Canvas course id=%s with '
+            'request=%s' % (new_course.get('id', '<no ID>'),
+                            request_parameters))
 
         # Update the status to STATUS_SETUP_FAILED on any failures
-        update_course_generation_workflow_state(sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
+        update_course_generation_workflow_state(sis_course_id,
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=course_job_id, bulk_job_id=bulk_job_id)
 
         # send email in addition to showing error page to user
         ex = CanvasSectionCreateError(msg_details=sis_course_id)
