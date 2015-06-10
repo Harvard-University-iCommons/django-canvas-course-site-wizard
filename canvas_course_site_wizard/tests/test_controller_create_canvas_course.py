@@ -1,6 +1,6 @@
 import contextlib
 import uuid
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from mock import patch, DEFAULT, MagicMock, Mock, ANY
 
@@ -175,6 +175,7 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(CourseGenerationJobCreationError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
+    @skip('tech debt TLT-1598')
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
     def test_404_exception_n_create_new_course_method_invokes_update_workflow_state(self, update_mock, get_course_data,
                                                             create_course_section, create_new_course):
