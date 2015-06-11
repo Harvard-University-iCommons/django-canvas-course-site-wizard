@@ -27,9 +27,6 @@ def get_mock_bulk_job():
 
 
 mock_settings_dict = {
-    # 'notification_email_subject': '{} {}',
-    # 'notification_email_body': '{} {} {}',
-    # 'notification_email_body_failed_count': ' {}',
     'log_long_running_jobs': False
 }
 
