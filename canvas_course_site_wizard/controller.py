@@ -365,17 +365,18 @@ def get_canvas_user_profile(sis_user_id):
 
 def send_email_helper(subject, message, to_address):
     """
-    This is a helper method to send email using django's mail module. The mail is sent
-    to the specified receipients using the subject and body provided. The 'from' address
-     is obtained from the settings file.
+    This is a helper method to send email using django's mail module. The mail
+     is sent to the specified receipients using the subject and body provided.
+     The 'from' address is obtained from the settings file.
     :param subject: The subject for the email, a String
     :param message: The body of the email, a String
     :param to_address: The list of recepients, a list of Strings
     """
     from_address = settings.CANVAS_EMAIL_NOTIFICATION['from_email_address']
-    logger.info("==>Within send email: from_addr=%s, to_addr=%s, message=%s" % (from_address, to_address, message))
-    # If fail_silently is set to False, send_mail will raise exceptions. If True,
-    # all exceptions raised while sending the message will be quashed.
+    logger.info("==>Within send email: from_addr=%s, to_addr=%s, subject=%s, "
+                "message=%s" % (from_address, to_address, subject, message))
+    # If fail_silently is set to False, send_mail will raise exceptions. If
+    # True, all exceptions raised while sending the message will be quashed.
     send_mail(subject, message, from_address, to_address, fail_silently=False)
 
 def send_failure_email(initiator_email, sis_course_id):
