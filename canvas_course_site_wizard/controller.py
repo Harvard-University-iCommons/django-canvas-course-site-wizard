@@ -219,14 +219,15 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
     """
 
     school_code = sis_course.school_code
+    if not template_id:
+        # If a template was not given, see if there is a default template for the school
+        template_id = get_default_template_for_school(school_code).template_id
+
     course_generation_job = get_course_generation_data_for_sis_course_id(
         sis_course.pk,
         course_job_id=course_job_id,
         bulk_job_id=bulk_job_id
     )
-    if not template_id:
-        # If a template was not given, see if there is a default template for the school
-        template_id = get_default_template_for_school(school_code).template_id
 
     # Initiate course copy for template_id
     logger.debug('Requesting content migration from Canvas for canvas_course_id=%s...' % canvas_course_id)
