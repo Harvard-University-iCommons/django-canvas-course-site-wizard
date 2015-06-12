@@ -16,6 +16,17 @@ class NoTemplateExistsForSchool(Exception):
         return 'No template exists for school_id=%s' % self.school_id
 
 
+class MultipleDefaultTemplatesExistForSchool(Exception):
+    def __init__(self, school_id):
+        self.school_id = school_id
+
+    def __unicode__(self):
+        return u'Multiple default templates exist for school_id=%s' % self.school_id
+
+    def __str__(self):
+        return 'Multiple default templates exist for school_id=%s' % self.school_id
+
+
 class RenderableExceptionWithDetails(RenderableException):
     # The parameter msg_details can be used to format the message (i.e. it can be substituted into the
     # display text)

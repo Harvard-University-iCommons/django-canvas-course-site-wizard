@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
 
-from .models_api import (get_course_data, get_template_for_school,
+from .models_api import (get_course_data, get_default_template_for_school,
                          get_courses_for_term, get_bulk_job_records_for_term,
                          select_courses_for_bulk_create, get_course_generation_data_for_sis_course_id)
 from .models import (CanvasCourseGenerationJob,
@@ -206,7 +206,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
     return new_course
 
 
-def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job_id=None, bulk_job_id=None):
+def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job_id=None,
+                               bulk_job_id=None, template_id=None):
     """
     This method will retrieve the template site associated with an SISCourseData object and start the
     Canvas process of copying the template content into the canvas course site.  A CanvasCourseGenerationJob
@@ -218,13 +219,14 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
     """
 
     school_code = sis_course.school_code
-
-    try:
-        logger.debug('Fetching template for school_code=%s...' % school_code)
-        template_id = get_template_for_school(school_code)
-    except ObjectDoesNotExist:
-        logger.debug('Did not find a template for course %s.' % sis_course.pk)
-        raise NoTemplateExistsForSchool(school_code)
+    course_generation_job = get_course_generation_data_for_sis_course_id(
+        sis_course.pk,
+        course_job_id=course_job_id,
+        bulk_job_id=bulk_job_id
+    )
+    if not template_id:
+        # If a template was not given, see if there is a default template for the school
+        template_id = get_default_template_for_school(school_code).template_id
 
     # Initiate course copy for template_id
     logger.debug('Requesting content migration from Canvas for canvas_course_id=%s...' % canvas_course_id)
@@ -239,7 +241,6 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
     #  Update the status of   course generation job  with metadata (canvas id, workflow_state, progress url, etc)
     logger.debug('Update course generation job tracking row...')
 
-    course_generation_job = get_course_generation_data_for_sis_course_id(sis_course.pk, course_job_id=course_job_id, bulk_job_id=bulk_job_id)
     course_generation_job.canvas_course_id = canvas_course_id
     course_generation_job.content_migration_id = content_migration['id']
     course_generation_job.workflow_state = CanvasCourseGenerationJob.STATUS_QUEUED

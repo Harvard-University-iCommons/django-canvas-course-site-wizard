@@ -1,9 +1,17 @@
 import logging
 
-from .models import (SISCourseData,
-                     CanvasCourseGenerationJob,
-                     CanvasSchoolTemplate,
-                     BulkCanvasCourseCreationJob)
+from .models import (
+    SISCourseData,
+    CanvasCourseGenerationJob,
+    CanvasSchoolTemplate,
+    BulkCanvasCourseCreationJob
+)
+
+from .exceptions import (
+    NoTemplateExistsForSchool,
+    MultipleDefaultTemplatesExistForSchool
+)
+
 from icommons_common.models import CourseInstance
 
 
@@ -63,14 +71,36 @@ def get_course_generation_data_for_sis_course_id(sis_course_id,
         return None
 
 
-def get_template_for_school(school_code):
+def get_default_template_for_school(school_code):
     """
-    Retrieve a single course template id for the given school code.  An
-    ObjectDoesNotExist exception will be raised if the school does not have a template.
-    If there are multiple templates for the school, a MultipleObjectsReturned exception
+    Find the default CanvasSchoolTemplate for the given school code.  A
+    NoTemplateExistsForSchool exception will be raised if the school does not have a template.
+    If there are multiple default templates for the school, a MultipleDefaultTemplatesExistForSchool exception
     will be thrown.
     """
-    return CanvasSchoolTemplate.objects.get(school_id=school_code).template_id
+    logger.debug("Fetching template for school_code=%s...", school_code)
+    query_set = CanvasSchoolTemplate.objects.filter(school_id=school_code)
+    # Collect the templates flagged as default
+    default_templates = [t for t in query_set if t.is_default]
+    if default_templates:
+        if len(default_templates) == 1:
+            # If we have a default template and there is only one of them, return it
+            return default_templates[0]
+        else:
+            logger.debug("Found multiple default templates for school %s.", school_code)
+            raise MultipleDefaultTemplatesExistForSchool(school_code)
+    else:
+        # There were not any templates flagged as default
+        template_count = len(query_set)
+        if template_count == 0:
+            logger.debug("Did not find a template for school %s.", school_code)
+            raise NoTemplateExistsForSchool(school_code)
+        elif template_count == 1:
+            # If there was only one template, this one is the default
+            return query_set[0]
+        else:
+            logger.debug("Found multiple templates with no default for school %s.", school_code)
+            raise MultipleDefaultTemplatesExistForSchool(school_code)
 
 
 def get_courses_for_term(term_id, is_in_canvas=None, is_in_isite=None, not_created=None):
