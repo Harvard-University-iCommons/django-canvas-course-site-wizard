@@ -19,7 +19,7 @@ from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseCreateError,
                                                   CanvasSectionCreateError)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
-
+from icommons_common.models import Term, School
 
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
@@ -209,8 +209,30 @@ def _send_notification(job):
     completed_subjobs = job.get_completed_subjobs_count()
     failed_subjobs = job.get_failed_subjobs_count()
 
-    subject = _format_notification_email_subject(job.school_id, job.sis_term_id)
-    body = _format_notification_email_body(job.school_id, job.sis_term_id, completed_subjobs, failed_subjobs)
+    try:
+        term = Term.objects.get(term_id=int(job.sis_term_id))
+        term_display_name = term.display_name
+        school = School.objects.get(school_id=job.school_id)
+        school_display_name = school.title_short
+    except Exception as e:
+        error_text = (
+            "Canvas course create bulk job %s: "
+            "problem getting user-friendly term or school name"
+        )
+        logger.exception(error_text)
+        term_display_name = job.sis_term_id
+        school_display_name = job.school_id
+
+    subject = _format_notification_email_subject(
+        school_display_name,
+        term_display_name
+    )
+    body = _format_notification_email_body(
+        school_display_name,
+        term_display_name,
+        completed_subjobs,
+        failed_subjobs
+    )
 
     logger.debug("Sending notification email to %s...", notification_to_address_list)
 
@@ -226,28 +248,40 @@ def _send_notification(job):
     return True
 
 
-def _format_notification_email_subject(school_id, sis_term_id):
+def _format_notification_email_subject(school_name, term_name):
     """
-    helper method to create an email subject for a bulk create job notification email
-    :param school_id: string, e.g. 'colgsas'
-    :param sis_term_id: integer, e.g. 1234
+    helper method to create an email subject for a bulk canvas course create job
+    notification email
+    :param school_name: string, user-friendly school name, e.g. 'colgsas'
+    :param term_name: string, user-friendly name for the job's SIS term
     :return: string, email subject line
     """
-    return settings.BULK_COURSE_CREATION['notification_email_subject'].format(school_id, sis_term_id)
+    subject = settings.BULK_COURSE_CREATION['notification_email_subject']
+    return subject.format(school=school_name, term=term_name)
 
 
-def _format_notification_email_body(school_id, sis_term_id, completed_count, failed_count):
+def _format_notification_email_body(school_name, term_name, completed_count,
+                                    failed_count):
     """
-    helper method to create an email body (essentially a report) for a bulk create job notification email
-    :param school_id: string, e.g. 'colgsas'
-    :param sis_term_id: integer, e.g. 1234
-    :param completed_count: integer, number of completed courses (to report as successfully processed)
-    :param failed_count: integer, number of failed courses (to report as unsuccessfully processed)
+    helper method to create an email body (essentially a report) for a bulk
+    canvas course create job notification email
+    :param school_name: string, user-friendly name for school, e.g. 'colgsas'
+    :param term_name: string, user-friendly name for bulk job's SIS term
+    :param completed_count: integer, number of completed courses
+      (to report as successfully processed)
+    :param failed_count: integer, number of failed courses
+      (to report as unsuccessfully processed)
     :return: string, email body text
     """
-    body = settings.BULK_COURSE_CREATION['notification_email_body'].format(school_id, sis_term_id, completed_count)
+    body = settings.BULK_COURSE_CREATION['notification_email_body']
+    body = body.format(
+        school=school_name,
+        term=term_name,
+        success_count=completed_count
+    )
+    failed = settings.BULK_COURSE_CREATION['notification_email_body_failed_count']
     if failed_count:
-        body += settings.BULK_COURSE_CREATION['notification_email_body_failed_count'].format(failed_count)
+        body += failed.format(failed_count)
     return body
 
 

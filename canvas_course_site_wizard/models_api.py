@@ -27,28 +27,32 @@ def get_course_data(course_sis_id):
     """
     return SISCourseData.objects.select_related('course').get(pk=course_sis_id)
 
+
 def get_course_generation_data_for_canvas_course_id(canvas_course_id):
     """
     Retrieve the Canvas course generation job data given the canvas_course_id.
-    Returns the first mathcing record if it exists or None if it  does not have a job associated.
+    Returns the first matching record if it exists or None if it does not have
+    a job associated.
     """
-    result = CanvasCourseGenerationJob.objects.filter(canvas_course_id=canvas_course_id)
-    if len(result) > 0: 
-    	return result[0]
+    result = CanvasCourseGenerationJob.objects.filter(
+        canvas_course_id=canvas_course_id
+    )
+    if len(result) > 0:
+        return result[0]
     else:
-		return None
+        return None
 
 
 def get_course_generation_data_for_sis_course_id(sis_course_id,
                                                  course_job_id=None,
                                                  bulk_job_id=None):
     """
-    Retrieve the Canvas course generation job data given the sis_course_id and an
-    optional bulk_job_id.
-    Returns the first matching record if it exists or None if it  does not have a
-    job associated.
+    Retrieve the Canvas course generation job data given the sis_course_id and
+    an optional bulk_job_id.
+    Returns the first matching record if it exists or None if it  does not have
+    a job associated.
     """
-    kwargs = {'sis_course_id': sis_course_id,}
+    kwargs = {'sis_course_id': sis_course_id, }
     # if there is a job id, there's no need for any other params
     if course_job_id:
         kwargs['pk'] = course_job_id

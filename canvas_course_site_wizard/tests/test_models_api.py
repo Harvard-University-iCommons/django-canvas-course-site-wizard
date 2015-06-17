@@ -1,7 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.test import TestCase
 
-from mock import patch, call
+from mock import patch
 
 from canvas_course_site_wizard.exceptions import MultipleDefaultTemplatesExistForSchool, NoTemplateExistsForSchool
 from canvas_course_site_wizard.models_api import (
@@ -57,60 +57,6 @@ class ModelsApiTest(TestCase):
 
         with self.assertRaises(MultipleDefaultTemplatesExistForSchool):
             get_default_template_for_school(self.school_id)
-
-    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
-    def test_get_courses_for_term_term_id_only(self, mock_ci):
-        """ test that the call to the course instance model has the correct parameters when only the term_id is provided """
-        courses = get_courses_for_term(self.term_id)
-        mock_ci.assert_called_once_with(term__term_id=self.term_id)
-
-    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
-    def test_get_courses_for_term_term_id_and_status(self, mock_ci):
-        """ test that the call to the course instance model has the correct parameters when both term_id and is_in_canvas are provided """
-        courses = get_courses_for_term(self.term_id, is_in_canvas=True)
-        mock_ci.assert_called_once_with(term__term_id=self.term_id, sync_to_canvas=True)
-
-    def test_get_bulk_job_records_for_term(self):
-        """ test that the call to the bulk_job model returns the correct results when only the term_id is provided """
-        test_data_set = [
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=5: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=3: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=4: sis_term_id=4545)>',
-        ]
-
-        records = get_bulk_job_records_for_term(self.term_id)
-        self.assertQuerysetEqual(records, test_data_set, ordered=False)
-
-    def test_get_bulk_job_records_for_term_with_in_progress(self):
-        """
-        test that the call to the bulk_job model reutrns the correct results when the term_id and in_progress options are provided.
-        We should only be returning the jobs that are not in one of the final states ('notification_successful', 'notification_failed')
-        """
-        test_data_set = [
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=1: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=2: sis_term_id=4545)>',
-            '<BulkCanvasCourseCreationJob: (BulkJob ID=3: sis_term_id=4545)>',
-        ]
-
-        records = get_bulk_job_records_for_term(self.term_id, in_progress=True)
-        self.assertQuerysetEqual(records, test_data_set, ordered=False)
-
-    @patch('canvas_course_site_wizard.models_api.CourseInstance.objects.filter')
-    def test_select_courses_for_bulk_create(self, mock_ci):
-        """
-        Test that the query was called with the correct parameters.
-        :param mock_ci:
-        :return:
-        """
-        courses = select_courses_for_bulk_create(self.term_id)
-
-        calls = [call(term_id=self.term_id, sites__external_id__isnull=True),
-                 call().exclude(sites__site_type_id='isite'),
-                 call().exclude().values_list('course_instance_id', flat=True)]
-
-        mock_ci.assert_has_calls(calls, any_order=True)
 
     @patch('canvas_course_site_wizard.models_api.CanvasCourseGenerationJob.objects.get')
     def test_get_course_generation_data_for_sis_course_id_without_bulk_job_id(self, mock_ci):
