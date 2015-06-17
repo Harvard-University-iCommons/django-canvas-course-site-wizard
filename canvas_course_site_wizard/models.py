@@ -284,6 +284,7 @@ class CanvasCourseGenerationJob(models.Model):
 class CanvasSchoolTemplate(models.Model):
     template_id = models.IntegerField()
     school_id = models.CharField(max_length=10, db_index=True)
+    is_default = models.BooleanField(default=False)
 
     class Meta:
         db_table = u'canvas_school_template'
@@ -303,6 +304,7 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
         sis_term_id = kwargs.get('sis_term_id')
         sis_department_id = kwargs.get('sis_department_id')
         sis_course_group_id = kwargs.get('sis_course_group_id')
+        template_canvas_course_id = kwargs.get('template_canvas_course_id')
         created_by_user_id = kwargs.get('created_by_user_id')
         course_instance_ids = kwargs.get('course_instance_ids')
 
@@ -311,6 +313,7 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
             sis_term_id=sis_term_id,
             sis_department_id=sis_department_id,
             sis_course_group_id=sis_course_group_id,
+            template_canvas_course_id=template_canvas_course_id,
             created_by_user_id=created_by_user_id
         )
         bulk_job.save()
@@ -407,6 +410,7 @@ class BulkCanvasCourseCreationJob(models.Model):
     sis_term_id = models.IntegerField()
     sis_department_id = models.IntegerField(null=True, blank=True)
     sis_course_group_id = models.IntegerField(null=True, blank=True)
+    template_canvas_course_id = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_SETUP)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by_user_id = models.CharField(max_length=20)
