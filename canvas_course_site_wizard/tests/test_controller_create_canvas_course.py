@@ -1,7 +1,6 @@
 import contextlib
 import uuid
-from unittest import TestCase, skip
-
+from unittest import TestCase
 from mock import patch, DEFAULT, MagicMock, Mock, ANY
 
 from icommons_ui.exceptions import RenderableException
@@ -175,21 +174,26 @@ class CreateCanvasCourseTest(TestCase):
         with self.assertRaises(CourseGenerationJobCreationError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
 
-    @skip('tech debt TLT-1598')
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
     def test_404_exception_n_create_new_course_method_invokes_update_workflow_state(self, update_mock, get_course_data,
                                                             create_course_section, create_new_course):
         """
-        Test to assert that a RenderableException is raised when the create_new_course SDK call
-        throws an CanvasAPIError, update_content_generation_workflow_state is invoked to update the status
-        to STATUS_SETUP_FAILED
+        A RenderableException should be raised and and
+        update_content_generation_workflow_state() is invoked
+        when the create_new_course SDK call throws an CanvasAPIError
         """
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
-            controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+            controller.create_canvas_course(
+                self.sis_course_id,
+                self.sis_user_id
+            )
         update_mock.assert_called_with(
-            self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
-            bulk_job_id=None, course_job_id=9)
+            self.sis_course_id,
+            CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+            course_job_id=ANY,
+            bulk_job_id=None
+        )
 
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
