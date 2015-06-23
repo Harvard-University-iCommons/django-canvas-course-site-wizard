@@ -19,7 +19,7 @@ from canvas_course_site_wizard.exceptions import (NoTemplateExistsForSchool,
                                                   CanvasCourseCreateError,
                                                   CanvasSectionCreateError)
 from icommons_common.canvas_utils import SessionInactivityExpirationRC
-
+from icommons_common.models import Term, School
 
 SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 
@@ -111,16 +111,19 @@ def _init_courses_with_status_setup():
     """
 
     create_jobs = CanvasCourseGenerationJob.objects.filter_setup_for_bulkjobs()
+    # Get the bulk job parent for each course job and map by id for later use
+    bulk_jobs = {b.id: b for b in BulkJob.objects.filter(id__in=[j.bulk_job_id for j in create_jobs])}
 
     # for each or the records above, create the course and update the status
     for create_job in create_jobs:
         # for each job we need to get the bulk_job_id, user, and course id, these are
-        # needed by the calls to create the course below. I f any of these break, mark the course as failed
+        # needed by the calls to create the course below. If any of these break, mark the course as failed
         # and continue to the next course.
-        bulk_job_id = create_job.bulk_job_id
-        if not bulk_job_id:
+        bulk_job = bulk_jobs.get(create_job.bulk_job_id)
+        if not bulk_job:
             create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
+        bulk_job_id = bulk_job.id
 
         sis_user_id = create_job.created_by_user_id
         if not sis_user_id:
@@ -133,9 +136,13 @@ def _init_courses_with_status_setup():
             continue
 
         # try to create the canvas course - create_canvas_course has been modified so it will not
-        # try to create a new CanvasCourseGenerationJob record if a bulk_job_id is present
+        # try to create a new CanvasCourseGenerationJob record if a bulk_job is present
         try:
-            logger.info('calling create_canvas_course(%s, %s, bulk_job_id=%s)' % (sis_course_id, sis_user_id, bulk_job_id))
+            logger.info(
+                'calling create_canvas_course(%s, %s, bulk_job_id=%s)',
+                sis_course_id, sis_user_id,
+                bulk_job_id
+            )
             course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
         except (CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError, CanvasCourseCreateError,
                 CanvasSectionCreateError):
@@ -153,17 +160,24 @@ def _init_courses_with_status_setup():
             create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
             continue
 
-        # initiate the async job to copy the course template. If no template exists, that's ok,
-        # just log the exception and set the workflow_state to queued
-        try:
-            start_course_template_copy(sis_course_data, course['id'], sis_user_id, course_job_id=create_job.pk, bulk_job_id=bulk_job_id)
-        except NoTemplateExistsForSchool:
-            logger.info('no template for course instance id %s' % sis_course_id)
-            # When there's no template, it doesn't need any migration and  the job is ready to be finalized
+        # Initiate the async job to copy the course template, if a template was selected for the bulk job
+        if bulk_job.template_canvas_course_id:
+            try:
+                start_course_template_copy(
+                    sis_course_data,
+                    course['id'],
+                    sis_user_id,
+                    course_job_id=create_job.pk,
+                    bulk_job_id=bulk_job_id,
+                    template_id=bulk_job.template_canvas_course_id
+                )
+            except:
+                logger.exception('template migration failed for course instance id %s' % sis_course_id)
+                create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
+        else:
+            logger.info('no template selected for  %s' % sis_course_id)
+            # When there's no template, it doesn't need any migration and the job is ready to be finalized
             create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE)
-        except:
-            logger.exception('template migration failed for course instance id %s' % sis_course_id)
-            create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
 
 
 def _send_notification(job):
@@ -195,8 +209,30 @@ def _send_notification(job):
     completed_subjobs = job.get_completed_subjobs_count()
     failed_subjobs = job.get_failed_subjobs_count()
 
-    subject = _format_notification_email_subject(job.school_id, job.sis_term_id)
-    body = _format_notification_email_body(job.school_id, job.sis_term_id, completed_subjobs, failed_subjobs)
+    try:
+        term = Term.objects.get(term_id=int(job.sis_term_id))
+        term_display_name = term.display_name
+        school = School.objects.get(school_id=job.school_id)
+        school_display_name = school.title_short
+    except Exception as e:
+        error_text = (
+            "Canvas course create bulk job %s: "
+            "problem getting user-friendly term or school name"
+        )
+        logger.exception(error_text)
+        term_display_name = job.sis_term_id
+        school_display_name = job.school_id
+
+    subject = _format_notification_email_subject(
+        school_display_name,
+        term_display_name
+    )
+    body = _format_notification_email_body(
+        school_display_name,
+        term_display_name,
+        completed_subjobs,
+        failed_subjobs
+    )
 
     logger.debug("Sending notification email to %s...", notification_to_address_list)
 
@@ -212,28 +248,40 @@ def _send_notification(job):
     return True
 
 
-def _format_notification_email_subject(school_id, sis_term_id):
+def _format_notification_email_subject(school_name, term_name):
     """
-    helper method to create an email subject for a bulk create job notification email
-    :param school_id: string, e.g. 'colgsas'
-    :param sis_term_id: integer, e.g. 1234
+    helper method to create an email subject for a bulk canvas course create job
+    notification email
+    :param school_name: string, user-friendly school name, e.g. 'colgsas'
+    :param term_name: string, user-friendly name for the job's SIS term
     :return: string, email subject line
     """
-    return settings.BULK_COURSE_CREATION['notification_email_subject'].format(school_id, sis_term_id)
+    subject = settings.BULK_COURSE_CREATION['notification_email_subject']
+    return subject.format(school=school_name, term=term_name)
 
 
-def _format_notification_email_body(school_id, sis_term_id, completed_count, failed_count):
+def _format_notification_email_body(school_name, term_name, completed_count,
+                                    failed_count):
     """
-    helper method to create an email body (essentially a report) for a bulk create job notification email
-    :param school_id: string, e.g. 'colgsas'
-    :param sis_term_id: integer, e.g. 1234
-    :param completed_count: integer, number of completed courses (to report as successfully processed)
-    :param failed_count: integer, number of failed courses (to report as unsuccessfully processed)
+    helper method to create an email body (essentially a report) for a bulk
+    canvas course create job notification email
+    :param school_name: string, user-friendly name for school, e.g. 'colgsas'
+    :param term_name: string, user-friendly name for bulk job's SIS term
+    :param completed_count: integer, number of completed courses
+      (to report as successfully processed)
+    :param failed_count: integer, number of failed courses
+      (to report as unsuccessfully processed)
     :return: string, email body text
     """
-    body = settings.BULK_COURSE_CREATION['notification_email_body'].format(school_id, sis_term_id, completed_count)
+    body = settings.BULK_COURSE_CREATION['notification_email_body']
+    body = body.format(
+        school=school_name,
+        term=term_name,
+        success_count=completed_count
+    )
+    failed = settings.BULK_COURSE_CREATION['notification_email_body_failed_count']
     if failed_count:
-        body += settings.BULK_COURSE_CREATION['notification_email_body_failed_count'].format(failed_count)
+        body += failed.format(failed_count)
     return body
 
 
@@ -244,8 +292,8 @@ def _log_notification_failure(job):
     """
     try:
         error_text = (
-            "There was a problem in sending bulk job %s failure notification email to initiator %s "
-            "and support staff for bulk job %s" % (job.id, job.created_by_user_id, job.sis_course_id)
+            "There was a problem in sending bulk job failure notification email to initiator %s "
+            "and support staff for bulk job %s" % (job.created_by_user_id, job.id)
         )
     except Exception as e:
         error_text = "There was a problem in sending a bulk job failure notification email (no job details available)"

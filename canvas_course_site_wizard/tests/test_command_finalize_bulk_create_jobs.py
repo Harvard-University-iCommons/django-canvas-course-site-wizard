@@ -1,9 +1,7 @@
 from django.test import TestCase
-from mock import patch, ANY, DEFAULT, Mock, MagicMock
+from mock import patch, ANY, Mock
 from canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs import (
     _send_notification,
-    _format_notification_email_body,
-    _format_notification_email_subject
 )
 from canvas_course_site_wizard.models import BulkCanvasCourseCreationJob as BulkJob
 from canvas_course_site_wizard.management.commands import finalize_bulk_create_jobs
@@ -29,9 +27,6 @@ def get_mock_bulk_job():
 
 
 mock_settings_dict = {
-    'notification_email_subject': '{} {}',
-    'notification_email_body': '{} {} {}',
-    'notification_email_body_failed_count': ' {}',
     'log_long_running_jobs': False
 }
 
@@ -138,6 +133,27 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         self.assertFalse(_send_notification(m_bulk_job))
         m_log_failure.assert_called_once_with(m_bulk_job)
 
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.send_email_helper')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._format_notification_email_body')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._format_notification_email_subject')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.Term.objects.get')
+    @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.get_canvas_user_profile')
+    def test_send_notification_bad_display_name_lookup(self, m_profile, m_term, m_subj, m_body, m_send, **kwargs):
+        """
+        If a database call or attribute access fails for Term, School objects,
+         default term and school IDs should be the less-display-friendly
+         versions in the job record
+        """
+        m_profile.return_value = {
+            'primary_email': 'icommons-technical@g.harvard.edu'
+        }
+        m_bulk_job = get_mock_bulk_job()
+        m_bulk_job.get_completed_subjobs_count.return_value = 1
+        m_bulk_job.get_failed_subjobs_count.return_value = 1
+        m_term.side_effect = Exception('term lookup failed')
+        self.assertTrue(_send_notification(m_bulk_job))
+        m_subj.assert_called_with(m_bulk_job.school_id, m_bulk_job.sis_term_id)
+
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._log_notification_failure')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs.send_email_helper')
     @patch('canvas_course_site_wizard.management.commands.finalize_bulk_create_jobs._format_notification_email_body')
@@ -150,18 +166,3 @@ class FinalizeBulkCanvasCourseCreationJobsCommandTests(TestCase):
         m_bulk_job = get_mock_bulk_job()
         self.assertFalse(_send_notification(m_bulk_job))
         m_log_failure.assert_called_once_with(m_bulk_job)
-
-    def test_format_notification_email_subject(self, **kwargs):
-        """ text insertion should work as expected for building email subject """
-        subj = _format_notification_email_subject('colgsas', 2)
-        self.assertEqual(subj, 'colgsas 2')
-
-    def test_format_notification_email_body(self, **kwargs):
-        """ text insertion should work as expected for building email body with no failed subjobs"""
-        body = _format_notification_email_body('colgsas', 2, 5, 0)
-        self.assertEqual(body, 'colgsas 2 5')
-
-    def test_format_notification_email_body_with_failed_subjobs(self, **kwargs):
-        """ text insertion should work as expected for building email body with failed subjobs"""
-        body = _format_notification_email_body('colgsas', 2, 5, 1)
-        self.assertEqual(body, 'colgsas 2 5 1')
