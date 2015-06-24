@@ -369,11 +369,12 @@ def enroll_creator_in_new_course(sis_course_id, user_id):
             course_instance_id=sis_course_id,
             user_id=sis_user_id)
         role_id = user_staff_record.role_id
-        logger.debug(' CourseStaff role_id =%s' % role_id)
+        logger.debug('CourseStaff role_id =%s' % role_id)
 
         # Fetch the canvas role information from user role table.
         enrollment_role_record = UserRole.objects.get(role_id=role_id)
         enrollment_role = enrollment_role_record.canvas_role
+        logger.info('Attempting to add user to course with role=%s ' % enrollment_role)
 
         current_user_enrollment_result = enroll_user_sections(request_ctx=SDK_CONTEXT,
                                                               section_id='sis_section_id:%s' % sis_course_id,
