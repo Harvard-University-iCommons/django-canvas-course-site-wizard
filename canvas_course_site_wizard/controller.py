@@ -1,6 +1,6 @@
 import logging
 
-from canvas_sdk.methods.courses import create_new_course
+from canvas_sdk.methods.courses import create_new_course, get_single_course_courses
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
 from canvas_sdk.methods.users import get_user_profile
@@ -51,7 +51,7 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
+def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None, template_id=None):
     """
     This method creates a canvas course for the sis_course_id provided, initiated by the sis_user_id. The bulk_job_id
     would be passed in if it's invoked from a bulk feed process.
@@ -127,6 +127,42 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None):
         course_sis_course_id=sis_course_id,
         course_is_public_to_auth_users=course_data.shopping_active
     )
+
+    # If a template was not given, see if there is a default template for the school
+    if not template_id:
+        template_id = get_default_template_for_school(course_data.school_code).template_id
+
+    # If creating from a template, get template course, so visibility settings
+    # can be copied over to the new course
+    if template_id:
+        try:
+            template_course = get_single_course_courses(SDK_CONTEXT, template_id, 'all_courses').json()
+            is_public_to_auth_users = course_data.shopping_active or template_course['is_public_to_auth_users']
+            # Update create course request parameters
+            request_parameters.update({
+                'course_is_public': template_course['is_public'],
+                'course_public_syllabus': template_course['public_syllabus'],
+                'course_is_public_to_auth_users': is_public_to_auth_users
+            })
+        except CanvasAPIError:
+            logger.exception(
+                'Failed to retrieve template course %d for creation of site for course instance %s in account %s',
+                template_id,
+                sis_course_id,
+                course_data.sis_account_id
+            )
+            # Update the status to STATUS_SETUP_FAILED on failure to retrieve template course
+            update_course_generation_workflow_state(
+                sis_course_id,
+                CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
+                course_job_id=course_generation_job.id,
+                bulk_job_id=bulk_job_id
+            )
+            ex = CanvasCourseCreateError(msg_details=sis_course_id)
+            if not bulk_job_id:
+                send_failure_msg_to_support(sis_course_id, sis_user_id, ex.display_text)
+            raise ex
+
     try:
         new_course = create_new_course(**request_parameters).json()
     except CanvasAPIError as api_error:
