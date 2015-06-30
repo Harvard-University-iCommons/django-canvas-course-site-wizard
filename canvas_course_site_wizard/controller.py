@@ -130,7 +130,11 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None, template_
 
     # If a template was not given, see if there is a default template for the school
     if not template_id:
-        template_id = get_default_template_for_school(course_data.school_code).template_id
+        try:
+            template_id = get_default_template_for_school(course_data.school_code).template_id
+        except NoTemplateExistsForSchool:
+            # No template exists for the school, so no need to copy visibility settings
+            pass
 
     # If creating from a template, get template course, so visibility settings
     # can be copied over to the new course
