@@ -3,6 +3,7 @@ import uuid
 from unittest import TestCase
 from mock import patch, DEFAULT, MagicMock, Mock, ANY
 
+from icommons_common.utils import Bunch
 from icommons_ui.exceptions import RenderableException
 from django.core.exceptions import ObjectDoesNotExist
 from canvas_sdk.exceptions import CanvasAPIError
@@ -641,3 +642,50 @@ class CreateCanvasCourseTest(TestCase):
                                             self.bulk_job_id)
             self.assertEqual(course_data.canvas_course_id, self.canvas_course_id)
             course_data.save.assert_called_with(update_fields=['canvas_course_id'])
+
+    @patch('canvas_course_site_wizard.controller.get_single_course_courses')
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.controller.logger')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
+    def test_create_new_course_called_with_template_params(self,
+            SDK_CONTEXT, logger, course_generation_job__objects__filter,
+            course_generation_job__objects__create,
+            update_course_generation_workflow_state, get_template_course, get_course_data,
+            create_course_section, create_new_course, get_default_template_for_school):
+        """
+        Test to assert that create_new_course method is called by
+        create_canvas_course controller method with appropriate arguments
+        (collapses a bunch of individual parameter tests)
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(get=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+        course_model_mock = self.get_mock_of_get_course_data()
+        get_template_course.return_value = Bunch(json=lambda: {
+            'is_public': True,
+            'public_syllabus': True,
+            'is_public_to_auth_users': True
+        })
+        get_course_data.return_value = course_model_mock
+        sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
+        course_code_argument = course_model_mock.course_code
+        course_name_argument = course_model_mock.course_name
+        course_term_id_argument = 'sis_term_id:' + course_model_mock.sis_term_id
+        course_sis_course_id_argument = self.sis_course_id
+
+        get_default_template_for_school.return_value = Bunch(template_id='12345')
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        create_new_course.assert_called_with(
+            request_ctx=SDK_CONTEXT,
+            account_id=sis_account_id_argument,
+            course_name=course_name_argument,
+            course_course_code=course_code_argument,
+            course_term_id=course_term_id_argument,
+            course_sis_course_id=course_sis_course_id_argument,
+            course_is_public_to_auth_users=True,
+            course_is_public=True,
+            course_public_syllabus=True
+        )
