@@ -51,7 +51,7 @@ SDK_CONTEXT = SessionInactivityExpirationRC(**settings.CANVAS_SDK_SETTINGS)
 logger = logging.getLogger(__name__)
 
 
-def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None, template_id=None):
+def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
     """
     This method creates a canvas course for the sis_course_id provided, initiated by the sis_user_id. The bulk_job_id
     would be passed in if it's invoked from a bulk feed process.
@@ -66,7 +66,11 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None, template_
     # keeping track of the status of the various courses in the bulk job context as well as general reporting
 
     # if there's no bulk id, we need to create the CanvasCourseGenerationJob
-    if bulk_job_id:
+    bulk_job_id = None
+    template_id = None
+    if bulk_job:
+        bulk_job_id = bulk_job.id
+        template_id = bulk_job.template_canvas_course_id
         try:
             course_generation_job = CanvasCourseGenerationJob.objects.filter(
                                         sis_course_id=sis_course_id,
@@ -128,8 +132,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=None, template_
         course_is_public_to_auth_users=course_data.shopping_active
     )
 
-    # If a template was not given, see if there is a default template for the school
-    if not template_id:
+    # If this was not part of a bulk job, attempt to get the default template for the given school
+    if not bulk_job_id:
         try:
             template_id = get_default_template_for_school(course_data.school_code).template_id
         except NoTemplateExistsForSchool:

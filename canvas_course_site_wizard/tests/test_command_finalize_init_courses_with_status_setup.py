@@ -67,7 +67,7 @@ class FinalizeInitCoursesWithStatusSetupCommandTests(TestCase):
         template_copy_calls = []
         for index, course in enumerate(self.courses):
             create_course_calls.append(
-                call(course, self.user_id, bulk_job_id=self.bulk_job_id, template_id=self.template_id)
+                call(course, self.user_id, bulk_job=BulkCanvasCourseCreationJob(id=self.bulk_job_id))
             )
             create_course_calls.append(ANY)
             template_copy_calls.append(
