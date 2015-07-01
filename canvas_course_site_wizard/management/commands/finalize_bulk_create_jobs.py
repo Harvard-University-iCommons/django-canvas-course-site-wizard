@@ -146,8 +146,7 @@ def _init_courses_with_status_setup():
             course = create_canvas_course(
                 sis_course_id,
                 sis_user_id,
-                bulk_job_id=bulk_job_id,
-                template_id=bulk_job.template_canvas_course_id
+                bulk_job=bulk_job,
             )
         except (CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError, CanvasCourseCreateError,
                 CanvasSectionCreateError):
