@@ -9,6 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from canvas_sdk.exceptions import CanvasAPIError
 from canvas_course_site_wizard import controller
 from canvas_course_site_wizard.models import (
+    BulkCanvasCourseCreationJob,
     CanvasCourseGenerationJob,
     SISCourseData,
 )
@@ -40,6 +41,7 @@ class CreateCanvasCourseTest(TestCase):
 
     def setUp(self):
         self.bulk_job_id = 10
+        self.bulk_job = BulkCanvasCourseCreationJob(id=self.bulk_job_id)
         self.canvas_course_id = uuid.uuid4().hex
         self.job_id = 1475
         self.sis_course_id = "305841"
@@ -146,7 +148,7 @@ class CreateCanvasCourseTest(TestCase):
         course_generation_job__objects__filter.return_value = query_set
         get_default_template_for_school.side_effect = NoTemplateExistsForSchool(self.school_id)
         controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                        self.bulk_job_id)
+                                        self.bulk_job)
         self.assertFalse(canvas_content_gen_create.called)
 
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob')
@@ -235,7 +237,7 @@ class CreateCanvasCourseTest(TestCase):
         create_new_course.side_effect = CanvasAPIError(status_code=404)
         with self.assertRaises(CanvasCourseCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            bulk_job_id=self.bulk_job_id)
+                                            bulk_job=self.bulk_job)
         update_mock.assert_called_with(
             self.sis_course_id, CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
             course_job_id=None, bulk_job_id=self.bulk_job_id)
@@ -381,7 +383,7 @@ class CreateCanvasCourseTest(TestCase):
 
         with self.assertRaises(CourseGenerationJobNotFoundError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            self.bulk_job_id)
+                                            self.bulk_job)
         self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.send_failure_msg_to_support')
@@ -420,7 +422,7 @@ class CreateCanvasCourseTest(TestCase):
         get_default_template_for_school.side_effect = NoTemplateExistsForSchool(self.school_id)
         with self.assertRaises(CanvasCourseCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            self.bulk_job_id)
+                                            self.bulk_job)
         self.assertFalse(send_failure_msg_to_support.called)
 
     @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
@@ -472,7 +474,7 @@ class CreateCanvasCourseTest(TestCase):
 
         with self.assertRaises(CanvasSectionCreateError):
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            self.bulk_job_id)
+                                            self.bulk_job)
 
         self.assertFalse(send_failure_msg_to_support.called)
 
@@ -587,7 +589,7 @@ class CreateCanvasCourseTest(TestCase):
         with patch('canvas_course_site_wizard.controller.create_new_course') as create_new_course:
             create_new_course().json.return_value = {'id': self.canvas_course_id}
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            self.bulk_job_id)
+                                            self.bulk_job)
             self.assertEqual(job.canvas_course_id, self.canvas_course_id)
             job.save.assert_called_with(update_fields=['canvas_course_id'])
 
@@ -639,7 +641,7 @@ class CreateCanvasCourseTest(TestCase):
             create_new_course().json.return_value = {'id': self.canvas_course_id}
             get_default_template_for_school.side_effect = NoTemplateExistsForSchool(self.school_id)
             controller.create_canvas_course(self.sis_course_id, self.sis_user_id,
-                                            self.bulk_job_id)
+                                            self.bulk_job)
             self.assertEqual(course_data.canvas_course_id, self.canvas_course_id)
             course_data.save.assert_called_with(update_fields=['canvas_course_id'])
 
@@ -649,7 +651,7 @@ class CreateCanvasCourseTest(TestCase):
     @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
     @patch('canvas_course_site_wizard.controller.logger')
     @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
-    def test_create_new_course_called_with_template_params(self,
+    def test_create_new_course_called_with_default_template_params(self,
             SDK_CONTEXT, logger, course_generation_job__objects__filter,
             course_generation_job__objects__create,
             update_course_generation_workflow_state, get_template_course, get_course_data,
@@ -688,4 +690,133 @@ class CreateCanvasCourseTest(TestCase):
             course_is_public_to_auth_users=True,
             course_is_public=True,
             course_public_syllabus=True
+        )
+
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.controller.logger')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
+    def test_create_new_course_called_with_no_default_template_params(self,
+            SDK_CONTEXT, logger, course_generation_job__objects__filter,
+            course_generation_job__objects__create,
+            update_course_generation_workflow_state, get_course_data,
+            create_course_section, create_new_course, get_default_template_for_school):
+        """
+        Test to assert that create_new_course method is called by
+        create_canvas_course controller method with appropriate arguments
+        (collapses a bunch of individual parameter tests)
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(get=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+        course_model_mock = self.get_mock_of_get_course_data()
+        get_course_data.return_value = course_model_mock
+        sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
+        course_code_argument = course_model_mock.course_code
+        course_name_argument = course_model_mock.course_name
+        course_term_id_argument = 'sis_term_id:' + course_model_mock.sis_term_id
+        course_sis_course_id_argument = self.sis_course_id
+
+        get_default_template_for_school.side_effect = NoTemplateExistsForSchool(school_id=self.school_id)
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id)
+        create_new_course.assert_called_with(
+            request_ctx=SDK_CONTEXT,
+            account_id=sis_account_id_argument,
+            course_name=course_name_argument,
+            course_course_code=course_code_argument,
+            course_term_id=course_term_id_argument,
+            course_sis_course_id=course_sis_course_id_argument,
+            course_is_public_to_auth_users=False
+        )
+
+    @patch('canvas_course_site_wizard.controller.get_single_course_courses')
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.controller.logger')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
+    def test_create_new_course_called_with_bulk_template_params(self,
+            SDK_CONTEXT, logger, course_generation_job__objects__filter,
+            course_generation_job__objects__create,
+            update_course_generation_workflow_state, get_template_course, get_course_data,
+            create_course_section, create_new_course, get_default_template_for_school):
+        """
+        Test to assert that create_new_course method is called by
+        create_canvas_course controller method with appropriate arguments
+        (collapses a bunch of individual parameter tests)
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(get=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+        course_model_mock = self.get_mock_of_get_course_data()
+        get_template_course.return_value = Bunch(json=lambda: {
+            'is_public': True,
+            'public_syllabus': True,
+            'is_public_to_auth_users': True
+        })
+        get_course_data.return_value = course_model_mock
+        sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
+        course_code_argument = course_model_mock.course_code
+        course_name_argument = course_model_mock.course_name
+        course_term_id_argument = 'sis_term_id:' + course_model_mock.sis_term_id
+        course_sis_course_id_argument = self.sis_course_id
+        bulk_job = BulkCanvasCourseCreationJob(id=self.bulk_job_id, template_canvas_course_id=12345)
+
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, bulk_job)
+        assert not get_default_template_for_school.called
+        create_new_course.assert_called_with(
+            request_ctx=SDK_CONTEXT,
+            account_id=sis_account_id_argument,
+            course_name=course_name_argument,
+            course_course_code=course_code_argument,
+            course_term_id=course_term_id_argument,
+            course_sis_course_id=course_sis_course_id_argument,
+            course_is_public_to_auth_users=True,
+            course_is_public=True,
+            course_public_syllabus=True
+        )
+
+    @patch('canvas_course_site_wizard.controller.get_single_course_courses')
+    @patch('canvas_course_site_wizard.controller.update_course_generation_workflow_state')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.create')
+    @patch('canvas_course_site_wizard.controller.CanvasCourseGenerationJob.objects.filter')
+    @patch('canvas_course_site_wizard.controller.logger')
+    @patch('canvas_course_site_wizard.controller.SDK_CONTEXT')
+    def test_create_new_course_called_with_no_bulk_template_params(self,
+            SDK_CONTEXT, logger, course_generation_job__objects__filter,
+            course_generation_job__objects__create,
+            update_course_generation_workflow_state, get_template_course, get_course_data,
+            create_course_section, create_new_course, get_default_template_for_school):
+        """
+        Test to assert that create_new_course method is called by
+        create_canvas_course controller method with appropriate arguments
+        (collapses a bunch of individual parameter tests)
+        """
+        job = Mock(spec=CanvasCourseGenerationJob())
+        course_generation_job__objects__create.return_value = job
+        query_set = Mock(get=Mock(return_value=job))
+        course_generation_job__objects__filter.return_value = query_set
+        course_model_mock = self.get_mock_of_get_course_data()
+        get_course_data.return_value = course_model_mock
+        sis_account_id_argument = 'sis_account_id:' + course_model_mock.sis_account_id
+        course_code_argument = course_model_mock.course_code
+        course_name_argument = course_model_mock.course_name
+        course_term_id_argument = 'sis_term_id:' + course_model_mock.sis_term_id
+        course_sis_course_id_argument = self.sis_course_id
+        bulk_job = BulkCanvasCourseCreationJob(id=self.bulk_job_id, template_canvas_course_id=None)
+
+        controller.create_canvas_course(self.sis_course_id, self.sis_user_id, bulk_job)
+        assert not get_default_template_for_school.called
+        assert not get_template_course.called
+        create_new_course.assert_called_with(
+            request_ctx=SDK_CONTEXT,
+            account_id=sis_account_id_argument,
+            course_name=course_name_argument,
+            course_course_code=course_code_argument,
+            course_term_id=course_term_id_argument,
+            course_sis_course_id=course_sis_course_id_argument,
+            course_is_public_to_auth_users=False
         )
