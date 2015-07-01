@@ -143,7 +143,12 @@ def _init_courses_with_status_setup():
                 sis_course_id, sis_user_id,
                 bulk_job_id
             )
-            course = create_canvas_course(sis_course_id, sis_user_id, bulk_job_id=bulk_job_id)
+            course = create_canvas_course(
+                sis_course_id,
+                sis_user_id,
+                bulk_job_id=bulk_job_id,
+                template_id=bulk_job.template_canvas_course_id
+            )
         except (CanvasCourseAlreadyExistsError, CourseGenerationJobCreationError, CanvasCourseCreateError,
                 CanvasSectionCreateError):
             message = 'content migration error for course with id %s' % sis_course_id
