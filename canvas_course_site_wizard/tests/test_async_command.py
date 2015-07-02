@@ -30,6 +30,7 @@ def mock_user_profile(profile_mock, return_value='a@a.com'):
     'canvas_course_site_wizard.management.commands.process_async_jobs',
     send_failure_email=DEFAULT,
     logger=DEFAULT,
+    update_syllabus_body=DEFAULT,
     finalize_new_canvas_course=DEFAULT,
     send_email_helper=DEFAULT,
     get_canvas_user_profile=DEFAULT,
