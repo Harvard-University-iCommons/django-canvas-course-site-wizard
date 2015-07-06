@@ -1,13 +1,13 @@
 import logging
 
-from canvas_sdk.methods.courses import create_new_course, get_single_course_courses
+from canvas_sdk.methods.courses import create_new_course, get_single_course_courses, update_course
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
 from canvas_sdk.methods.users import get_user_profile
 from canvas_sdk.methods import content_migrations
 from canvas_sdk.exceptions import CanvasAPIError
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.core.mail import send_mail
 
 from .models_api import (
@@ -21,11 +21,13 @@ from .models_api import (
 from .models import (
     CanvasCourseGenerationJob,
     SISCourseData,
-    BulkCanvasCourseCreationJob
+    BulkCanvasCourseCreationJob,
+    CanvasSchoolTemplate
 )
 from icommons_common.models import (
     CourseStaff,
-    UserRole
+    UserRole,
+    CourseInstance
 )
 
 from .exceptions import (
@@ -554,3 +556,40 @@ def update_course_generation_workflow_state(sis_course_id, workflow_state, cours
     if course_job:
         course_job.workflow_state = workflow_state
         course_job.save(update_fields=['workflow_state'])
+
+def update_syllabus_body(course_job):
+    # If this was not part of a bulk job, attempt to get the default template for the given school
+    canvas_course_id = course_job.canvas_course_id
+    course_instance = CourseInstance.objects.get(course_instance_id=int(course_job.sis_course_id))
+    school_id = course_instance.course.school_id
+    if not course_job.bulk_job_id:
+        try:
+            template_id = get_default_template_for_school(school_id).template_id
+        except NoTemplateExistsForSchool:
+            # No template config exists for the school, so skip updating the syllabus body
+            return
+    else:
+        bulk_job = BulkCanvasCourseCreationJob.objects.get(id=course_job.bulk_job_id)
+        template_id = bulk_job.template_canvas_course_id
+
+    if template_id:
+        try:
+            # Populate syllabus body if the school template config indicates that we should do so
+            school_template = CanvasSchoolTemplate.objects.get(
+                school_id=school_id,
+                template_id=template_id
+            )
+            if school_template.include_course_info:
+                update_course(
+                    SDK_CONTEXT,
+                    canvas_course_id,
+                    course_syllabus_body=course_instance.html_formatted_course_info
+                )
+                logger.info("Updated syllabus body for canvas course course %d", canvas_course_id)
+        except (CanvasAPIError, CanvasSchoolTemplate.DoesNotExist, MultipleObjectsReturned):
+            logger.exception(
+                "Failed to update syllabus body for canvas course %d, course instance %d in school %s",
+                canvas_course_id,
+                course_instance.course_instance_id,
+                school_id
+            )
