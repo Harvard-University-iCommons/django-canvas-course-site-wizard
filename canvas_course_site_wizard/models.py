@@ -319,13 +319,25 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
         )
         bulk_job.save()
 
-        if not course_instance_ids:
-            filters = {'term_id': sis_term_id, 'course__school': school_id}
+        if course_instance_ids:
+            # Make sure we filter out course instances that should not have a canvas course
+            # created for them
+            course_instance_ids = [
+                ci.course_instance_id for ci in CourseInstance.objects.filter(
+                    course_instance_id__in=course_instance_ids,
+                    canvas_course_id__isnull=True
+                ).exclude(exclude_from_isites=1)
+            ]
+        else:
+            query_kwargs = {
+                'term_id': sis_term_id,
+                'course__school': school_id
+            }
             if sis_department_id:
-                filters['course__departments'] = sis_department_id
+                query_kwargs['course__departments'] = sis_department_id
             elif sis_course_group_id:
-                filters['course__course_groups'] = sis_course_group_id
-            course_instance_ids = [ci.course_instance_id for ci in CourseInstance.objects.filter(**filters)]
+                query_kwargs['course__course_groups'] = sis_course_group_id
+            course_instance_ids = [ci.course_instance_id for ci in CourseInstance.objects.filter(**query_kwargs)]
 
         course_jobs = []
         for ci_id in course_instance_ids:
