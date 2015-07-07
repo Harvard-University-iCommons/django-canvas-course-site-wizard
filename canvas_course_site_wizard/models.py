@@ -285,6 +285,7 @@ class CanvasSchoolTemplate(models.Model):
     template_id = models.IntegerField()
     school_id = models.CharField(max_length=10, db_index=True)
     is_default = models.BooleanField(default=False)
+    include_course_info = models.BooleanField(default=False)
 
     class Meta:
         db_table = u'canvas_school_template'
