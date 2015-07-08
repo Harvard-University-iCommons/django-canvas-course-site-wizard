@@ -321,7 +321,8 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
 
         if course_instance_ids:
             # Make sure we filter out course instances that should not have a canvas course
-            # created for them
+            # created for them because either they have already been created by
+            # a separate job/process OR they are marked as excluded from iSites
             course_instance_ids = [
                 ci.course_instance_id for ci in CourseInstance.objects.filter(
                     course_instance_id__in=course_instance_ids,
@@ -330,6 +331,7 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
             ]
         else:
             query_kwargs = {
+                'canvas_course_id__isnull': True,
                 'term_id': sis_term_id,
                 'course__school': school_id
             }
@@ -337,7 +339,11 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
                 query_kwargs['course__departments'] = sis_department_id
             elif sis_course_group_id:
                 query_kwargs['course__course_groups'] = sis_course_group_id
-            course_instance_ids = [ci.course_instance_id for ci in CourseInstance.objects.filter(**query_kwargs)]
+            course_instance_ids = [
+                ci.course_instance_id for ci in CourseInstance.objects.filter(**query_kwargs).exclude(
+                    exclude_from_isites=1
+                )
+            ]
 
         course_jobs = []
         for ci_id in course_instance_ids:
