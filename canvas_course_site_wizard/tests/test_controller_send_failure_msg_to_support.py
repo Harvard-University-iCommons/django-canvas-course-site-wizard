@@ -3,13 +3,13 @@ from mock import patch, DEFAULT, ANY
 from canvas_course_site_wizard.controller import send_failure_msg_to_support
 from django.test.utils import override_settings
 
-override_settings_dict = dict({
+override_settings_dict = {
     'support_email_body_on_failure': 'Test message',
     'support_email_subject_on_failure': 'Test subject',
     'support_email_address': 'test@test.com',
     'from_email_address': 'sender@test.com',
     'environment': 'test'
-})
+}
 
 @patch.multiple('canvas_course_site_wizard.controller', send_mail=DEFAULT)
 class SendMailHelperTest(TestCase):

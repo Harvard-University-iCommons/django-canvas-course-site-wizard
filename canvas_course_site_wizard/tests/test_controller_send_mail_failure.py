@@ -3,12 +3,12 @@ from mock import patch, DEFAULT, ANY
 from canvas_course_site_wizard.controller import send_failure_email
 from django.test.utils import override_settings
 
-override_settings_dict = dict({
+override_settings_dict = {
     'course_migration_failure_subject': 'Test subject',
     'course_migration_failure_body': 'Test message',
     'support_email_address': 'test@test.com',
     'from_email_address': 'sender@test.com',
-})
+}
 
 
 @patch.multiple('canvas_course_site_wizard.controller', send_mail=DEFAULT)

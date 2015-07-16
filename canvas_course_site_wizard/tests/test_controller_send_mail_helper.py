@@ -3,9 +3,9 @@ from mock import patch, DEFAULT, ANY
 from canvas_course_site_wizard.controller import send_email_helper
 from django.test.utils import override_settings
 
-override_settings_dict = dict({
+override_settings_dict = {
     'from_email_address': 'sender@test.com',
-})
+}
 
 
 @patch.multiple('canvas_course_site_wizard.controller', send_mail=DEFAULT)
