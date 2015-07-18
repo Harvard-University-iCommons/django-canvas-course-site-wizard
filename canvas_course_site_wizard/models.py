@@ -315,7 +315,6 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
         created_by_user_id = kwargs.get('created_by_user_id')
         course_instance_ids = kwargs.get('course_instance_ids')
 
-        start = time.time()
         bulk_job = BulkCanvasCourseCreationJob(
             school_id=school_id,
             sis_term_id=sis_term_id,
@@ -325,29 +324,25 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
             created_by_user_id=created_by_user_id
         )
         bulk_job.save()
-        logger.info("Created BulkCanvasCourseCreationJob %d in %d", bulk_job.id, (time.time() - start) * 1000)
 
         if not course_instance_ids:
-            start = time.time()
-            filters = {'canvas_course_id__isnull': True, 'term_id': sis_term_id, 'course__school': school_id}
+            filters = {
+                'canvas_course_id__isnull': True,
+                'exclude_from_isites': 0,
+                'term_id': sis_term_id,
+                'course__school': school_id
+            }
             if sis_department_id:
                 filters['course__departments'] = sis_department_id
             elif sis_course_group_id:
                 filters['course__course_groups'] = sis_course_group_id
             course_instance_ids = [
-                ci_id for ci_id in CourseInstance.objects.filter(**filters).exclude(exclude_from_isites=1).values_list(
+                ci_id for ci_id in CourseInstance.objects.filter(**filters).values_list(
                     'course_instance_id',
                     flat=True
                 )
             ]
-            logger.info(
-                "Found %s CourseInstances for BulkCanvasCourseCreationJob %d in %d",
-                len(course_instance_ids),
-                bulk_job.id,
-                (time.time() - start) * 1000
-            )
 
-        start = time.time()
         course_jobs = []
         for ci_id in course_instance_ids:
             course_job = CanvasCourseGenerationJob(
@@ -357,13 +352,12 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
             )
             course_jobs.append(course_job)
 
+        start = time.time()
         CanvasCourseGenerationJob.objects.bulk_create(course_jobs)
         logger.info("Created %d CanvasCourseGenerationJobs in %d", len(course_jobs), (time.time() - start) * 1000)
 
-        start = time.time()
         bulk_job.status = BulkCanvasCourseCreationJob.STATUS_PENDING
         bulk_job.save(update_fields=['status'])
-        logger.info("Updated BulkCanvasCourseCreationJob %d in %d", bulk_job.id, (time.time() - start) * 1000)
 
         return bulk_job
 
