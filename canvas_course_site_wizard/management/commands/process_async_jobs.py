@@ -97,7 +97,9 @@ class Command(NoArgsCommand):
                         # Catch exceptions from finalize method to set the workflow_state to STATUS_FINALIZE_FAILED
                         # and then re raise it so that generic tasks like tech logger, email generation will continue
                         # to be handled in the larger try block
-
+                        logger.exception('Exception during finalize method, '
+                                         'setting state to STATUS_FINALIZE_FAILED '
+                                         'for sis_course_id id %s' %job.sis_course_id)
                         job.workflow_state = CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
                         job.save(update_fields=['workflow_state'])
 
