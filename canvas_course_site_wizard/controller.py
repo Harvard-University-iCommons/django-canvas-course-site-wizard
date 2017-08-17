@@ -290,12 +290,17 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
 
     # Initiate course copy for template_id
     logger.debug('Requesting content migration from Canvas for canvas_course_id=%s...' % canvas_course_id)
-    content_migration = content_migrations.create_content_migration_courses(
-        SDK_CONTEXT,
-        canvas_course_id,
-        migration_type='course_copy_importer',
-        settings_source_course_id=template_id,
-    ).json()
+    try:
+        content_migration = content_migrations.create_content_migration_courses(
+            SDK_CONTEXT,
+            canvas_course_id,
+            migration_type='course_copy_importer',
+            settings_source_course_id=template_id,
+        ).json()
+    except Exception as e:
+        logger.exception('Error in creating content migration for '
+                         'canvas_course_id=%s' % canvas_course_id)
+
     logger.debug('content migration API call result: %s' % content_migration)
 
     #  Update the status of   course generation job  with metadata (canvas id, workflow_state, progress url, etc)
