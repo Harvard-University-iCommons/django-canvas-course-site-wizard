@@ -2,7 +2,7 @@ from datetime import datetime
 import fcntl
 import logging
 
-from django.core.management.base import NoArgsCommand
+from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 tech_logger = logging.getLogger('tech_mail')
 
 
-class Command(NoArgsCommand):
+class Command(BaseCommand):
     """
     Process the Bulk course creation jobs. PENDING bulk jobs without non-terminal subjobs will be 'finalized':
       the bulk job creator will be notified via email and the bulk job status will indicate it is no longer pending.
@@ -35,7 +35,7 @@ class Command(NoArgsCommand):
     """
     help = "Notifies the user and/or support team for any bulk course create jobs which are finished"
 
-    def handle_noargs(self, **options):
+    def handle(self, **options):
 
         # open and lock the file used for determining if another process is running
         _pid_file = getattr(settings, 'FINALIZE_BULK_CREATE_JOBS_PID_FILE', 'finalize_bulk_create_jobs.pid')
@@ -102,6 +102,7 @@ class Command(NoArgsCommand):
             _pid_file_handle.close()
         except IOError:
             logger.error("could not release lock on pid file or close pid file properly")
+
 
 def _init_courses_with_status_setup():
     """

@@ -2,7 +2,7 @@
 Process the Content Migration jobs in the CanvasContentMigrationJob table.
     To invoke this Command type "python manage.py process_async_jobs"
 """
-from django.core.management.base import NoArgsCommand
+from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db.models import Q
 from canvas_course_site_wizard.controller import (
@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 tech_logger = logging.getLogger('tech_mail')
 
 
-class Command(NoArgsCommand):
+class Command(BaseCommand):
     """
     Process the Canvas course generation jobs in the CanvasCourseGenerationJob table.
     To invoke this Command type "python manage.py process_async_jobs"
     """
     help = "Process the Canvas course generation jobs in the CanvasCourseGenerationJob table"
 
-    def handle_noargs(self, **options):
+    def handle(self, **options):
         """
         select all the active job in the CanvasCourseGenerationJob table and check
         the status using the canvas_sdk.progress method
