@@ -131,7 +131,6 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
         course_course_code=course_data.course_code,
         course_term_id='sis_term_id:%s' % course_data.sis_term_id,
         course_sis_course_id=sis_course_id,
-        course_is_public_to_auth_users=course_data.shopping_active
     )
 
     # If this was not part of a bulk job, attempt to get the default template for the given school
@@ -147,12 +146,10 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
     if template_id:
         try:
             template_course = get_single_course_courses(SDK_CONTEXT, template_id, 'all_courses').json()
-            is_public_to_auth_users = course_data.shopping_active or template_course['is_public_to_auth_users']
             # Update create course request parameters
             request_parameters.update({
                 'course_is_public': template_course['is_public'],
                 'course_public_syllabus': template_course['public_syllabus'],
-                'course_is_public_to_auth_users': is_public_to_auth_users
             })
         except CanvasAPIError:
             logger.exception(

@@ -86,15 +86,6 @@ class SISCourseDataMixin(object):
         """
         return self.course.school_id
 
-    @property
-    def shopping_active(self):
-        """
-        Shopping status of the course; ie the course is shoppable (returns True) if it is in a term for which shopping
-         is turned on and the course is not explicitly excluded from shopping.
-        :returns: boolean
-        """
-        return self.term.shopping_active and not self.exclude_from_shopping
-
     def get_official_course_site_url(self):
         """
         Return the url for the official course website associated with this course.  If more than

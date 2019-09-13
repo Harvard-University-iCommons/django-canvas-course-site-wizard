@@ -150,24 +150,13 @@ class SISCourseDataIntegrationTests(TestCase):
     school = None
     term_code_active = None
     term_code_inactive = None
-    term_shopping_active = None
-    term_shopping_inactive = None
 
     @classmethod
     def setUpClass(cls):
         cls.school = School.objects.create(school_id='siscdi_int')
         cls.term_code_active = TermCode.objects.create(term_code=1)
         cls.term_code_inactive = TermCode.objects.create(term_code=2)
-        term_shopping_active_specs = {
-            'term_id': 1,
-            'term_code': cls.term_code_active,
-            'shopping_active': True
-        }
-        term_shopping_inactive_specs = {
-            'term_id': 2,
-            'term_code': cls.term_code_inactive,
-            'shopping_active': False
-        }
+
         term_specs_common = {
             'academic_year': 2015,
             'calendar_year': 2015,
@@ -177,45 +166,13 @@ class SISCourseDataIntegrationTests(TestCase):
             'include_in_catalog': True,
             'include_in_preview': True,
         }
-        term_shopping_active_specs.update(term_specs_common)
-        term_shopping_inactive_specs.update(term_specs_common)
-        cls.term_shopping_active = Term.objects.create(**term_shopping_active_specs)
-        cls.term_shopping_inactive = Term.objects.create(**term_shopping_inactive_specs)
 
     @classmethod
     def tearDownClass(cls):
         cls.school.delete()
         cls.term_code_active.delete()
         cls.term_code_inactive.delete()
-        cls.term_shopping_active.delete()
-        cls.term_shopping_inactive.delete()
 
-    def test_shopping_active(self):
-        """
-        Shopping is active for the course if course's term is shoppable
-        and the course is not excluded
-        """
-        sis_course_data = SISCourseData(
-            term=self.term_shopping_active,
-            exclude_from_shopping=False
-        )
-        self.assertTrue(sis_course_data.shopping_active)
-
-    def test_shopping_inactive_when_excluded(self):
-        """ shopping is inactive for the course if course's term is shoppable but the course is excluded """
-        sis_course_data = SISCourseData(
-            term=self.term_shopping_active,
-            exclude_from_shopping=True
-        )
-        self.assertFalse(sis_course_data.shopping_active)
-
-    def test_shopping_inactive_when_term_inactive(self):
-        """ shopping is inactive for the course if course's term is not shoppable, even if course is not excluded """
-        sis_course_data = SISCourseData(
-            term=self.term_shopping_inactive,
-            exclude_from_shopping=False
-        )
-        self.assertFalse(sis_course_data.shopping_active)
 
 
 class CanvasCourseGenerationJobTests(TestCase):
