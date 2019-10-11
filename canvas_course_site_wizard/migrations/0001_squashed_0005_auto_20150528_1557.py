@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
                 (b'canvas_course_site_wizard', '0005_auto_20150528_1557')]
 
     dependencies = [
-        ('icommons_common', '0001_initial'),
+        ('canvas_course_site_wizard', '0001_initial'),
     ]
 
     operations = [
