@@ -10,7 +10,7 @@ class NoTemplateExistsForSchool(Exception):
         self.school_id = school_id
 
     def __unicode__(self):
-        return u'No template exists for school_id=%s' % self.school_id
+        return 'No template exists for school_id=%s' % self.school_id
 
     def __str__(self):
         return 'No template exists for school_id=%s' % self.school_id
@@ -21,7 +21,7 @@ class MultipleDefaultTemplatesExistForSchool(Exception):
         self.school_id = school_id
 
     def __unicode__(self):
-        return u'Multiple default templates exist for school_id=%s' % self.school_id
+        return 'Multiple default templates exist for school_id=%s' % self.school_id
 
     def __str__(self):
         return 'Multiple default templates exist for school_id=%s' % self.school_id
@@ -33,7 +33,7 @@ class RenderableExceptionWithDetails(RenderableException):
     def __init__(self, msg_details, *args, **kw_args):
         super(RenderableExceptionWithDetails, self).__init__(self, *args, **kw_args)
         if (isinstance(msg_details, collections.Iterable)
-                and not isinstance(msg_details, basestring)):
+                and not isinstance(msg_details, str)):
             self.display_text = self.display_text.format(*msg_details)
         else:
             self.display_text = self.display_text.format(msg_details)

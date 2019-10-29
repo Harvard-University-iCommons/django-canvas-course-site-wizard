@@ -8,7 +8,7 @@ from canvas_course_site_wizard.models import (
     CanvasCourseGenerationJob as SubJob,
     SISCourseData
 )
-from setup_bulk_jobs import create_jobs
+from .setup_bulk_jobs import create_jobs
 
 
 def _create_bulk_job(sis_term_id=1, status=BulkJob.STATUS_SETUP):
@@ -43,7 +43,7 @@ class BulkCanvasCourseCreationJobIntegrationTests(TestCase):
         for index, (status, _) in enumerate(BulkJob.STATUS_CHOICES):
             bulk_job = _create_bulk_job(index, status=status)
             for subjob_status, _ in SubJob.WORKFLOW_STATUS_CHOICES:
-                _create_subjob(sub_id_generator.next(), workflow_state=subjob_status,
+                _create_subjob(next(sub_id_generator), workflow_state=subjob_status,
                                bulk_job_id=bulk_job.id)
 
     @classmethod

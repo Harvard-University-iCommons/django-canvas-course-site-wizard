@@ -251,11 +251,11 @@ class CanvasCourseGenerationJob(models.Model):
     objects = CanvasCourseGenerationJobManager()
 
     class Meta:
-        db_table = u'canvas_course_generation_job'
+        db_table = 'canvas_course_generation_job'
 
     def __unicode__(self):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
-        return u"(CanvasCourseGenerationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
+        return "(CanvasCourseGenerationJob ID=%s: sis_course_id=%s | %s)" % (self.pk, self.sis_course_id,
                                                                               self.workflow_state)
 
     @property
@@ -285,11 +285,11 @@ class CanvasSchoolTemplate(models.Model):
     include_course_info = models.BooleanField(default=False)
 
     class Meta:
-        db_table = u'canvas_school_template'
+        db_table = 'canvas_school_template'
 
     def __unicode__(self):
         #TODO: unit test for this method (skipped to support bug fix in QA testing)
-        return u"(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
+        return "(CanvasSchoolTemplate ID=%s: school_id=%s | template_id=%s" % (self.pk, self.school_id,
                                                                                self.template_id)
 
 
@@ -429,10 +429,10 @@ class BulkCanvasCourseCreationJob(models.Model):
     objects = BulkCanvasCourseCreationJobManager()
 
     class Meta:
-        db_table = u'bulk_canvas_course_crtn_job'
+        db_table = 'bulk_canvas_course_crtn_job'
 
     def __unicode__(self):
-        return u"(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
+        return "(BulkJob ID=%s: sis_term_id=%s)" % (self.pk, self.sis_term_id)
 
     @property
     def status_display_name(self):

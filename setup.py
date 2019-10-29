@@ -26,16 +26,16 @@ setup(
         'License :: OSI Approved :: BSD License',  # example license
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
     install_requires=[
-        "Django>=1.6",
+        "Django>=2.2,<3.0",
         "django-braces",
-        "canvas-python-sdk>=0.7.4",
-        "django-icommons-common",
+        "canvas-python-sdk>=1.0",
+        "django-icommons-common>=2.0",
     ],
     tests_require=[
         'mock',

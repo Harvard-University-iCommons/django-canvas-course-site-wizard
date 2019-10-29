@@ -12,7 +12,7 @@ from canvas_course_site_wizard.models_api import (
     get_course_generation_data_for_sis_course_id
 )
 from canvas_course_site_wizard.models import CanvasSchoolTemplate
-from setup_bulk_jobs import create_jobs
+from .setup_bulk_jobs import create_jobs
 
 
 class ModelsApiTest(TestCase):

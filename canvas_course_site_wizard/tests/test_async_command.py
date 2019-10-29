@@ -224,7 +224,7 @@ class CommandsTestCase(TestCase):
         self.assertEqual(tech_logger.exception.call_count, 1)
 
     def test_process_async_jobs_logs_exception(self, client, get_canvas_user_profile, logger, **kwargs):
-        """ Test that an exception is properly logged by the async job """
+        """ Test that an exception is properly logged by the async_operations job """
         mock_client_json(client, 'completed')
         get_canvas_user_profile.side_effect = Exception
 
