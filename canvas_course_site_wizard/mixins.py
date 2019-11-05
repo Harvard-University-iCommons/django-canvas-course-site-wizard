@@ -131,7 +131,7 @@ class BulkCourseSiteCreationAllowedMixin(SingleObjectMixin):
         # will have access to the bulk course creation process for now,
 
         # todo remove this after verification
-        print '%s' % self.object.school_id
+        print('%s' % self.object.school_id)
         user_account_admin_list = admins.list_account_admins(
             request_ctx=SDK_CONTEXT,
             account_id='sis_account_id:school:%s' % self.object.school_id,

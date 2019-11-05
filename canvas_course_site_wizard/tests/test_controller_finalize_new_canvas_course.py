@@ -25,7 +25,7 @@ class FinalizeNewCanvasCourseTest(TestCase):
         get_canvas_course_url.return_value = test_url
         self.test_return_value = finalize_new_canvas_course(self.canvas_course_id, self.sis_course_id, self.user_id)
         self.assertFalse(logger.exception.called)
-        self.assertEquals(self.test_return_value, test_url)
+        self.assertEqual(self.test_return_value, test_url)
 
     # Enroll instructor / creator
 

@@ -91,7 +91,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
                 workflow_state=CanvasCourseGenerationJob.STATUS_SETUP,
             )
             course_job_id = course_generation_job.pk
-            logger.debug(u'Job row created: %s' % course_generation_job)
+            logger.debug('Job row created: %s' % course_generation_job)
         except Exception as e:
             logger.exception('Error  in inserting CanvasCourseGenerationJob record for '
                              'with sis_course_id=%s: exception=%s' % (sis_course_id, e))
@@ -104,7 +104,7 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
     try:
         # 2. fetch the course instance info
         course_data = get_course_data(sis_course_id)
-        logger.info(u"\n obtained course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
+        logger.info("\n obtained course info for ci=%s, acct_id=%s, course_name=%s, code=%s, term=%s, section_name=%s\n"
                     % (course_data, course_data.sis_account_id, course_data.course_name, course_data.course_code,
                        course_data.sis_term_id, course_data.primary_section_name()))
     except ObjectDoesNotExist as e:
@@ -267,7 +267,7 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
     """
     This method will retrieve the template site associated with an SISCourseData object and start the
     Canvas process of copying the template content into the canvas course site.  A CanvasCourseGenerationJob
-    row will be created with the async process data from Canvas and the resulting data object will be
+    row will be created with the async_operations process data from Canvas and the resulting data object will be
     returned.  If the school associated with the sis data object does not have a template, a
     NoTemplateExistsForSchool exception will be raised.
     Based on the bulk_jb_id being passed, the copy process will handle singletons differently from bulk
@@ -312,7 +312,7 @@ def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job
     course_generation_job.save(update_fields=['canvas_course_id', 'content_migration_id', 'status_url', 'workflow_state',
                                       'created_by_user_id'])
 
-    logger.debug(u'Job row updated: %s' % course_generation_job)
+    logger.debug('Job row updated: %s' % course_generation_job)
 
     return course_generation_job
 
@@ -351,10 +351,10 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id, bulk_jo
     # Copy SIS enrollments to new Canvas course
     try:
         sis_course_data = get_course_data(sis_course_id)
-        logger.debug(u"sis_course_data=%s" % sis_course_data)
+        logger.debug("sis_course_data=%s" % sis_course_data)
         sis_course_data = sis_course_data.set_sync_to_canvas(SISCourseData.TURN_ON_SYNC_TO_CANVAS)
         logger.info('Set SIS enrollment data sync flag for new course with Canvas ID=%s' % canvas_course_id)
-        logger.debug(u"sis_course_data after sync to canvas: %s" % sis_course_data)
+        logger.debug("sis_course_data after sync to canvas: %s" % sis_course_data)
     except Exception as e:
         logger.exception('Error setting SIS enrollment data sync flag for new course with Canvas ID=%s:'
                          % canvas_course_id)
