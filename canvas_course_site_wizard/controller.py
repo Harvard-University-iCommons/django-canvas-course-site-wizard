@@ -1,6 +1,7 @@
 import logging
 
 from canvas_sdk.methods.courses import create_new_course, get_single_course_courses, update_course
+from canvas_sdk.methods.accounts import get_single_account, create_new_sub_account
 from canvas_sdk.methods.sections import create_course_section
 from canvas_sdk.methods.enrollments import enroll_user_sections
 from canvas_sdk.methods.users import get_user_profile
@@ -27,7 +28,8 @@ from .models import (
 from icommons_common.models import (
     CourseStaff,
     UserRole,
-    CourseInstance
+    CourseInstance,
+    Department
 )
 
 from .exceptions import (
@@ -122,6 +124,26 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
             # TLT-393: send an email to support group, in addition to showing error page to user
             send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
         raise ex
+
+    # If the account ID begins with dept: then check if department already exists in Canvas
+    if course_data.sis_account_id.startswith('dept:'):
+        # TLT-3689 Check to see if the department exists in Canvas
+        # If it does not, then create it
+        try:
+            get_single_account(request_ctx=SDK_CONTEXT,
+                               id='sis_account_id:%s' % course_data.sis_account_id)
+        except CanvasAPIError:
+            department_id = course_data.sis_account_id.replace('dept:', '')
+            department = Department.objects.get(department_id=department_id)
+            logger.info("Department does not exist for {}, creating one now".format(course_data.sis_account_id))
+            # It seems that using the sis_account_id:xxx in create_new_sub_account
+            # returns a 404 below and requires the Canvas numeric ID
+            parent_account_id = get_single_account(SDK_CONTEXT,
+                                                   id='sis_account_id:school:'+department.school_id).json()['id']
+            create_new_sub_account(request_ctx=SDK_CONTEXT,
+                                   account_id=parent_account_id,
+                                   account_name=department.name,
+                                   sis_account_id=course_data.sis_account_id)
 
     # 3. Attempt to create a canvas course
     request_parameters = dict(
