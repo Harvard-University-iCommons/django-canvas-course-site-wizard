@@ -29,7 +29,8 @@ from icommons_common.models import (
     CourseStaff,
     UserRole,
     CourseInstance,
-    Department
+    Department,
+    CourseGroup
 )
 
 from .exceptions import (
@@ -143,6 +144,25 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
             create_new_sub_account(request_ctx=SDK_CONTEXT,
                                    account_id=parent_account_id,
                                    account_name=department.name,
+                                   sis_account_id=course_data.sis_account_id)
+
+    if course_data.sis_account_id.startswith('coursegroup:'):
+        # TLT-3878 Check to see if the course group exists in Canvas
+        # If it does not, then create it
+        try:
+            get_single_account(request_ctx=SDK_CONTEXT,
+                               id='sis_account_id:%s' % course_data.sis_account_id)
+        except CanvasAPIError:
+            course_group_id = course_data.sis_account_id.replace('coursegroup:', '')
+            course_group = CourseGroup.objects.get(course_group_id=course_group_id)
+            logger.info("Course group does not exist for {}, creating one now".format(course_data.sis_account_id))
+            # It seems that using the sis_account_id:xxx in create_new_sub_account
+            # returns a 404 below and requires the Canvas numeric ID
+            parent_account_id = get_single_account(SDK_CONTEXT,
+                                                   id='sis_account_id:school:' + course_group.school_id).json()['id']
+            create_new_sub_account(request_ctx=SDK_CONTEXT,
+                                   account_id=parent_account_id,
+                                   account_name=course_group.name,
                                    sis_account_id=course_data.sis_account_id)
 
     # 3. Attempt to create a canvas course
