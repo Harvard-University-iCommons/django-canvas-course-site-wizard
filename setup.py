@@ -35,7 +35,7 @@ setup(
         "Django>=2.2,<3.0",
         "django-braces",
         "canvas-python-sdk>=1.0",
-        "django-icommons-common>=2.0",
+        "django-icommons-common[async_operations]>=2.0",
     ],
     tests_require=[
         'mock',
