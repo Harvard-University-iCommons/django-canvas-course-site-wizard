@@ -44,9 +44,9 @@ class Command(BaseCommand):
         _pid_file_handle = open(_pid_file, 'w')
         try:
             fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError:
+        except IOError e:
             # another instance is running
-            logger.warning("another instance of the command is already running")
+            logger.warning(f"another instance of the command is already running: {e}")
             return
 
         start_time = datetime.now()
