@@ -44,7 +44,7 @@ class Command(BaseCommand):
             fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
             # another instance is running
-            logger.error("another instance of the command is already running")
+            logger.warning("another instance of the command is already running")
             return
 
         start_time = datetime.now()
@@ -94,7 +94,7 @@ class Command(BaseCommand):
 
         _log_bulk_job_statistics()
 
-        logger.info('command took %s seconds to run', str(datetime.now() - start_time)[:-7])
+        logger.info('command took %s seconds to run', str(datetime.now() - start_time))
 
         # unlock and close the file used for determining if another process is running
         try:

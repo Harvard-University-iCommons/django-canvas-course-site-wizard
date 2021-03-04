@@ -2,6 +2,7 @@
 Process the Content Migration jobs in the CanvasContentMigrationJob table.
     To invoke this Command type "python manage.py process_async_jobs"
 """
+from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db.models import Q
@@ -45,8 +46,10 @@ class Command(BaseCommand):
             fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
             # another instance is running
-            logger.error("another instance of the command is already running")
+            logger.warning("another instance of the command is already running")
             return
+
+        start_time = datetime.now()
 
         jobs = CanvasCourseGenerationJob.objects.filter(Q(workflow_state=CanvasCourseGenerationJob.STATUS_QUEUED) |
                                                         Q(workflow_state=CanvasCourseGenerationJob.STATUS_RUNNING) |
@@ -60,7 +63,7 @@ class Command(BaseCommand):
                 update this in the database and the setting method. In the meantime just parse out
                 the job_id from the url.
                 """
-                
+
                 job_start_message = '\nProcessing course with sis_course_id %s' % (job.sis_course_id)
                 logger.info(job_start_message)
                 user_profile = None
@@ -138,7 +141,7 @@ class Command(BaseCommand):
 
                 else:
                     """
-                    if the workflow_state is 'queued' or 'running' the job 
+                    if the workflow_state is 'queued' or 'running' the job
                     is not complete and a failure has not occured on Canvas.
                     log that we checked
                     Note: we won't need to update the DB as we will record only the completin or failure in the job table
@@ -173,6 +176,8 @@ class Command(BaseCommand):
                                      % (job.sis_course_id, job.created_by_user_id)
                         logger.exception(error_text)
                         tech_logger.exception(error_text)
+
+        logger.info('command took %s seconds to run', str(datetime.now() - start_time))
 
         # unlock and close the file used for determining if another process is running
         try:
