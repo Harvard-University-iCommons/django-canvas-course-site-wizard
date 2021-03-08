@@ -42,7 +42,7 @@ class Command(BaseCommand):
         _pid_file_handle = open(_pid_file, 'w')
         try:
             fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError e:
+        except IOError as e:
             # another instance is running
             logger.warning(f"another instance of the command is already running: {e}")
             return
@@ -176,7 +176,7 @@ def _init_courses_with_status_setup():
                     bulk_job_id=bulk_job_id,
                     template_id=bulk_job.template_canvas_course_id
                 )
-            except:
+            except Exception:
                 logger.exception('template migration failed for course instance id %s' % sis_course_id)
                 create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
         else:
