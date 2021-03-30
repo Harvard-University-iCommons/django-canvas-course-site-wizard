@@ -44,7 +44,7 @@ class Command(BaseCommand):
         _pid_file_handle = open(_pid_file, 'w')
         try:
             fcntl.lockf(_pid_file_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError e:
+        except IOError as e:
             # another instance is running
             logger.warning(f"another instance of the command is already running: {e}")
             return
@@ -96,13 +96,13 @@ class Command(BaseCommand):
                             'sis_user_id:%s' % job.created_by_user_id,
                             job.bulk_job_id
                         )
-                    except Exception as e:
+                    except Exception:
                         # Catch exceptions from finalize method to set the workflow_state to STATUS_FINALIZE_FAILED
                         # and then re raise it so that generic tasks like tech logger, email generation will continue
                         # to be handled in the larger try block
                         logger.exception('Exception during finalize method, '
                                          'setting state to STATUS_FINALIZE_FAILED '
-                                         'for sis_course_id id %s' %job.sis_course_id)
+                                         'for sis_course_id id %s' % job.sis_course_id)
                         job.workflow_state = CanvasCourseGenerationJob.STATUS_FINALIZE_FAILED
                         job.save(update_fields=['workflow_state'])
 

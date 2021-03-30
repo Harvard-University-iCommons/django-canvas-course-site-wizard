@@ -159,7 +159,7 @@ def _init_courses_with_status_setup():
         # get the course data - this is needed for the start_course_template_copy method
         try:
             sis_course_data = get_course_data(sis_course_id)
-        except ObjectDoesNotExist as ex:
+        except ObjectDoesNotExist:
             message = 'Course id %s does not exist, skipping....' % sis_course_id
             logger.exception(message)
             create_job.update_workflow_state(CanvasCourseGenerationJob.STATUS_SETUP_FAILED)
@@ -200,7 +200,7 @@ def _send_notification(job):
     try:
         canvas_user_profile = get_canvas_user_profile(job.created_by_user_id)
         notification_to_address_list = [canvas_user_profile['primary_email']]
-    except Exception as e:
+    except Exception:
         # todo: do we need all these multilayered logs?
         error_text = (
             "Job %s: problem getting canvas user profile for user %s" % (job.id, job.created_by_user_id)
@@ -219,7 +219,7 @@ def _send_notification(job):
         term_display_name = term.display_name
         school = School.objects.get(school_id=job.school_id)
         school_display_name = school.title_short
-    except Exception as e:
+    except Exception:
         error_text = (
             "Canvas course create bulk job %s: "
             "problem getting user-friendly term or school name"
@@ -243,7 +243,7 @@ def _send_notification(job):
 
     try:
         send_email_helper(subject, body, notification_to_address_list)
-    except Exception as e:
+    except Exception:
         # todo: do we need all these multilayered logs?
         logger.exception("Job %s: problem sending notification", job.id)
         _log_notification_failure(job)
@@ -300,7 +300,7 @@ def _log_notification_failure(job):
             "There was a problem in sending bulk job failure notification email to initiator %s "
             "and support staff for bulk job %s" % (job.created_by_user_id, job.id)
         )
-    except Exception as e:
+    except Exception:
         error_text = "There was a problem in sending a bulk job failure notification email (no job details available)"
     logger.exception(error_text)
     tech_logger.exception(error_text)  # notifies tech support
