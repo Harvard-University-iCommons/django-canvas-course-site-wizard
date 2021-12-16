@@ -30,7 +30,8 @@ from icommons_common.models import (
     UserRole,
     CourseInstance,
     Department,
-    CourseGroup
+    CourseGroup,
+    XlistMap
 )
 
 from .exceptions import (
@@ -395,6 +396,11 @@ def finalize_new_canvas_course(canvas_course_id, sis_course_id, user_id, bulk_jo
         sis_course_data = get_course_data(sis_course_id)
         logger.debug("sis_course_data=%s" % sis_course_data)
         sis_course_data = sis_course_data.set_sync_to_canvas(SISCourseData.TURN_ON_SYNC_TO_CANVAS)
+
+        # If this is a primary cross listed course whose sync_to_canvas had not been set earlier, the xlist record needs
+        # to be touched so it is picked up by the incremental feed(TLT-4151)
+        check_and_update_xlist_last_updated(sis_course_id)
+
         logger.info('Set SIS enrollment data sync flag for new course with Canvas ID=%s' % canvas_course_id)
         logger.debug("sis_course_data after sync to canvas: %s" % sis_course_data)
     except Exception as e:
@@ -600,6 +606,20 @@ def update_course_generation_workflow_state(sis_course_id, workflow_state, cours
     if course_job:
         course_job.workflow_state = workflow_state
         course_job.save(update_fields=['workflow_state'])
+
+
+def check_and_update_xlist_last_updated(course_instance_id):
+    """
+    Check if this is a primary course in a cross listed pair and touch the xlist record so that it is picked up the
+    incremental feed
+    :param course_instance_id: The course_instance_id to be checked in the xlist table
+    """
+    try:
+        XlistMap.objects.filter(primary_course_instance=course_instance_id).update(last_modified_date=timezone.now())
+    except Exception as ex:
+        logger.warning("Unable to update xlist_records last_updated for %s: %s",
+                       course_instance_id, ex)
+
 
 def update_syllabus_body(course_job):
     # If this was not part of a bulk job, attempt to get the default template for the given school
