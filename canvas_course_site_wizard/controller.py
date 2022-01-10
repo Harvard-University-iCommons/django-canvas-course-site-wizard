@@ -9,7 +9,7 @@ from canvas_sdk.methods import content_migrations
 from canvas_sdk.exceptions import CanvasAPIError
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from django.core.mail import send_mai
+from django.core.mail import send_mail
 from django.utils import timezone
 
 from .models_api import (
