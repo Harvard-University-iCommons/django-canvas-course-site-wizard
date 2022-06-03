@@ -32,7 +32,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
     install_requires=[
-        "Django>=2.2,<3.0",
+        "Django>=3.0,<4.0",
         "django-braces",
         "canvas-python-sdk>=1.0",
         "django-icommons-common[async_operations]>=2.0",
