@@ -128,44 +128,8 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
             send_failure_msg_to_support(sis_course_id, sis_user_id, msg)
         raise ex
 
-    # If the account ID begins with dept: then check if department already exists in Canvas
-    if course_data.sis_account_id.startswith('dept:'):
-        # TLT-3689 Check to see if the department exists in Canvas
-        # If it does not, then create it
-        try:
-            get_single_account(request_ctx=SDK_CONTEXT,
-                               id='sis_account_id:%s' % course_data.sis_account_id)
-        except CanvasAPIError:
-            department_id = course_data.sis_account_id.replace('dept:', '')
-            department = Department.objects.get(department_id=department_id)
-            logger.info("Department does not exist for {}, creating one now".format(course_data.sis_account_id))
-            # It seems that using the sis_account_id:xxx in create_new_sub_account
-            # returns a 404 below and requires the Canvas numeric ID
-            parent_account_id = get_single_account(SDK_CONTEXT,
-                                                   id='sis_account_id:school:'+department.school_id).json()['id']
-            create_new_sub_account(request_ctx=SDK_CONTEXT,
-                                   account_id=parent_account_id,
-                                   account_name=department.name,
-                                   sis_account_id=course_data.sis_account_id)
-
-    if course_data.sis_account_id.startswith('coursegroup:'):
-        # TLT-3878 Check to see if the course group exists in Canvas
-        # If it does not, then create it
-        try:
-            get_single_account(request_ctx=SDK_CONTEXT,
-                               id='sis_account_id:%s' % course_data.sis_account_id)
-        except CanvasAPIError:
-            course_group_id = course_data.sis_account_id.replace('coursegroup:', '')
-            course_group = CourseGroup.objects.get(course_group_id=course_group_id)
-            logger.info("Course group does not exist for {}, creating one now".format(course_data.sis_account_id))
-            # It seems that using the sis_account_id:xxx in create_new_sub_account
-            # returns a 404 below and requires the Canvas numeric ID
-            parent_account_id = get_single_account(SDK_CONTEXT,
-                                                   id='sis_account_id:school:' + course_group.school_id).json()['id']
-            create_new_sub_account(request_ctx=SDK_CONTEXT,
-                                   account_id=parent_account_id,
-                                   account_name=course_group.name,
-                                   sis_account_id=course_data.sis_account_id)
+    create_department(course_data)
+    create_course_group(course_data)
 
     # 3. Attempt to create a canvas course
     request_parameters = dict(
@@ -304,6 +268,57 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
         return new_course, course_job_id
 
     return new_course
+
+
+def create_department(course_data) -> None:
+    """
+    Check to see if the department exists in Canvas.
+    If it does not, then create it.
+    """
+    # If the account ID begins with dept: then check if department already exists in Canvas
+    if course_data.sis_account_id.startswith('dept:'):
+        # TLT-3689 Check to see if the department exists in Canvas
+        # If it does not, then create it
+        try:
+            get_single_account(request_ctx=SDK_CONTEXT,
+                               id='sis_account_id:%s' % course_data.sis_account_id)
+        except CanvasAPIError:
+            department_id = course_data.sis_account_id.replace('dept:', '')
+            department = Department.objects.get(department_id=department_id)
+            logger.info("Department does not exist for {}, creating one now".format(course_data.sis_account_id))
+            # It seems that using the sis_account_id:xxx in create_new_sub_account
+            # returns a 404 below and requires the Canvas numeric ID
+            parent_account_id = get_single_account(SDK_CONTEXT,
+                                                   id='sis_account_id:school:'+department.school_id).json()['id']
+            create_new_sub_account(request_ctx=SDK_CONTEXT,
+                                   account_id=parent_account_id,
+                                   account_name=department.name,
+                                   sis_account_id=course_data.sis_account_id)
+
+
+def create_course_group(course_data) -> None:
+    """
+    Check to see if the course group exists in Canvas.
+    If it does not, then create it.
+    """
+    if course_data.sis_account_id.startswith('coursegroup:'):
+        # TLT-3878 Check to see if the course group exists in Canvas
+        # If it does not, then create it
+        try:
+            get_single_account(request_ctx=SDK_CONTEXT,
+                               id='sis_account_id:%s' % course_data.sis_account_id)
+        except CanvasAPIError:
+            course_group_id = course_data.sis_account_id.replace('coursegroup:', '')
+            course_group = CourseGroup.objects.get(course_group_id=course_group_id)
+            logger.info("Course group does not exist for {}, creating one now".format(course_data.sis_account_id))
+            # It seems that using the sis_account_id:xxx in create_new_sub_account
+            # returns a 404 below and requires the Canvas numeric ID
+            parent_account_id = get_single_account(SDK_CONTEXT,
+                                                   id='sis_account_id:school:' + course_group.school_id).json()['id']
+            create_new_sub_account(request_ctx=SDK_CONTEXT,
+                                   account_id=parent_account_id,
+                                   account_name=course_group.name,
+                                   sis_account_id=course_data.sis_account_id)
 
 
 def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job_id=None,
