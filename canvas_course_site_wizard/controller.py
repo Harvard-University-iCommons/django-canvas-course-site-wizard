@@ -268,19 +268,19 @@ def create_canvas_course(sis_course_id, sis_user_id, bulk_job=None):
 
     return new_course
 
+
 def get_or_create_account(course_data, sis_course_id, course_job_id, bulk_job_id):
     """
     Check if department or course group exists if not create it.
     See TLT-3689 and TLT-3878
     """
-    
+    account_id = None
+    account = None
+
     try:
         get_single_account(request_ctx=SDK_CONTEXT,
                            id='sis_account_id:%s' % course_data.sis_account_id)
     except CanvasAPIError:
-        account_id = None
-        account = None
-
         logger.info(f'Account does not exist for {course_data.sis_account_id}, creating one now')
 
         if course_data.sis_account_id.startswith('dept:'):
@@ -293,11 +293,11 @@ def get_or_create_account(course_data, sis_course_id, course_job_id, bulk_job_id
         if account:
             try:
                 parent_account_id = get_single_account(SDK_CONTEXT,
-                                                    id='sis_account_id:school:'+account.school_id).json()['id']
+                                                       id='sis_account_id:school:'+account.school_id).json()['id']
                 create_new_sub_account(request_ctx=SDK_CONTEXT,
-                                    account_id=parent_account_id,
-                                    account_name=account.name,
-                                    sis_account_id=course_data.sis_account_id)
+                                       account_id=parent_account_id,
+                                       account_name=account.name,
+                                       sis_account_id=course_data.sis_account_id)
             except Exception:
                 logger.exception(f'Error creating account for {course_data.sis_account_id}.')
 
@@ -306,6 +306,8 @@ def get_or_create_account(course_data, sis_course_id, course_job_id, bulk_job_id
                                                         CanvasCourseGenerationJob.STATUS_SETUP_FAILED,
                                                         course_job_id=course_job_id,
                                                         bulk_job_id=bulk_job_id)
+
+    return account
 
 
 def start_course_template_copy(sis_course, canvas_course_id, user_id, course_job_id=None,
