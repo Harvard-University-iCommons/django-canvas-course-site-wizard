@@ -29,12 +29,12 @@ class SISCourseDataMixin(object):
         :returns: formatted string
         """
         if not hasattr(self, '_sis_account_id'):
-            if self.course.course_groups.count() > 0:
-                self._sis_account_id = 'coursegroup:%d' % self.course.course_groups.first().pk
-            elif self.course.departments.count() > 0:
-                self._sis_account_id = 'dept:%d' % self.course.departments.first().pk
+            if self.course.course_group_id:
+                self._sis_account_id = f'coursegroup:{self.course.course_group_id}'
+            elif self.course.department_id:
+                self._sis_account_id = f'dept:{self.course.department_id}'
             else:
-                self._sis_account_id = 'school:%s' % self.course.school_id
+                self._sis_account_id = f'school:{self.course.school_id}'
         return self._sis_account_id
 
     @property
@@ -384,7 +384,6 @@ class BulkCanvasCourseCreationJobManager(models.Manager):
         return self.filter(**kwargs)
 
 
-
 class BulkCanvasCourseCreationJob(models.Model):
     """
     This model maps the DB table that stores data about the 'bulk canvas course creation job'. Each job
@@ -467,7 +466,7 @@ class BulkCanvasCourseCreationJob(models.Model):
             CanvasCourseGenerationJob.STATUS_PENDING_FINALIZE
         ]
         intermediate_subjob_count = CanvasCourseGenerationJob.objects.filter(
-            workflow_state__in= subjob_intermediate_states,
+            workflow_state__in=subjob_intermediate_states,
             bulk_job_id=self.id).count()
 
         return self.status == BulkCanvasCourseCreationJob.STATUS_PENDING and intermediate_subjob_count == 0
